@@ -19,6 +19,14 @@
                 typeof(ComprasPage));
 
             Routing.RegisterRoute(
+              nameof(NovaCompraPage),
+              typeof(NovaCompraPage));
+
+            Routing.RegisterRoute(
+               nameof(DetalhesCompraPage),
+               typeof(DetalhesCompraPage));
+
+            Routing.RegisterRoute(
                 nameof(VendasPage),
                 typeof(VendasPage));
 
