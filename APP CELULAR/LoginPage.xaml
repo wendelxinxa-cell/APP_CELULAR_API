@@ -1,0 +1,71 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.LoginPage"
+             BackgroundColor="#2E2A6A"
+             Title="Login">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="25" Padding="40" VerticalOptions="Center">
+            <!-- Ícone e título -->
+            <Image Source="lock_icon.png"
+                   HeightRequest="100"
+                   HorizontalOptions="Center" />
+            <Label Text="Bem-vindo!"
+                   FontSize="32"
+                   TextColor="White"
+                   HorizontalOptions="Center" />
+
+            <!-- Campos de entrada -->
+            <Frame CornerRadius="15" BackgroundColor="#F0F0F0" Padding="10">
+                <Entry x:Name="UsernameEntry"
+                       Placeholder="Digite seu usuário"
+                       PlaceholderColor="#888"
+                       TextColor="Black" />
+            </Frame>
+
+            <Frame CornerRadius="15" BackgroundColor="#F0F0F0" Padding="10">
+                <Entry x:Name="PasswordEntry"
+                       Placeholder="Digite sua senha"
+                       IsPassword="True"
+                       PlaceholderColor="#888"
+                       TextColor="Black" />
+            </Frame>
+
+            <!-- Botão de login -->
+            <Button Text="Entrar"
+                    BackgroundColor="#007AFF"
+                    TextColor="White"
+                    CornerRadius="20"
+                    FontAttributes="Bold"
+                    Clicked="OnLoginClicked" />
+
+            <!-- Links -->
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="30">
+                <Label Text="Esqueci a senha"
+                       TextColor="#00BFFF"
+                       FontAttributes="Bold" />
+                <Label Text="Cadastre-se"
+                       TextColor="#00BFFF"
+                       FontAttributes="Bold" />
+            </HorizontalStackLayout>
+
+            <!-- Login social -->
+            <Label Text="Ou entre com"
+                   TextColor="White"
+                   HorizontalOptions="Center"
+                   FontSize="18" />
+
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
+                <ImageButton Source="facebook_icon.png"
+                             HeightRequest="40"
+                             WidthRequest="40" />
+                <ImageButton Source="google_icon.png"
+                             HeightRequest="40"
+                             WidthRequest="40" />
+                <ImageButton Source="apple_icon.png"
+                             HeightRequest="40"
+                             WidthRequest="40" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

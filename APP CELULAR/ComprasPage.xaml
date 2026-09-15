@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="APP_CELULAR.ComprasPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F5F6FA"
+    NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- CABEÇALHO -->
+        <Grid
+            Grid.Row="0"
+            BackgroundColor="#2E2A6A"
+            Padding="18,15,18,18"
+            ColumnDefinitions="Auto,*,Auto">
+
+            <!-- VOLTAR -->
+            <Button
+                Grid.Column="0"
+                Text="‹"
+                FontSize="38"
+                TextColor="White"
+                BackgroundColor="Transparent"
+                WidthRequest="45"
+                HeightRequest="50"
+                Padding="0"
+                Clicked="Voltar_Clicked" />
+
+            <!-- TÍTULO -->
+            <VerticalStackLayout
+                Grid.Column="1"
+                VerticalOptions="Center"
+                Spacing="1">
+
+                <Label
+                    Text="Compras"
+                    FontSize="23"
+                    FontAttributes="Bold"
+                    TextColor="White" />
+
+                <Label
+                    Text="Entradas de materiais"
+                    FontSize="13"
+                    TextColor="#DAD8F5" />
+
+            </VerticalStackLayout>
+
+            <!-- ÍCONE -->
+            <Label
+                Grid.Column="2"
+                Text="🛒"
+                FontSize="28"
+                VerticalOptions="Center"
+                HorizontalOptions="End" />
+
+        </Grid>
+
+
+        <!-- DATA -->
+        <Border
+            Grid.Row="1"
+            Margin="15,15,15,8"
+            Padding="15,10"
+            BackgroundColor="White"
+            Stroke="#E1E2EA"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 14">
+
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <Label
+                    Grid.Column="0"
+                    Text="📅"
+                    FontSize="24"
+                    VerticalOptions="Center"
+                    Margin="0,0,10,0" />
+
+                <VerticalStackLayout
+                    Grid.Column="1"
+                    Spacing="0"
+                    VerticalOptions="Center">
+
+                    <Label
+                        Text="Data das compras"
+                        FontSize="12"
+                        TextColor="#777777" />
+
+                    <Label
+                        x:Name="DataSelecionadaLabel"
+                        Text="Hoje"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        TextColor="#2E2A6A" />
+
+                </VerticalStackLayout>
+
+                <DatePicker
+                    Grid.Column="2"
+                    x:Name="DataPicker"
+                    Format="dd/MM/yyyy"
+                    TextColor="#2E2A6A"
+                    FontAttributes="Bold"
+                    VerticalOptions="Center"
+                    DateSelected="DataPicker_DateSelected" />
+
+            </Grid>
+
+        </Border>
+
+
+        <!-- FILTROS -->
+        <Grid
+            Grid.Row="2"
+            Margin="15,5,15,10"
+            ColumnDefinitions="*,*,*"
+            ColumnSpacing="8">
+
+            <!-- CONCLUÍDAS -->
+            <Button
+                x:Name="BtnConcluidas"
+                Grid.Column="0"
+                Text="✓  Concluídas"
+                FontSize="13"
+                FontAttributes="Bold"
+                CornerRadius="12"
+                HeightRequest="45"
+                BackgroundColor="#DDF5E5"
+                TextColor="#16803C"
+                Clicked="FiltroConcluidas_Clicked" />
+
+            <!-- PENDENTES -->
+            <Button
+                x:Name="BtnPendentes"
+                Grid.Column="1"
+                Text="●  Pendentes"
+                FontSize="13"
+                FontAttributes="Bold"
+                CornerRadius="12"
+                HeightRequest="45"
+                BackgroundColor="#DDEBFF"
+                TextColor="#2463B5"
+                Clicked="FiltroPendentes_Clicked" />
+
+            <!-- CANCELADAS -->
+            <Button
+                x:Name="BtnCanceladas"
+                Grid.Column="2"
+                Text="✕  Canceladas"
+                FontSize="13"
+                FontAttributes="Bold"
+                CornerRadius="12"
+                HeightRequest="45"
+                BackgroundColor="#FFE0E0"
+                TextColor="#C62828"
+                Clicked="FiltroCanceladas_Clicked" />
+
+        </Grid>
+
+
+        <!-- LISTA -->
+        <Grid Grid.Row="3">
+
+            <CollectionView
+                x:Name="ComprasCollection"
+                SelectionMode="None"
+                Margin="15,0,15,10">
+
+                <CollectionView.EmptyView>
+
+                    <VerticalStackLayout
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Spacing="10">
+
+                        <Label
+                            Text="🛒"
+                            FontSize="55"
+                            HorizontalOptions="Center"
+                            Opacity="0.35" />
+
+                        <Label
+                            Text="Nenhuma compra encontrada"
+                            FontSize="17"
+                            FontAttributes="Bold"
+                            TextColor="#666666"
+                            HorizontalOptions="Center" />
+
+                        <Label
+                            x:Name="MensagemVaziaLabel"
+                            Text="Não existem compras para esta data."
+                            FontSize="13"
+                            TextColor="#999999"
+                            HorizontalOptions="Center" />
+
+                    </VerticalStackLayout>
+
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+
+                    <DataTemplate>
+
+                        <Border
+                            Margin="0,5"
+                            Padding="15"
+                            BackgroundColor="White"
+                            Stroke="#E3E4EA"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16">
+
+                            <Border.GestureRecognizers>
+
+                                <TapGestureRecognizer
+                                    Tapped="Compra_Tapped" />
+
+                            </Border.GestureRecognizers>
+
+                            <Grid
+                                RowDefinitions="Auto,Auto,Auto"
+                                ColumnDefinitions="*,Auto"
+                                RowSpacing="7">
+
+                                <!-- NÚMERO + FORNECEDOR -->
+                                <VerticalStackLayout
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Spacing="2">
+
+                                    <Label
+                                        Text="{Binding NumeroCompra}"
+                                        FontSize="16"
+                                        FontAttributes="Bold"
+                                        TextColor="#2E2A6A" />
+
+                                    <Label
+                                        Text="{Binding Compra.PessoaNome}"
+                                        FontSize="15"
+                                        FontAttributes="Bold"
+                                        TextColor="#333333"
+                                        LineBreakMode="TailTruncation" />
+
+                                </VerticalStackLayout>
+
+
+                                <!-- STATUS -->
+                                <Border
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Padding="10,5"
+                                    BackgroundColor="{Binding StatusFundo}"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 10"
+                                    VerticalOptions="Start">
+
+                                    <Label
+                                        Text="{Binding StatusTexto}"
+                                        FontSize="11"
+                                        FontAttributes="Bold"
+                                        TextColor="{Binding StatusCor}" />
+
+                                </Border>
+
+
+                                <!-- INFORMAÇÕES -->
+                                <HorizontalStackLayout
+                                    Grid.Row="1"
+                                    Grid.ColumnSpan="2"
+                                    Spacing="16">
+
+                                    <HorizontalStackLayout Spacing="4">
+
+                                        <Label
+                                            Text="🕐"
+                                            FontSize="13" />
+
+                                        <Label
+                                            Text="{Binding Horario}"
+                                            FontSize="13"
+                                            TextColor="#777777" />
+
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+
+                                        <Label
+                                            Text="📦"
+                                            FontSize="13" />
+
+                                        <Label
+                                            Text="{Binding QuantidadeItensTexto}"
+                                            FontSize="13"
+                                            TextColor="#777777" />
+
+                                    </HorizontalStackLayout>
+
+                                </HorizontalStackLayout>
+
+
+                                <!-- TOTAL -->
+                                <Grid
+                                    Grid.Row="2"
+                                    Grid.ColumnSpan="2"
+                                    ColumnDefinitions="*,Auto">
+
+                                    <Label
+                                        Grid.Column="0"
+                                        Text="Total da compra"
+                                        FontSize="12"
+                                        TextColor="#999999"
+                                        VerticalOptions="End" />
+
+                                    <Label
+                                        Grid.Column="1"
+                                        Text="{Binding TotalFormatado}"
+                                        FontSize="19"
+                                        FontAttributes="Bold"
+                                        TextColor="#2E2A6A"
+                                        HorizontalOptions="End" />
+
+                                </Grid>
+
+                            </Grid>
+
+                        </Border>
+
+                    </DataTemplate>
+
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+
+        </Grid>
+
+
+        <!-- BOTÃO NOVA COMPRA -->
+        <Grid
+            Grid.Row="4"
+            Padding="15,5,20,18">
+
+            <Button
+                x:Name="BtnNovaCompra"
+                Text="+  Nova compra"
+                FontSize="16"
+                FontAttributes="Bold"
+                TextColor="White"
+                BackgroundColor="#2E2A6A"
+                CornerRadius="18"
+                HeightRequest="55"
+                HorizontalOptions="End"
+                WidthRequest="165"
+                Clicked="NovaCompra_Clicked" />
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

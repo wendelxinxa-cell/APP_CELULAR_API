@@ -1,0 +1,557 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="APP_CELULAR.NovaVendaPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F5F6FA"
+    Title="Vendas">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ========================= -->
+        <!-- CABEÇALHO -->
+        <!-- ========================= -->
+
+        <Border
+            Grid.Row="0"
+            BackgroundColor="#2E2A6A"
+            Padding="20,18">
+
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <Button
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    Padding="0"
+                    Clicked="Voltar_Clicked"/>
+
+                <VerticalStackLayout
+                    Grid.Column="1"
+                    Margin="10,0"
+                    Spacing="2">
+
+                    <Label
+                        Text="Vendas"
+                        FontSize="24"
+                        FontAttributes="Bold"
+                        TextColor="White"/>
+
+                    <Label
+                        Text="Saída de materiais"
+                        FontSize="13"
+                        TextColor="#D8D7F5"/>
+
+                </VerticalStackLayout>
+
+                <Label
+                    Grid.Column="2"
+                    Text="💰"
+                    FontSize="28"
+                    VerticalOptions="Center"/>
+
+            </Grid>
+
+        </Border>
+
+
+        <!-- ========================= -->
+        <!-- CONTEÚDO -->
+        <!-- ========================= -->
+
+        <ScrollView Grid.Row="1">
+
+            <VerticalStackLayout
+                Padding="20"
+                Spacing="16">
+
+
+                <!-- CLIENTE -->
+
+                <VerticalStackLayout Spacing="7">
+
+                    <Label
+                        Text="CLIENTE"
+                        FontSize="12"
+                        FontAttributes="Bold"
+                        TextColor="#777"/>
+
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="14">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <Label
+                                x:Name="ClienteLabel"
+                                Text="Selecione o cliente"
+                                FontSize="16"
+                                TextColor="#777"
+                                VerticalOptions="Center"/>
+
+                            <Label
+                                Grid.Column="1"
+                                Text="›"
+                                FontSize="28"
+                                TextColor="#777"
+                                VerticalOptions="Center"/>
+
+                            <Grid.GestureRecognizers>
+
+                                <TapGestureRecognizer
+                                    Tapped="SelecionarCliente_Clicked"/>
+
+                            </Grid.GestureRecognizers>
+
+                        </Grid>
+
+                    </Border>
+
+                </VerticalStackLayout>
+
+
+                <!-- MATERIAL -->
+
+                <VerticalStackLayout Spacing="7">
+
+                    <Label
+                        Text="MATERIAL"
+                        FontSize="12"
+                        FontAttributes="Bold"
+                        TextColor="#777"/>
+
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="14">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <Label
+                                x:Name="MaterialLabel"
+                                Text="Selecione o material"
+                                FontSize="16"
+                                TextColor="#777"
+                                VerticalOptions="Center"/>
+
+                            <Label
+                                Grid.Column="1"
+                                Text="›"
+                                FontSize="28"
+                                TextColor="#777"
+                                VerticalOptions="Center"/>
+
+                            <Grid.GestureRecognizers>
+
+                                <TapGestureRecognizer
+                                    Tapped="SelecionarMaterial_Clicked"/>
+
+                            </Grid.GestureRecognizers>
+
+                        </Grid>
+
+                    </Border>
+
+                </VerticalStackLayout>
+
+
+                <!-- ESTOQUE -->
+
+                <Border
+                    BackgroundColor="#EEEAFB"
+                    StrokeThickness="0"
+                    Padding="14">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14"/>
+                    </Border.StrokeShape>
+
+                    <Grid ColumnDefinitions="*,Auto">
+
+                        <VerticalStackLayout Spacing="2">
+
+                            <Label
+                                Text="ESTOQUE DISPONÍVEL"
+                                FontSize="11"
+                                FontAttributes="Bold"
+                                TextColor="#777"/>
+
+                            <Label
+                                x:Name="EstoqueLabel"
+                                Text="Selecione um material"
+                                FontSize="15"
+                                FontAttributes="Bold"
+                                TextColor="#2E2A6A"/>
+
+                        </VerticalStackLayout>
+
+                        <Label
+                            Grid.Column="1"
+                            Text="📦"
+                            FontSize="25"
+                            VerticalOptions="Center"/>
+
+                    </Grid>
+
+                </Border>
+
+
+                <!-- QUANTIDADE -->
+
+                <VerticalStackLayout Spacing="7">
+
+                    <Label
+                        Text="QUANTIDADE"
+                        FontSize="12"
+                        FontAttributes="Bold"
+                        TextColor="#777"/>
+
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="10">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+
+                        <Entry
+                            x:Name="QuantidadeEntry"
+                            Placeholder="0,00"
+                            Keyboard="Numeric"
+                            FontSize="18"
+                            TextColor="#222"
+                            TextChanged="Quantidade_TextChanged"/>
+
+                    </Border>
+
+                </VerticalStackLayout>
+
+
+                <!-- PREÇO -->
+
+                <VerticalStackLayout Spacing="7">
+
+                    <Label
+                        Text="PREÇO DE VENDA"
+                        FontSize="12"
+                        FontAttributes="Bold"
+                        TextColor="#777"/>
+
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="10">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+
+                        <Entry
+                            x:Name="PrecoEntry"
+                            Placeholder="R$ 0,00"
+                            Keyboard="Numeric"
+                            FontSize="18"
+                            TextColor="#222"
+                            TextChanged="Preco_TextChanged"/>
+
+                    </Border>
+
+                </VerticalStackLayout>
+
+
+                <!-- TOTAL DO ITEM -->
+
+                <Border
+                    BackgroundColor="#2E2A6A"
+                    StrokeThickness="0"
+                    Padding="18">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16"/>
+                    </Border.StrokeShape>
+
+                    <Grid ColumnDefinitions="*,Auto">
+
+                        <VerticalStackLayout Spacing="2">
+
+                            <Label
+                                Text="TOTAL DO ITEM"
+                                FontSize="11"
+                                FontAttributes="Bold"
+                                TextColor="#D8D7F5"/>
+
+                            <Label
+                                x:Name="TotalItemLabel"
+                                Text="R$ 0,00"
+                                FontSize="25"
+                                FontAttributes="Bold"
+                                TextColor="White"/>
+
+                        </VerticalStackLayout>
+
+                        <Label
+                            Grid.Column="1"
+                            Text="💵"
+                            FontSize="28"
+                            VerticalOptions="Center"/>
+
+                    </Grid>
+
+                </Border>
+
+
+                <!-- ADICIONAR ITEM -->
+
+                <Button
+                    Text="+  ADICIONAR ITEM"
+                    BackgroundColor="#007AFF"
+                    TextColor="White"
+                    FontSize="15"
+                    FontAttributes="Bold"
+                    CornerRadius="14"
+                    HeightRequest="52"
+                    Clicked="AdicionarItem_Clicked"/>
+
+
+                <!-- ITENS -->
+
+                <Label
+                    Text="Itens da venda"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    TextColor="#222"
+                    Margin="0,5,0,0"/>
+
+
+                <CollectionView
+                    x:Name="ItensCollection"
+                    SelectionMode="None">
+
+                    <CollectionView.EmptyView>
+
+                        <Border
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="20">
+
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="14"/>
+                            </Border.StrokeShape>
+
+                            <VerticalStackLayout
+                                Spacing="5"
+                                HorizontalOptions="Center">
+
+                                <Label
+                                    Text="💰"
+                                    FontSize="35"
+                                    HorizontalOptions="Center"/>
+
+                                <Label
+                                    Text="Nenhum item adicionado"
+                                    FontAttributes="Bold"
+                                    TextColor="#555"
+                                    HorizontalOptions="Center"/>
+
+                            </VerticalStackLayout>
+
+                        </Border>
+
+                    </CollectionView.EmptyView>
+
+
+                    <CollectionView.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <Border
+                                BackgroundColor="White"
+                                StrokeThickness="0"
+                                Padding="15"
+                                Margin="0,0,0,10">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="15"/>
+                                </Border.StrokeShape>
+
+                                <Grid
+                                    ColumnDefinitions="*,Auto">
+
+                                    <VerticalStackLayout
+                                        Spacing="4">
+
+                                        <Label
+                                            Text="{Binding MaterialNome}"
+                                            FontSize="16"
+                                            FontAttributes="Bold"
+                                            TextColor="#222"/>
+
+                                        <Label
+                                            FontSize="13"
+                                            TextColor="#777">
+
+                                            <Label.FormattedText>
+
+                                                <FormattedString>
+
+                                                    <Span
+                                                        Text="{Binding Quantidade, StringFormat='{0:N2}'}"/>
+
+                                                    <Span
+                                                        Text=" "/>
+
+                                                    <Span
+                                                        Text="{Binding Unidade}"/>
+
+                                                    <Span
+                                                        Text=" × R$ "/>
+
+                                                    <Span
+                                                        Text="{Binding PrecoUnitario, StringFormat='{0:N2}'}"/>
+
+                                                </FormattedString>
+
+                                            </Label.FormattedText>
+
+                                        </Label>
+
+                                    </VerticalStackLayout>
+
+
+                                    <VerticalStackLayout
+                                        Grid.Column="1"
+                                        Spacing="3"
+                                        HorizontalOptions="End">
+
+                                        <Label
+                                            Text="{Binding ValorTotal, StringFormat='R$ {0:N2}'}"
+                                            FontSize="16"
+                                            FontAttributes="Bold"
+                                            TextColor="#2E2A6A"
+                                            HorizontalTextAlignment="End"/>
+
+                                        <Label
+                                            Text="Remover"
+                                            FontSize="11"
+                                            TextColor="#D9534F"
+                                            HorizontalTextAlignment="End">
+
+                                            <Label.GestureRecognizers>
+
+                                                <TapGestureRecognizer
+                                                    Tapped="RemoverItem_Clicked"/>
+
+                                            </Label.GestureRecognizers>
+
+                                        </Label>
+
+                                    </VerticalStackLayout>
+
+                                </Grid>
+
+                            </Border>
+
+                        </DataTemplate>
+
+                    </CollectionView.ItemTemplate>
+
+                </CollectionView>
+
+
+                <!-- TOTAL DA VENDA -->
+
+                <Border
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    Padding="18"
+                    Margin="0,5,0,0">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16"/>
+                    </Border.StrokeShape>
+
+                    <Grid ColumnDefinitions="*,Auto">
+
+                        <Label
+                            Text="TOTAL DA VENDA"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            TextColor="#555"
+                            VerticalOptions="Center"/>
+
+                        <Label
+                            x:Name="TotalVendaLabel"
+                            Grid.Column="1"
+                            Text="R$ 0,00"
+                            FontSize="23"
+                            FontAttributes="Bold"
+                            TextColor="#2E2A6A"/>
+
+                    </Grid>
+
+                </Border>
+
+
+                <!-- OBSERVAÇÃO -->
+
+                <VerticalStackLayout Spacing="7">
+
+                    <Label
+                        Text="OBSERVAÇÃO"
+                        FontSize="12"
+                        FontAttributes="Bold"
+                        TextColor="#777"/>
+
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="10">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14"/>
+                        </Border.StrokeShape>
+
+                        <Editor
+                            x:Name="ObservacaoEditor"
+                            Placeholder="Observações da venda..."
+                            AutoSize="TextChanges"
+                            MinimumHeightRequest="80"
+                            TextColor="#222"/>
+
+                    </Border>
+
+                </VerticalStackLayout>
+
+
+                <!-- FINALIZAR -->
+
+                <Button
+                    Text="FINALIZAR VENDA"
+                    BackgroundColor="#2E2A6A"
+                    TextColor="White"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    CornerRadius="15"
+                    HeightRequest="55"
+                    Margin="0,5,0,25"
+                    Clicked="FinalizarVenda_Clicked"/>
+
+            </VerticalStackLayout>
+
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

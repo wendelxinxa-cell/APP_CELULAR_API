@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="APP_CELULAR.PessoasPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F5F6FA"
+    Title="Pessoas">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- CABEÇALHO -->
+        <Border
+            Grid.Row="0"
+            BackgroundColor="#2E2A6A"
+            Padding="20,18">
+
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <Button
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    Padding="0"
+                    Clicked="Voltar_Clicked"/>
+
+                <VerticalStackLayout
+                    Grid.Column="1"
+                    Spacing="2"
+                    Margin="10,0">
+
+                    <Label
+                        x:Name="TituloLabel"
+                        Text="Pessoas"
+                        FontSize="24"
+                        FontAttributes="Bold"
+                        TextColor="White"/>
+
+                    <Label
+                        x:Name="QuantidadeLabel"
+                        Text="0 cadastradas"
+                        FontSize="13"
+                        TextColor="#D8D7F5"/>
+                </VerticalStackLayout>
+
+                <Label
+                    Grid.Column="2"
+                    Text="👥"
+                    FontSize="30"
+                    VerticalOptions="Center"/>
+            </Grid>
+        </Border>
+
+        <Grid
+            Grid.Row="1"
+            Padding="20"
+            RowDefinitions="Auto,Auto,*">
+
+
+            <!-- PESQUISA -->
+            <Border
+            Grid.Row="1"
+            Margin="20,-22,20,0"
+            BackgroundColor="White"
+            StrokeThickness="0"
+            Padding="15,5">
+
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="18" />
+                </Border.StrokeShape>
+
+                <Grid ColumnDefinitions="35,*">
+
+                    <Label
+                    Grid.Column="0"
+                    Text="⌕"
+                    FontSize="28"
+                    TextColor="#777777"
+                    VerticalTextAlignment="Center"
+                    HorizontalTextAlignment="Center" />
+
+                    <Entry
+                    Grid.Column="1"
+                    x:Name="PesquisaEntry"
+                    Placeholder="Pesquisar..."
+                    PlaceholderColor="#999999"
+                    TextColor="#222222"
+                    FontSize="15"
+                    BackgroundColor="Transparent"
+                    TextChanged="Pesquisa_TextChanged" />
+
+                </Grid>
+
+            </Border>
+
+            <!-- TÍTULO -->
+            <Label
+                Grid.Row="1"
+                Text="Cadastros"
+                FontSize="18"
+                FontAttributes="Bold"
+                TextColor="#222"
+                Margin="0,5,0,10"/>
+
+            <Picker
+                x:Name="TipoCadastroPicker"
+                Title="Selecione o tipo"
+                TextColor="#222">
+
+                <Picker.Items>
+                    <x:String>Cliente</x:String>
+                    <x:String>Fornecedor</x:String>
+                    <x:String>Cliente + Fornecedor</x:String>
+                </Picker.Items>
+
+            </Picker>
+            
+            <!-- LISTA -->
+            <CollectionView
+                Grid.Row="2"
+                x:Name="PessoasCollection"
+                SelectionMode="None">
+
+                <CollectionView.EmptyView>
+
+                    <VerticalStackLayout
+                        VerticalOptions="Center"
+                        HorizontalOptions="Center"
+                        Spacing="10">
+
+                        <Label
+                            Text="👥"
+                            FontSize="50"
+                            HorizontalOptions="Center"/>
+
+                        <Label
+                            Text="Nenhuma pessoa cadastrada"
+                            FontSize="17"
+                            FontAttributes="Bold"
+                            TextColor="#555"
+                            HorizontalOptions="Center"/>
+
+                        <Label
+                            Text="Toque no + para cadastrar"
+                            FontSize="14"
+                            TextColor="#888"
+                            HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+
+                    <DataTemplate>
+
+                        <Border
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="15"
+                            Margin="0,0,0,10">
+
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="16"/>
+                            </Border.StrokeShape>
+
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                                <Border
+                                    WidthRequest="48"
+                                    HeightRequest="48"
+                                    BackgroundColor="#EEEAFB"
+                                    StrokeThickness="0"
+                                    VerticalOptions="Center">
+
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="24"/>
+                                    </Border.StrokeShape>
+
+                                    <Label
+                                        Text="👤"
+                                        FontSize="23"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Center"/>
+                                </Border>
+
+                                <VerticalStackLayout
+                                    Grid.Column="1"
+                                    Margin="12,0"
+                                    VerticalOptions="Center"
+                                    Spacing="4">
+
+                                    <Label
+                                        Text="{Binding Nome}"
+                                        FontSize="16"
+                                        FontAttributes="Bold"
+                                        TextColor="#222"/>
+
+                                    <Label
+                                        Text="{Binding Documento}"
+                                        FontSize="13"
+                                        TextColor="#888"/>
+
+                                    <HorizontalStackLayout Spacing="8">
+
+                                        <Label
+                                            Text="CLIENTE"
+                                            FontSize="10"
+                                            TextColor="#2E2A6A"
+                                            IsVisible="{Binding Cliente}"/>
+
+                                        <Label
+                                            Text="FORNECEDOR"
+                                            FontSize="10"
+                                            TextColor="#777"
+                                            IsVisible="{Binding Fornecedor}"/>
+
+                                    </HorizontalStackLayout>
+
+                                </VerticalStackLayout>
+
+                                <Label
+                                    Grid.Column="2"
+                                    Text="⋮"
+                                    FontSize="28"
+                                    TextColor="#777"
+                                    VerticalOptions="Center">
+
+                                    <Label.GestureRecognizers>
+
+                                        <TapGestureRecognizer
+                                            Tapped="MenuPessoa_Clicked"/>
+
+                                    </Label.GestureRecognizers>
+
+                                </Label>
+
+                            </Grid>
+
+                        </Border>
+
+                    </DataTemplate>
+
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+
+            <!-- BOTÃO ADICIONAR -->
+            <Border
+                Grid.Row="2"
+                WidthRequest="60"
+                HeightRequest="60"
+                BackgroundColor="#2E2A6A"
+                StrokeThickness="0"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,5,5">
+
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="30"/>
+                </Border.StrokeShape>
+
+                <Label
+                    Text="+"
+                    FontSize="32"
+                    TextColor="White"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+
+                    <Label.GestureRecognizers>
+
+                        <TapGestureRecognizer
+                            Tapped="Adicionar_Clicked"/>
+
+                    </Label.GestureRecognizers>
+
+                </Label>
+
+            </Border>
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

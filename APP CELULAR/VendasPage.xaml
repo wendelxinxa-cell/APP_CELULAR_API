@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="APP_CELULAR.VendasPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F5F6FA"
+    Title="Vendas">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- CABEÇALHO -->
+        <Border
+            Grid.Row="0"
+            BackgroundColor="#2E2A6A"
+            Padding="18,16">
+
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <Button
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    Padding="0"
+                    Clicked="Voltar_Clicked"/>
+
+                <VerticalStackLayout
+                    Grid.Column="1"
+                    Margin="10,0"
+                    Spacing="1">
+
+                    <Label
+                        Text="Vendas"
+                        FontSize="23"
+                        FontAttributes="Bold"
+                        TextColor="White"/>
+
+                    <Label
+                        Text="Pedidos e movimentações"
+                        FontSize="12"
+                        TextColor="#D8D7F5"/>
+
+                </VerticalStackLayout>
+
+                <Label
+                    Grid.Column="2"
+                    Text="🛒"
+                    FontSize="25"
+                    VerticalOptions="Center"/>
+
+            </Grid>
+
+        </Border>
+
+
+        <!-- CONTEÚDO -->
+        <Grid
+            Grid.Row="1">
+
+            <ScrollView>
+
+                <VerticalStackLayout
+                    Padding="14,15,14,90"
+                    Spacing="12">
+
+                    <!-- DATA -->
+                    <Border
+                        BackgroundColor="White"
+                        StrokeThickness="0"
+                        Padding="10">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="13"/>
+                        </Border.StrokeShape>
+
+                        <Grid
+                            ColumnDefinitions="Auto,*,Auto"
+                            ColumnSpacing="10">
+
+                            <Label
+                                Text="📅"
+                                FontSize="22"
+                                VerticalOptions="Center"/>
+
+                            <DatePicker
+                                x:Name="DataFiltro"
+                                Grid.Column="1"
+                                Format="dd/MM/yyyy"
+                                FontSize="16"
+                                TextColor="#222"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Center"
+                                DateSelected="DataFiltro_DateSelected"/>
+
+                            <Label
+                                Grid.Column="2"
+                                Text="⌄"
+                                FontSize="24"
+                                TextColor="#555"
+                                VerticalOptions="Center"/>
+
+                        </Grid>
+
+                    </Border>
+
+
+                    <!-- FILTROS DE STATUS -->
+                    <Grid
+                        ColumnDefinitions="*,*,*"
+                        ColumnSpacing="7">
+
+                        <!-- CONCLUÍDOS -->
+                        <Button
+                            x:Name="BtnConcluidos"
+                            Grid.Column="0"
+                            Text="✓  Concluídos"
+                            FontSize="12"
+                            FontAttributes="Bold"
+                            BackgroundColor="#19A957"
+                            TextColor="White"
+                            CornerRadius="11"
+                            HeightRequest="44"
+                            Clicked="FiltroConcluidos_Clicked"/>
+
+                        <!-- PENDENTES -->
+                        <Button
+                            x:Name="BtnPendentes"
+                            Grid.Column="1"
+                            Text="◷  Pendentes"
+                            FontSize="12"
+                            FontAttributes="Bold"
+                            BackgroundColor="#1689E8"
+                            TextColor="White"
+                            CornerRadius="11"
+                            HeightRequest="44"
+                            Clicked="FiltroPendentes_Clicked"/>
+
+                        <!-- CANCELADOS -->
+                        <Button
+                            x:Name="BtnCancelados"
+                            Grid.Column="2"
+                            Text="✕  Cancelados"
+                            FontSize="12"
+                            FontAttributes="Bold"
+                            BackgroundColor="#EF3340"
+                            TextColor="White"
+                            CornerRadius="11"
+                            HeightRequest="44"
+                            Clicked="FiltroCancelados_Clicked"/>
+
+                    </Grid>
+
+
+                    <!-- INDICAÇÃO DO FILTRO -->
+                    <Label
+                        x:Name="FiltroLabel"
+                        Text="Todos os pedidos"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        TextColor="#555"
+                        Margin="2,4,0,0"/>
+
+
+                    <!-- LISTA -->
+                    <CollectionView
+                        x:Name="PedidosCollection"
+                        SelectionMode="Single"
+                        SelectionChanged="PedidosCollection_SelectionChanged">
+
+                        <CollectionView.EmptyView>
+
+                            <Border
+                                BackgroundColor="White"
+                                StrokeThickness="0"
+                                Padding="30"
+                                Margin="0,10">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16"/>
+                                </Border.StrokeShape>
+
+                                <VerticalStackLayout
+                                    Spacing="8"
+                                    HorizontalOptions="Center">
+
+                                    <Label
+                                        Text="🛒"
+                                        FontSize="40"
+                                        HorizontalOptions="Center"/>
+
+                                    <Label
+                                        Text="Nenhum pedido encontrado"
+                                        FontSize="16"
+                                        FontAttributes="Bold"
+                                        TextColor="#555"
+                                        HorizontalOptions="Center"/>
+
+                                    <Label
+                                        Text="Não existem vendas para esta data."
+                                        FontSize="13"
+                                        TextColor="#888"
+                                        HorizontalOptions="Center"/>
+
+                                </VerticalStackLayout>
+
+                            </Border>
+
+                        </CollectionView.EmptyView>
+
+
+                        <CollectionView.ItemTemplate>
+
+                            <DataTemplate>
+
+                                <Border
+                                    BackgroundColor="White"
+                                    StrokeThickness="0"
+                                    Padding="13"
+                                    Margin="0,0,0,8">
+
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="14"/>
+                                    </Border.StrokeShape>
+
+                                    <Grid
+                                        ColumnDefinitions="*,Auto"
+                                        RowDefinitions="Auto,Auto,Auto">
+
+                                        <!-- PEDIDO -->
+                                        <Label
+                                            Text="{Binding NumeroPedido}"
+                                            FontSize="15"
+                                            FontAttributes="Bold"
+                                            TextColor="#1F2A44"/>
+
+                                        <!-- STATUS -->
+                                        <Border
+                                            Grid.Column="1"
+                                            BackgroundColor="{Binding StatusFundo}"
+                                            Padding="9,5"
+                                            StrokeThickness="0">
+
+                                            <Border.StrokeShape>
+                                                <RoundRectangle CornerRadius="10"/>
+                                            </Border.StrokeShape>
+
+                                            <Label
+                                                Text="{Binding StatusTexto}"
+                                                FontSize="11"
+                                                FontAttributes="Bold"
+                                                TextColor="White"/>
+
+                                        </Border>
+
+
+                                        <!-- CLIENTE -->
+                                        <Label
+                                            Grid.Row="1"
+                                            Text="{Binding Cliente}"
+                                            FontSize="14"
+                                            TextColor="#555"
+                                            Margin="0,4,0,0"/>
+
+
+                                        <!-- DATA -->
+                                        <Label
+                                            Grid.Row="2"
+                                            Text="{Binding DataHora}"
+                                            FontSize="12"
+                                            TextColor="#8A8A8A"
+                                            Margin="0,2,0,0"/>
+
+
+                                        <!-- VALOR -->
+                                        <Label
+                                            Grid.Column="1"
+                                            Grid.Row="2"
+                                            Text="{Binding Valor}"
+                                            FontSize="15"
+                                            FontAttributes="Bold"
+                                            TextColor="#2E2A6A"
+                                            HorizontalTextAlignment="End"
+                                            VerticalOptions="End"/>
+
+
+                                        <!-- SETA -->
+                                        <Label
+                                            Grid.Column="1"
+                                            Grid.Row="1"
+                                            Text="›"
+                                            FontSize="25"
+                                            TextColor="#777"
+                                            HorizontalTextAlignment="End"
+                                            VerticalOptions="Center"/>
+
+                                    </Grid>
+
+                                </Border>
+
+                            </DataTemplate>
+
+                        </CollectionView.ItemTemplate>
+
+                    </CollectionView>
+
+                </VerticalStackLayout>
+
+            </ScrollView>
+
+
+            <!-- BOTÃO + -->
+            <Border
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,18,18"
+                WidthRequest="58"
+                HeightRequest="58"
+                BackgroundColor="#5335B8"
+                StrokeThickness="0">
+
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="29"/>
+                </Border.StrokeShape>
+
+                <Label
+                    Text="+"
+                    FontSize="34"
+                    TextColor="White"
+                    HorizontalTextAlignment="Center"
+                    VerticalTextAlignment="Center"/>
+
+                <Border.GestureRecognizers>
+
+                    <TapGestureRecognizer
+                        Tapped="NovoPedido_Tapped"/>
+
+                </Border.GestureRecognizers>
+
+            </Border>
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

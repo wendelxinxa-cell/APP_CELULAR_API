@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="APP_CELULAR.DetalhesVendaPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F5F6FA"
+    Title="Detalhes do Pedido">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ========================= -->
+        <!-- CABEÇALHO -->
+        <!-- ========================= -->
+
+        <Border
+            Grid.Row="0"
+            BackgroundColor="#2E2A6A"
+            Padding="18,16">
+
+            <Grid ColumnDefinitions="Auto,*">
+
+                <Button
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    Padding="0"
+                    Clicked="Voltar_Clicked"/>
+
+                <VerticalStackLayout
+                    Grid.Column="1"
+                    Margin="10,0"
+                    Spacing="1">
+
+                    <Label
+                        Text="Detalhes do Pedido"
+                        FontSize="21"
+                        FontAttributes="Bold"
+                        TextColor="White"/>
+
+                    <Label
+                        x:Name="CabecalhoNumeroLabel"
+                        FontSize="12"
+                        TextColor="#D8D7F5"/>
+
+                </VerticalStackLayout>
+
+            </Grid>
+
+        </Border>
+
+
+        <!-- ========================= -->
+        <!-- CONTEÚDO -->
+        <!-- ========================= -->
+
+        <ScrollView Grid.Row="1">
+
+            <VerticalStackLayout
+                Padding="14"
+                Spacing="12">
+
+
+                <!-- ========================= -->
+                <!-- STATUS / PEDIDO -->
+                <!-- ========================= -->
+
+                <Border
+                    x:Name="StatusBorder"
+                    BackgroundColor="#E8F8EE"
+                    StrokeThickness="0"
+                    Padding="15">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <Grid ColumnDefinitions="*,Auto">
+
+                        <VerticalStackLayout
+                            Spacing="3">
+
+                            <Label
+                                x:Name="StatusLabel"
+                                Text="✓ Concluído"
+                                FontSize="14"
+                                FontAttributes="Bold"/>
+
+                            <Label
+                                x:Name="DataLabel"
+                                FontSize="12"
+                                TextColor="#666"/>
+
+                        </VerticalStackLayout>
+
+                        <Label
+                            x:Name="NumeroLabel"
+                            Grid.Column="1"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            TextColor="#1F2A44"
+                            VerticalOptions="Center"/>
+
+                    </Grid>
+
+                </Border>
+
+
+                <!-- ========================= -->
+                <!-- CLIENTE -->
+                <!-- ========================= -->
+
+                <Border
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    Padding="15">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout
+                        Spacing="5">
+
+                        <Label
+                            Text="CLIENTE"
+                            FontSize="11"
+                            FontAttributes="Bold"
+                            TextColor="#777"/>
+
+                        <Label
+                            x:Name="ClienteLabel"
+                            Text="Cliente"
+                            FontSize="17"
+                            FontAttributes="Bold"
+                            TextColor="#222"/>
+
+                    </VerticalStackLayout>
+
+                </Border>
+
+
+                <!-- ========================= -->
+                <!-- PRODUTOS -->
+                <!-- ========================= -->
+
+                <Border
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    Padding="15">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout
+                        Spacing="10">
+
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <Label
+                                Text="PRODUTOS"
+                                FontSize="13"
+                                FontAttributes="Bold"
+                                TextColor="#555"/>
+
+                            <Label
+                                x:Name="QuantidadeItensLabel"
+                                Grid.Column="1"
+                                FontSize="12"
+                                TextColor="#888"/>
+
+                        </Grid>
+
+
+                        <!-- OS PRODUTOS SERÃO INSERIDOS AQUI -->
+                        <VerticalStackLayout
+                            x:Name="ItensLayout"
+                            Spacing="8"/>
+
+
+                        <!-- TOTAL DOS PRODUTOS -->
+                        <BoxView
+                            HeightRequest="1"
+                            BackgroundColor="#EEEEEE"
+                            Margin="0,4"/>
+
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <Label
+                                Text="Subtotal"
+                                FontSize="13"
+                                TextColor="#777"/>
+
+                            <Label
+                                x:Name="SubtotalLabel"
+                                Grid.Column="1"
+                                FontSize="14"
+                                FontAttributes="Bold"
+                                TextColor="#333"/>
+
+                        </Grid>
+
+                    </VerticalStackLayout>
+
+                </Border>
+
+
+                <!-- ========================= -->
+                <!-- TOTAL -->
+                <!-- ========================= -->
+
+                <Border
+                    BackgroundColor="#2E2A6A"
+                    StrokeThickness="0"
+                    Padding="17">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <Grid ColumnDefinitions="*,Auto">
+
+                        <VerticalStackLayout
+                            Spacing="2">
+
+                            <Label
+                                Text="TOTAL DO PEDIDO"
+                                FontSize="12"
+                                FontAttributes="Bold"
+                                TextColor="#D8D7F5"/>
+
+                            <Label
+                                Text="Valor total da venda"
+                                FontSize="11"
+                                TextColor="#D8D7F5"/>
+
+                        </VerticalStackLayout>
+
+                        <Label
+                            x:Name="TotalLabel"
+                            Grid.Column="1"
+                            FontSize="24"
+                            FontAttributes="Bold"
+                            TextColor="White"
+                            VerticalOptions="Center"/>
+
+                    </Grid>
+
+                </Border>
+
+
+                <!-- ========================= -->
+                <!-- OBSERVAÇÃO -->
+                <!-- ========================= -->
+
+                <Border
+                    BackgroundColor="White"
+                    StrokeThickness="0"
+                    Padding="15">
+
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="15"/>
+                    </Border.StrokeShape>
+
+                    <VerticalStackLayout
+                        Spacing="6">
+
+                        <Label
+                            Text="OBSERVAÇÃO"
+                            FontSize="11"
+                            FontAttributes="Bold"
+                            TextColor="#777"/>
+
+                        <Label
+                            x:Name="ObservacaoLabel"
+                            Text="Nenhuma observação."
+                            FontSize="14"
+                            TextColor="#555"/>
+
+                    </VerticalStackLayout>
+
+                </Border>
+
+
+                <!-- ========================= -->
+                <!-- AÇÕES -->
+                <!-- ========================= -->
+
+                <VerticalStackLayout
+                    Spacing="9"
+                    Margin="0,4,0,25">
+
+                    <Button
+                        x:Name="EditarButton"
+                        Text="✎  EDITAR PEDIDO"
+                        BackgroundColor="#5335B8"
+                        TextColor="White"
+                        FontSize="15"
+                        FontAttributes="Bold"
+                        CornerRadius="13"
+                        HeightRequest="50"
+                        Clicked="Editar_Clicked"/>
+
+                    <Button
+                        x:Name="CancelarButton"
+                        Text="✕  CANCELAR PEDIDO"
+                        BackgroundColor="#EF3340"
+                        TextColor="White"
+                        FontSize="15"
+                        FontAttributes="Bold"
+                        CornerRadius="13"
+                        HeightRequest="50"
+                        Clicked="Cancelar_Clicked"/>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

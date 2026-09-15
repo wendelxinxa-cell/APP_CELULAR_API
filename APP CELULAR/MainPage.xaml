@@ -1,0 +1,654 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="APP_CELULAR.MainPage"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="#F5F6FA">
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ================================================= -->
+        <!-- CABEÇALHO -->
+        <!-- ================================================= -->
+
+        <Border Grid.Row="0"
+                BackgroundColor="#2E2A6A"
+                StrokeThickness="0"
+                Padding="22,18,22,22">
+
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="0,0,28,28" />
+            </Border.StrokeShape>
+
+            <Grid RowDefinitions="Auto,Auto"
+                  ColumnDefinitions="*,Auto"
+                  RowSpacing="20">
+
+                <!-- Logo / nome -->
+                <VerticalStackLayout Grid.Row="0"
+                                     Grid.Column="0"
+                                     Spacing="2">
+
+                    <Label Text="APP CELULAR"
+                           TextColor="White"
+                           FontSize="13"
+                           FontAttributes="Bold"
+                           CharacterSpacing="1.5" />
+
+                    <Label Text="Painel principal"
+                           TextColor="#DAD8FF"
+                           FontSize="13" />
+
+                </VerticalStackLayout>
+
+                <!-- Botões do cabeçalho -->
+                <HorizontalStackLayout Grid.Row="0"
+                                       Grid.Column="1"
+                                       Spacing="8">
+
+                    <Border WidthRequest="44"
+                            HeightRequest="44"
+                            BackgroundColor="#FFFFFF1A"
+                            StrokeThickness="0">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14" />
+                        </Border.StrokeShape>
+
+                        <Label Text="🔔"
+                               FontSize="18"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+
+                    </Border>
+
+                    <Border WidthRequest="44"
+                            HeightRequest="44"
+                            BackgroundColor="#FFFFFF1A"
+                            StrokeThickness="0">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="14" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Sair_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <Label Text="⏻"
+                               FontSize="22"
+                               TextColor="White"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+
+                    </Border>
+
+                </HorizontalStackLayout>
+
+
+                <!-- Saudação -->
+                <VerticalStackLayout Grid.Row="1"
+                                     Grid.ColumnSpan="2"
+                                     Spacing="4">
+
+                    <Label Text="Olá, seja bem-vindo! 👋"
+                           TextColor="White"
+                           FontSize="25"
+                           FontAttributes="Bold" />
+
+                    <Label Text="Acesse rapidamente as funções do sistema."
+                           TextColor="#DAD8FF"
+                           FontSize="14" />
+
+                </VerticalStackLayout>
+
+            </Grid>
+
+        </Border>
+
+
+        <!-- ================================================= -->
+        <!-- CONTEÚDO -->
+        <!-- ================================================= -->
+
+        <ScrollView Grid.Row="1">
+
+            <VerticalStackLayout Padding="20,22,20,30"
+                                 Spacing="20">
+
+
+                <!-- ================================================= -->
+                <!-- RESUMO -->
+                <!-- ================================================= -->
+
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+
+                    <!-- Clientes -->
+                    <Border Grid.Column="0"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="18" />
+                        </Border.StrokeShape>
+
+                        <VerticalStackLayout Spacing="5">
+
+                            <Label Text="CLIENTES"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#888888"
+                                   CharacterSpacing="1" />
+
+                            <Label Text="--"
+                                   FontSize="25"
+                                   FontAttributes="Bold"
+                                   TextColor="#2E2A6A" />
+
+                            <Label Text="Cadastrados"
+                                   FontSize="12"
+                                   TextColor="#999999" />
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+
+                    <!-- Vendas -->
+                    <Border Grid.Column="1"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="18" />
+                        </Border.StrokeShape>
+
+                        <VerticalStackLayout Spacing="5">
+
+                            <Label Text="VENDAS"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#888888"
+                                   CharacterSpacing="1" />
+
+                            <Label Text="R$ --"
+                                   FontSize="25"
+                                   FontAttributes="Bold"
+                                   TextColor="#007AFF" />
+
+                            <Label Text="Hoje"
+                                   FontSize="12"
+                                   TextColor="#999999" />
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+                </Grid>
+
+
+                <!-- ================================================= -->
+                <!-- TÍTULO MÓDULOS -->
+                <!-- ================================================= -->
+
+                <Grid ColumnDefinitions="*,Auto">
+
+                    <Label Grid.Column="0"
+                           Text="Módulos"
+                           FontSize="21"
+                           FontAttributes="Bold"
+                           TextColor="#292929" />
+
+                    <Label Grid.Column="1"
+                           Text="Todos"
+                           FontSize="13"
+                           TextColor="#007AFF"
+                           VerticalOptions="Center" />
+
+                </Grid>
+
+
+                <!-- ================================================= -->
+                <!-- MENU -->
+                <!-- ================================================= -->
+
+                <Grid ColumnDefinitions="*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto"
+                      ColumnSpacing="14"
+                      RowSpacing="14">
+
+
+                    <!-- COMPRAS -->
+                    <Border Grid.Row="2"
+                            Grid.Column="0"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Compras_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#F0ECFF"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="🛒"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Compras"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Entrada de Mercadorias"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+
+                    <!-- VENDAS -->
+                    <Border Grid.Row="1"
+                            Grid.Column="0"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Vendas_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#E8F8F0"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="🛒"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Vendas"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Pedidos"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+                    
+                    <!-- PESSOAS -->
+                    <Border Grid.Row="0"
+                            Grid.Column="0"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Pessoas_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#EEEAFE"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="👥"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Clientes/Fornecedores"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Cadastros"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+
+                    <!-- PRODUTOS -->
+                    <Border Grid.Row="0"
+                            Grid.Column="1"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Produtos_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#E8F3FF"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="📦"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Produtos"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Estoque"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+                    <!-- FINANCEIRO -->
+                    <Border Grid.Row="1"
+                            Grid.Column="1"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Financeiro_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#FFF4E5"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="💰"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Financeiro"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Contas"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+                    <!-- CONFIGURAÇÕES -->
+                    <Border Grid.Row="2"
+                            Grid.Column="1"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Configuracoes_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#F1F1F1"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="⚙️"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Configurações"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Preferências"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+
+                    <!-- USUÁRIOS -->
+                    <Border Grid.Row="3"
+                            Grid.Column="0"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Usuarios_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#EDEFFF"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="🔐"
+                                       FontSize="25"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Usuários"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Permissões"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+
+                    <!-- OUTROS -->
+                    <Border Grid.Row="3"
+                            Grid.Column="1"
+                            BackgroundColor="White"
+                            StrokeThickness="0"
+                            Padding="16">
+
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="Outros_Clicked" />
+                        </Border.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="12">
+
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    BackgroundColor="#E8F3FF"
+                                    StrokeThickness="0"
+                                    HorizontalOptions="Start">
+
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="16" />
+                                </Border.StrokeShape>
+
+                                <Label Text="＋"
+                                       FontSize="30"
+                                       TextColor="#007AFF"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+
+                            </Border>
+
+                            <VerticalStackLayout Spacing="3">
+
+                                <Label Text="Outros"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#292929" />
+
+                                <Label Text="Mais funções"
+                                       FontSize="12"
+                                       TextColor="#999999" />
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+
+                    </Border>
+
+                </Grid>
+
+
+                <!-- RODAPÉ -->
+                <Label Text="APP CELULAR • Sistema de gestão"
+                       FontSize="11"
+                       TextColor="#AAAAAA"
+                       HorizontalOptions="Center"
+                       Margin="0,5,0,0" />
+
+            </VerticalStackLayout>
+
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>
