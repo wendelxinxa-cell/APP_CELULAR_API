@@ -426,25 +426,29 @@ public partial class NovaCompraPage : ContentPage
             var compra = new Compra
             {
                 PessoaId =
-                    _fornecedorSelecionado.Id,
+         _fornecedorSelecionado.Id,
 
                 PessoaNome =
-                    _fornecedorSelecionado.Nome,
+         _fornecedorSelecionado.Nome,
 
                 DataCompra =
-                    DateTime.Now,
+         DateTime.Now,
 
                 ValorTotal =
-                    total,
+         total,
 
                 Observacao =
-                    ObservacaoEditor.Text ?? "",
+         ObservacaoEditor.Text ?? "",
 
+                // A compra fica aguardando o beneficiamento/perda
                 Status =
-                    "FINALIZADA",
+         "AGUARDANDO",
 
                 StatusSincronizacao =
-                    "PENDENTE"
+         "AGUARDANDO",
+
+                MensagemErro =
+         ""
             };
 
             int compraId =
@@ -454,33 +458,24 @@ public partial class NovaCompraPage : ContentPage
             {
                 item.CompraId = compraId;
 
+                // Ainda não sabemos a perda.
+                // Portanto, nada entra no estoque agora.
+                item.QuantidadePerda = 0;
+                item.QuantidadeLiquida = 0;
+                item.EstoqueLancado = false;
+
                 await _database.SalvarItemCompra(item);
+            }
 
-                var material = await _database.ObterMateriais()
-         .ContinueWith(t => t.Result.FirstOrDefault(x => x.Id == item.MaterialId));
-
-                if (material != null)
-                {
-                    material.EstoqueAtual += item.Quantidade;
-                    material.DataAlteracao = DateTime.Now;
-                    material.StatusSincronizacao = "PENDENTE";
-
-                    int linhas = await _database.AtualizarMaterial(material);
-                    if (linhas == 0)
-                    {
-                        await DisplayAlert("Erro", "Material não foi atualizado no banco.", "OK");
-                    }
-                }
-
-
-                await DisplayAlert(
-                "Compra finalizada",
+            await DisplayAlert(
+                "Compra registrada",
                 $"Compra registrada com sucesso!\n\n" +
-                $"Total: R$ {total:N2}",
+                $"Status: AGUARDANDO...\n" +
+                $"Total: R$ {total:N2}\n\n" +
+                "Informe a perda posteriormente para concluir a entrada no estoque.",
                 "OK");
 
-                LimparCompra();
-            }
+            LimparCompra();
         }
         catch (Exception ex)
         {

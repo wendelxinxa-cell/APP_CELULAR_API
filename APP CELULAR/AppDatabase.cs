@@ -28,6 +28,8 @@ public class AppDatabase
         await _database.CreateTableAsync<Venda>();
         await _database.CreateTableAsync<ItemVenda>();
 
+        await _database.CreateTableAsync<Usuario>();
+
         // ============================================================
         // MIGRAÇÃO DA TABELA ITEMCOMPRA
         // ============================================================
@@ -46,6 +48,21 @@ public class AppDatabase
             "ItemCompra",
             "EstoqueLancado",
             "INTEGER NOT NULL DEFAULT 0");
+
+        // ============================================================
+        // MIGRAÇÃO DA TABELA USUARIO
+        // ============================================================
+
+        await AdicionarColunaSeNaoExistir(
+            "Usuario",
+            "EhMaster",
+            "INTEGER NOT NULL DEFAULT 0");
+
+        // ============================================================
+        // GARANTIR EXISTÊNCIA DO ADMINISTRADOR MASTER
+        // ============================================================
+
+        await GarantirAdministradorMaster();
     }
 
     private async Task AdicionarColunaSeNaoExistir(
@@ -77,6 +94,86 @@ public class AppDatabase
         }
     }
 
+    // ============================================================
+    // ADMINISTRADOR MASTER
+    // ============================================================
+
+    private async Task GarantirAdministradorMaster()
+    {
+        var master = await _database!
+            .Table<Usuario>()
+            .Where(x => x.EhMaster)
+            .FirstOrDefaultAsync();
+
+        // ========================================================
+        // MASTER JÁ EXISTE
+        // ========================================================
+
+        if (master != null)
+        {
+            // Garante que suas propriedades críticas continuem
+            // protegidas.
+            bool precisaAtualizar = false;
+
+            if (master.Nome != "ADMINISTRADOR MASTER")
+            {
+                master.Nome = "ADMINISTRADOR MASTER";
+                precisaAtualizar = true;
+            }
+
+            if (master.Funcao != "ADMINISTRADOR MASTER")
+            {
+                master.Funcao = "ADMINISTRADOR MASTER";
+                precisaAtualizar = true;
+            }
+
+            if (!master.EhMaster)
+            {
+                master.EhMaster = true;
+                precisaAtualizar = true;
+            }
+
+            if (precisaAtualizar)
+                await _database.UpdateAsync(master);
+
+            return;
+        }
+
+        // ========================================================
+        // PROCURAR PELO NOME
+        // Pode existir de uma instalação anterior.
+        // ========================================================
+
+        master = await _database!
+            .Table<Usuario>()
+            .Where(x => x.Nome == "ADMINISTRADOR MASTER")
+            .FirstOrDefaultAsync();
+
+        if (master != null)
+        {
+            master.EhMaster = true;
+            master.Funcao = "ADMINISTRADOR MASTER";
+
+            await _database.UpdateAsync(master);
+
+            return;
+        }
+
+        // ========================================================
+        // CRIAR O MASTER
+        // ========================================================
+
+        var novoMaster = new Usuario
+        {
+            Nome = "ADMINISTRADOR MASTER",
+            SenhaHash = GerarHashSenha("123a456b"),
+            Funcao = "ADMINISTRADOR MASTER",
+            EhMaster = true
+        };
+
+        await _database.InsertAsync(novoMaster);
+    }
+
     // =========================
     // CONFIGURAÇÃO
     // =========================
@@ -101,11 +198,6 @@ public class AppDatabase
     // =========================
     // PESSOAS
     // =========================
-
-    // =========================
-    // PESSOAS
-    // =========================
-
     public async Task<List<Pessoa>> ObterPessoas()
     {
         await Init();
@@ -205,7 +297,183 @@ public class AppDatabase
 
         return await _database!.DeleteAsync(material);
     }
+    // ============================================================
+    // USUÁRIOS
+    // ============================================================
 
+    public async Task<int> SalvarUsuario(Usuario usuario)
+    {
+        await Init();
+
+        return await _database!.InsertAsync(usuario);
+    }
+
+
+    public async Task<List<Usuario>> ObterUsuarios()
+    {
+        await Init();
+
+        return await _database!
+            .Table<Usuario>()
+            .OrderBy(x => x.Nome)
+            .ToListAsync();
+    }
+
+
+    public async Task<Usuario?> ObterUsuario(int id)
+    {
+        await Init();
+
+        return await _database!
+            .Table<Usuario>()
+            .Where(x => x.Id == id)
+            .FirstOrDefaultAsync();
+    }
+
+
+    public async Task<Usuario?> ObterUsuarioPorNome(string nome)
+    {
+        await Init();
+
+        return await _database!
+            .Table<Usuario>()
+            .Where(x => x.Nome == nome)
+            .FirstOrDefaultAsync();
+    }
+
+
+    public async Task<bool> ExisteUsuarioComNome(
+        string nome,
+        int idIgnorar = 0)
+    {
+        await Init();
+
+        var usuarios = await _database!
+            .Table<Usuario>()
+            .ToListAsync();
+
+        return usuarios.Any(x =>
+            x.Id != idIgnorar &&
+            string.Equals(
+                x.Nome?.Trim(),
+                nome?.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    public async Task<int> AtualizarUsuario(Usuario usuario)
+    {
+        await Init();
+
+        return await _database!
+            .UpdateAsync(usuario);
+    }
+
+
+    public async Task<int> ExcluirUsuario(int id)
+    {
+        await Init();
+
+        var usuario = await ObterUsuario(id);
+
+        if (usuario == null)
+            return 0;
+
+        // ========================================================
+        // PROTEÇÃO DO MASTER
+        // ========================================================
+
+        if (usuario.EhMaster)
+            throw new Exception(
+                "O ADMINISTRADOR MASTER não pode ser excluído.");
+
+        // ========================================================
+        // NÃO PERMITIR FICAR SEM ADMINISTRADOR
+        // ========================================================
+
+        string funcao =
+            usuario.Funcao?.Trim().ToUpperInvariant() ?? "";
+
+        bool administrador =
+            funcao == "ADMINISTRADOR";
+
+        if (administrador)
+        {
+            var usuarios = await ObterUsuarios();
+
+            int quantidadeAdministradores =
+                usuarios.Count(x =>
+                {
+                    string f =
+                        x.Funcao?.Trim().ToUpperInvariant() ?? "";
+
+                    return x.EhMaster ||
+                           f == "ADMINISTRADOR";
+                });
+
+            if (quantidadeAdministradores <= 1)
+            {
+                throw new Exception(
+                    "Não é possível excluir o último administrador do sistema.");
+            }
+        }
+
+        return await _database!
+            .DeleteAsync<Usuario>(id);
+    }
+
+
+    // ============================================================
+    // VALIDAR LOGIN
+    // ============================================================
+
+    public async Task<Usuario?> ValidarLogin(
+        string nome,
+        string senha)
+    {
+        await Init();
+
+        var usuario = await _database!
+            .Table<Usuario>()
+            .Where(x => x.Nome == nome)
+            .FirstOrDefaultAsync();
+
+        if (usuario == null)
+            return null;
+
+        string senhaHash =
+            GerarHashSenha(senha);
+
+        if (usuario.SenhaHash != senhaHash)
+            return null;
+
+        return usuario;
+    }
+
+
+    // ============================================================
+    // GERAR HASH DA SENHA
+    // ============================================================
+
+    private string GerarHashSenha(string senha)
+    {
+        using var sha256 =
+            System.Security.Cryptography.SHA256.Create();
+
+        byte[] bytes =
+            System.Text.Encoding.UTF8.GetBytes(senha);
+
+        byte[] hash =
+            sha256.ComputeHash(bytes);
+
+        return Convert.ToHexString(hash);
+    }
+
+
+    public string CriarHashSenha(string senha)
+    {
+        return GerarHashSenha(senha);
+    }
     // =========================
     // COMPRAS
     // =========================
@@ -452,7 +720,7 @@ public class AppDatabase
     }
 
     public async Task<bool> CancelarCompraComDevolucaoEstoque(
-    int compraId)
+     int compraId)
     {
         await Init();
 
@@ -466,10 +734,8 @@ public class AppDatabase
                     "Compra não encontrada.");
             }
 
-
             string status =
                 compra.Status?.Trim().ToUpperInvariant() ?? "";
-
 
             // --------------------------------------------------------
             // JÁ CANCELADA
@@ -481,19 +747,14 @@ public class AppDatabase
                 return;
             }
 
-
             // --------------------------------------------------------
-            // COMPRA PENDENTE
-            //
-            // Não entrou estoque.
-            // Portanto simplesmente cancela.
+            // VERIFICAR SE ESTÁ PENDENTE
             // --------------------------------------------------------
 
             bool pendente =
                 status == "ABERTA" ||
                 status == "PENDENTE" ||
                 status == "PENDENTES";
-
 
             // --------------------------------------------------------
             // BUSCAR ITENS
@@ -503,56 +764,72 @@ public class AppDatabase
                 .Where(x => x.CompraId == compraId)
                 .ToList();
 
-
             // --------------------------------------------------------
             // SE JÁ ENTROU NO ESTOQUE,
-            // RETIRAR A QUANTIDADE LÍQUIDA
+            // RETIRAR SOMENTE O QUE FOI LANÇADO
             // --------------------------------------------------------
 
             if (!pendente)
             {
                 foreach (var item in itens)
                 {
-                    // Só retira se realmente foi lançado.
-                    if (!item.EstoqueLancado)
-                        continue;
-
-
-                    if (item.QuantidadeLiquida <= 0)
-                        continue;
-
-
-                    var material =
-                        conn.Find<Material>(item.MaterialId);
-
-
-                    if (material == null)
+                    // Só estorna se realmente foi lançado.
+                    if (item.EstoqueLancado)
                     {
-                        throw new Exception(
-                            $"O material '{item.MaterialNome}' " +
-                            $"não foi encontrado no estoque.");
+                        if (item.QuantidadeLiquida > 0)
+                        {
+                            var material =
+                                conn.Find<Material>(item.MaterialId);
+
+                            if (material == null)
+                            {
+                                throw new Exception(
+                                    $"O material '{item.MaterialNome}' " +
+                                    $"não foi encontrado no estoque.");
+                            }
+
+                            material.EstoqueAtual -=
+                                item.QuantidadeLiquida;
+
+                            material.DataAlteracao =
+                                DateTime.Now;
+
+                            material.StatusSincronizacao =
+                                "PENDENTE";
+
+                            conn.Update(material);
+                        }
                     }
 
+                    // ------------------------------------------------
+                    // APAGAR O REBATE/PERDA DA COMPRA
+                    // ------------------------------------------------
 
-                    material.EstoqueAtual -=
-                        item.QuantidadeLiquida;
-
-                    material.DataAlteracao =
-                        DateTime.Now;
-
-                    material.StatusSincronizacao =
-                        "PENDENTE";
-
-                    conn.Update(material);
-
-
-                    // Impede novo estorno
+                    item.QuantidadePerda = 0;
+                    item.QuantidadeLiquida = 0;
                     item.EstoqueLancado = false;
 
                     conn.Update(item);
                 }
             }
+            else
+            {
+                // ----------------------------------------------------
+                // COMPRA AINDA PENDENTE
+                // Não entrou no estoque.
+                // Apenas limpa qualquer perda que eventualmente
+                // tenha sido informada e cancela.
+                // ----------------------------------------------------
 
+                foreach (var item in itens)
+                {
+                    item.QuantidadePerda = 0;
+                    item.QuantidadeLiquida = 0;
+                    item.EstoqueLancado = false;
+
+                    conn.Update(item);
+                }
+            }
 
             // --------------------------------------------------------
             // CANCELAR COMPRA
@@ -568,9 +845,9 @@ public class AppDatabase
             conn.Update(compra);
         });
 
-
         return true;
     }
+
     // =========================
     // VENDAS
     // =========================

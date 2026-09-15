@@ -13,7 +13,7 @@ public partial class ComprasPage : ContentPage
 
     private DateTime _dataSelecionada = DateTime.Today;
 
-    private string _filtroAtual = "FINALIZADA";
+    private string _filtroAtual = "CONCLUIDA";
 
     public ComprasPage()
     {
@@ -90,7 +90,7 @@ public partial class ComprasPage : ContentPage
 
         return _filtroAtual switch
         {
-            "FINALIZADA" =>
+            "CONCLUIDA" =>
                 status == "FINALIZADA" ||
                 status == "FINALIZADO" ||
                 status == "CONCLUIDA" ||
@@ -98,10 +98,11 @@ public partial class ComprasPage : ContentPage
                 status == "CONCLUIDO" ||
                 status == "CONCLUÍDO",
 
-            "PENDENTE" =>
+            "AGUARDANDO" =>
                 status == "ABERTA" ||
                 status == "PENDENTE" ||
-                status == "PENDENTES",
+                status == "PENDENTES" ||
+                status == "AGUARDANDO",
 
             "CANCELADA" =>
                 status == "CANCELADA" ||
@@ -149,18 +150,18 @@ public partial class ComprasPage : ContentPage
         object sender,
         EventArgs e)
     {
-        _filtroAtual = "FINALIZADA";
+        _filtroAtual = "CONCLUIDA";
 
         AtualizarBotoesFiltro();
 
         await CarregarCompras();
     }
 
-    private async void FiltroPendentes_Clicked(
+    private async void FiltroAguardando_Clicked(
         object sender,
         EventArgs e)
     {
-        _filtroAtual = "PENDENTE";
+        _filtroAtual = "AGUARDANDO";
 
         AtualizarBotoesFiltro();
 
@@ -202,7 +203,7 @@ public partial class ComprasPage : ContentPage
         // Estado selecionado
         switch (_filtroAtual)
         {
-            case "FINALIZADA":
+            case "CONCLUIDA":
 
                 BtnConcluidas.BackgroundColor =
                     Color.FromArgb("#16803C");
@@ -212,7 +213,7 @@ public partial class ComprasPage : ContentPage
 
                 break;
 
-            case "PENDENTE":
+            case "AGUARDANDO":
 
                 BtnPendentes.BackgroundColor =
                     Color.FromArgb("#2463B5");
@@ -323,8 +324,17 @@ public partial class ComprasPage : ContentPage
 
                 if (status == "ABERTA" ||
                     status == "PENDENTE" ||
-                    status == "PENDENTES")
-                    return "PENDENTE";
+                    status == "PENDENTES" ||
+                    status == "AGUARDANDO")
+                    return "AGUARDANDO";
+
+                if (status == "FINALIZADA" ||
+                    status == "FINALIZADO" ||
+                    status == "CONCLUIDA" ||
+                    status == "CONCLUÍDA" ||
+                    status == "CONCLUIDO" ||
+                    status == "CONCLUÍDO")
+                    return "CONCLUÍDA";
 
                 return "CONCLUÍDA";
             }
@@ -339,7 +349,7 @@ public partial class ComprasPage : ContentPage
                     "CANCELADA" =>
                         Color.FromArgb("#C62828"),
 
-                    "PENDENTE" =>
+                    "AGUARDANDO" =>
                         Color.FromArgb("#2463B5"),
 
                     _ =>
@@ -357,7 +367,7 @@ public partial class ComprasPage : ContentPage
                     "CANCELADA" =>
                         Color.FromArgb("#FFE0E0"),
 
-                    "PENDENTE" =>
+                    "AGUARDANDO" =>
                         Color.FromArgb("#DDEBFF"),
 
                     _ =>

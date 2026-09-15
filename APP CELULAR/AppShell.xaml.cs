@@ -37,6 +37,19 @@
             Routing.RegisterRoute(
                 nameof(DetalhesVendaPage),
                 typeof(DetalhesVendaPage));
+
+            Routing.RegisterRoute(
+                nameof(UsuariosPage),
+                typeof(UsuariosPage));
+
+            Routing.RegisterRoute(
+                nameof(NovoUsuarioPage),
+                typeof(NovoUsuarioPage));
+
+            Routing.RegisterRoute(
+                nameof(DetalhaUsuariosPage),
+                typeof(DetalhaUsuariosPage));
+
         }
     }
 }

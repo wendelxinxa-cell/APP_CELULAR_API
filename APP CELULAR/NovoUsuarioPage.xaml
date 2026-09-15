@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.NovoUsuarioPage"
+             BackgroundColor="#F5F5F7"
+             Title="Novo Usuário">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- CABEÇALHO -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#2E2A6A"
+              Padding="20,18"
+              ColumnDefinitions="Auto,*">
+
+            <Button Grid.Column="0"
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    WidthRequest="45"
+                    HeightRequest="45"
+                    Padding="0"
+                    Clicked="Voltar_Clicked" />
+
+            <VerticalStackLayout Grid.Column="1"
+                                 VerticalOptions="Center"
+                                 Spacing="2">
+
+                <Label Text="NOVO USUÁRIO"
+                       FontSize="23"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+
+                <Label Text="Cadastrar novo acesso"
+                       FontSize="13"
+                       TextColor="#D9D7F5" />
+
+            </VerticalStackLayout>
+
+        </Grid>
+
+
+        <ScrollView Grid.Row="1">
+
+            <VerticalStackLayout Padding="20"
+                                 Spacing="18">
+
+                <!-- NOME -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="NOME"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="NomeEntry"
+                               Placeholder="Digite o nome do usuário"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- SENHA -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="SENHA"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="SenhaEntry"
+                               Placeholder="Digite a senha"
+                               IsPassword="True"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- CONFIRMAR SENHA -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="CONFIRMAR SENHA"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="ConfirmarSenhaEntry"
+                               Placeholder="Digite a senha novamente"
+                               IsPassword="True"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- FUNÇÃO -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="FUNÇÃO"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Picker x:Name="FuncaoPicker"
+                                FontSize="16"
+                                TextColor="#222"
+                                Title="Selecione a função">
+
+                            <Picker.Items>
+                                <x:String>USUARIO</x:String>
+                                <x:String>ADMINISTRADOR</x:String>
+                            </Picker.Items>
+
+                        </Picker>
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- AVISO -->
+                <Frame Padding="14"
+                       CornerRadius="12"
+                       BackgroundColor="#ECEBFA"
+                       HasShadow="False">
+
+                    <Label Text="Administradores podem gerenciar outros usuários. Usuários comuns podem alterar somente a própria senha."
+                           FontSize="13"
+                           TextColor="#2E2A6A" />
+
+                </Frame>
+
+
+                <!-- SALVAR -->
+                <Button x:Name="BtnSalvar"
+                        Text="✓  SALVAR USUÁRIO"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        BackgroundColor="#2E9E52"
+                        TextColor="White"
+                        CornerRadius="25"
+                        HeightRequest="54"
+                        Margin="0,5,0,20"
+                        Clicked="Salvar_Clicked" />
+
+            </VerticalStackLayout>
+
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

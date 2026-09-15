@@ -130,18 +130,18 @@
                 TextColor="#16803C"
                 Clicked="FiltroConcluidas_Clicked" />
 
-            <!-- PENDENTES -->
+            <!-- AGUARDANDO -->
             <Button
                 x:Name="BtnPendentes"
                 Grid.Column="1"
-                Text="●  Pendentes"
+                Text="●  Aguardando"
                 FontSize="13"
                 FontAttributes="Bold"
                 CornerRadius="12"
                 HeightRequest="45"
                 BackgroundColor="#DDEBFF"
                 TextColor="#2463B5"
-                Clicked="FiltroPendentes_Clicked" />
+                Clicked="FiltroAguardando_Clicked" />
 
             <!-- CANCELADAS -->
             <Button

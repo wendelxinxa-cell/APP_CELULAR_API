@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.DetalhaUsuariosPage"
+             BackgroundColor="#F5F5F7"
+             Title="Detalhes do Usuário">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- CABEÇALHO -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#2E2A6A"
+              Padding="20,18"
+              ColumnDefinitions="Auto,*">
+
+            <Button Grid.Column="0"
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    WidthRequest="45"
+                    HeightRequest="45"
+                    Padding="0"
+                    Clicked="Voltar_Clicked" />
+
+            <VerticalStackLayout Grid.Column="1"
+                                 VerticalOptions="Center"
+                                 Spacing="2">
+
+                <Label Text="DETALHES DO USUÁRIO"
+                       FontSize="21"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+
+                <Label x:Name="SubtituloLabel"
+                       Text="Editar usuário"
+                       FontSize="13"
+                       TextColor="#D9D7F5" />
+
+            </VerticalStackLayout>
+
+        </Grid>
+
+
+        <ScrollView Grid.Row="1">
+
+            <VerticalStackLayout Padding="20"
+                                 Spacing="18">
+
+                <!-- MASTER -->
+                <Frame x:Name="MasterFrame"
+                       IsVisible="False"
+                       Padding="14"
+                       CornerRadius="12"
+                       BackgroundColor="#ECEBFA"
+                       HasShadow="False">
+
+                    <HorizontalStackLayout Spacing="10">
+
+                        <Label Text="★"
+                               FontSize="24"
+                               TextColor="#2E2A6A"
+                               VerticalOptions="Center" />
+
+                        <VerticalStackLayout Spacing="2">
+
+                            <Label Text="ADMINISTRADOR MASTER"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#2E2A6A" />
+
+                            <Label Text="Conta protegida do sistema"
+                                   FontSize="12"
+                                   TextColor="#666" />
+
+                        </VerticalStackLayout>
+
+                    </HorizontalStackLayout>
+
+                </Frame>
+
+
+                <!-- NOME -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="NOME"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="NomeEntry"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- SENHA -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label x:Name="SenhaTituloLabel"
+                               Text="NOVA SENHA"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="SenhaEntry"
+                               Placeholder="Deixe em branco para manter a senha atual"
+                               IsPassword="True"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- CONFIRMAR SENHA -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="CONFIRMAR NOVA SENHA"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Entry x:Name="ConfirmarSenhaEntry"
+                               Placeholder="Confirme a nova senha"
+                               IsPassword="True"
+                               FontSize="16"
+                               TextColor="#222"
+                               PlaceholderColor="#999" />
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- FUNÇÃO -->
+                <Frame Padding="14,8"
+                       CornerRadius="12"
+                       BackgroundColor="White"
+                       HasShadow="True">
+
+                    <VerticalStackLayout Spacing="3">
+
+                        <Label Text="FUNÇÃO"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#666" />
+
+                        <Picker x:Name="FuncaoPicker"
+                                FontSize="16"
+                                TextColor="#222"
+                                Title="Selecione a função">
+
+                            <Picker.Items>
+                                <x:String>USUARIO</x:String>
+                                <x:String>ADMINISTRADOR</x:String>
+                            </Picker.Items>
+
+                        </Picker>
+
+                    </VerticalStackLayout>
+
+                </Frame>
+
+
+                <!-- SALVAR -->
+                <Button x:Name="BtnSalvar"
+                        Text="✓  SALVAR ALTERAÇÕES"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        BackgroundColor="#2E9E52"
+                        TextColor="White"
+                        CornerRadius="25"
+                        HeightRequest="54"
+                        Clicked="Salvar_Clicked" />
+
+
+                <!-- EXCLUIR -->
+                <Button x:Name="BtnExcluir"
+                        Text="🗑  EXCLUIR USUÁRIO"
+                        FontSize="15"
+                        FontAttributes="Bold"
+                        BackgroundColor="#C62828"
+                        TextColor="White"
+                        CornerRadius="25"
+                        HeightRequest="50"
+                        Clicked="Excluir_Clicked" />
+
+            </VerticalStackLayout>
+
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

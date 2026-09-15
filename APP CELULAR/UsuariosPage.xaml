@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.UsuariosPage"
+             BackgroundColor="#F5F5F7"
+             Title="Usuários">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- CABEÇALHO -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#2E2A6A"
+              Padding="20,18"
+              ColumnDefinitions="Auto,*">
+
+            <Button Grid.Column="0"
+                    Text="‹"
+                    FontSize="34"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    WidthRequest="45"
+                    HeightRequest="45"
+                    Padding="0"
+                    Clicked="Voltar_Clicked" />
+
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="2"
+                                 VerticalOptions="Center">
+
+                <Label Text="USUÁRIOS"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+
+                <Label x:Name="SubtituloLabel"
+                       Text="Usuários cadastrados"
+                       FontSize="13"
+                       TextColor="#D9D7F5" />
+
+            </VerticalStackLayout>
+
+        </Grid>
+
+
+        <!-- LISTA -->
+        <RefreshView Grid.Row="1"
+                     x:Name="RefreshUsuarios"
+                     Refreshing="RefreshUsuarios_Refreshing">
+
+            <CollectionView x:Name="UsuariosCollection"
+                            SelectionMode="Single"
+                            SelectionChanged="Usuario_Selecionado">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="30"
+                                         Spacing="12"
+                                         VerticalOptions="Center">
+
+                        <Label Text="👤"
+                               FontSize="55"
+                               HorizontalOptions="Center" />
+
+                        <Label Text="Nenhum usuário cadastrado."
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="#555"
+                               HorizontalOptions="Center" />
+
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+
+                        <Frame Margin="14,7"
+                               Padding="0"
+                               CornerRadius="16"
+                               HasShadow="True"
+                               BackgroundColor="White">
+
+                            <Grid Padding="16"
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  ColumnSpacing="14">
+
+                                <!-- ÍCONE -->
+                                <Border Grid.Column="0"
+                                        WidthRequest="52"
+                                        HeightRequest="52"
+                                        StrokeThickness="0"
+                                        BackgroundColor="#ECEBFA"
+                                        StrokeShape="RoundRectangle 26">
+
+                                    <Label Text="👤"
+                                           FontSize="25"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+
+                                </Border>
+
+
+                                <!-- DADOS -->
+                                <VerticalStackLayout Grid.Column="1"
+                                                     VerticalOptions="Center"
+                                                     Spacing="3">
+
+                                    <Label Text="{Binding Nome}"
+                                           FontSize="17"
+                                           FontAttributes="Bold"
+                                           TextColor="#222"
+                                           LineBreakMode="TailTruncation" />
+
+                                    <Label Text="{Binding Funcao}"
+                                           FontSize="13"
+                                           TextColor="#666" />
+
+                                    <Label Text="ADMINISTRADOR MASTER"
+                                           FontSize="11"
+                                           FontAttributes="Bold"
+                                           TextColor="#2E2A6A"
+                                           IsVisible="{Binding EhMaster}" />
+
+                                </VerticalStackLayout>
+
+
+                                <!-- SETA -->
+                                <Label Grid.Column="2"
+                                       Text="›"
+                                       FontSize="30"
+                                       TextColor="#999"
+                                       VerticalOptions="Center" />
+
+                            </Grid>
+
+                        </Frame>
+
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+
+        </RefreshView>
+
+
+        <!-- BOTÃO NOVO -->
+        <Grid Grid.Row="2"
+              Padding="16,10,16,18"
+              BackgroundColor="#F5F5F7">
+
+            <Button x:Name="BtnNovoUsuario"
+                    Text="+  NOVO USUÁRIO"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    BackgroundColor="#007AFF"
+                    TextColor="White"
+                    CornerRadius="25"
+                    HeightRequest="52"
+                    Clicked="NovoUsuario_Clicked" />
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
