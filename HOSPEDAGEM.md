@@ -13,6 +13,8 @@ O arquivo `render.yaml`, na raiz do repositório, define o serviço web gratuito
 
 Para adicionar uma empresa, inclua em `render.yaml` um novo par `Empresas__ID` / `ConnectionStrings__SupabaseEmpresaN` e cadastre o segredo no painel Render.
 
+As variáveis de conexão aceitam o formato URI copiado de **Supabase → Connect**, por exemplo `postgresql://...`, ou o formato Npgsql `Host=...;Port=5432;Database=postgres;Username=...;Password=...;SSL Mode=Require`. A API converte as URLs do Supabase para o formato Npgsql antes de abrir o banco.
+
 ## Limites do plano gratuito
 
 O serviço gratuito suspende a instância após 15 minutos sem tráfego e pode levar cerca de um minuto para acordar no próximo acesso. Reinicializações perdem o estado mantido só em memória; os tokens do app são renovados automaticamente. O plano Free executa uma instância, que também evita compartilhar as sessões entre instâncias.

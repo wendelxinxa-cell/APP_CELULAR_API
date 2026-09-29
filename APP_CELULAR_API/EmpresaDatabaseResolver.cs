@@ -1,5 +1,7 @@
 ﻿namespace APP_CELULAR_API.Services;
 
+using Npgsql;
+
 public interface IEmpresaDatabaseResolver
 {
     string ObterConnectionString(long empresaId);
@@ -52,6 +54,38 @@ public class EmpresaDatabaseResolver : IEmpresaDatabaseResolver
                 $"não está configurada.");
         }
 
-        return connectionString;
+        return NormalizarConnectionString(connectionString);
+    }
+
+    private static string NormalizarConnectionString(string value)
+    {
+        value = value.Trim();
+        bool isPostgresUri = value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+
+        if (!isPostgresUri)
+            return value;
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || string.IsNullOrWhiteSpace(uri.Host))
+            throw new InvalidOperationException("A URL de conexão PostgreSQL do Supabase é inválida.");
+
+        string userInfo = Uri.UnescapeDataString(uri.UserInfo);
+        int separator = userInfo.IndexOf(':');
+        string database = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
+        if (separator <= 0 || string.IsNullOrWhiteSpace(database))
+            throw new InvalidOperationException("A URL de conexão PostgreSQL do Supabase está incompleta.");
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort || uri.Port <= 0 ? 5432 : uri.Port,
+            Database = database,
+            Username = Uri.UnescapeDataString(userInfo[..separator]),
+            Password = Uri.UnescapeDataString(userInfo[(separator + 1)..]),
+            SslMode = SslMode.Require
+        };
+
+        return builder.ConnectionString;
     }
 }
