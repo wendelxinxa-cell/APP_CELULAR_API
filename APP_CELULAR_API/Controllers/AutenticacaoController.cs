@@ -36,11 +36,11 @@ public class AutenticacaoController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Never log the connection string or exception details that could contain secrets.
+            // Resolver messages identify the missing setting, and never include its value.
             _logger.LogWarning(
-                "Database configuration could not be resolved for company {EmpresaId}. Error type: {ErrorType}",
+                "Database configuration could not be resolved for company {EmpresaId}. Reason: {Reason}",
                 request.EmpresaId,
-                ex.GetType().Name);
+                ex.Message);
             return StatusCode(
                 StatusCodes.Status503ServiceUnavailable,
                 new { mensagem = "Configuração do banco da empresa incompleta ou inválida." });
