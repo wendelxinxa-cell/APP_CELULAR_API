@@ -11,11 +11,16 @@ public class AutenticacaoController : ControllerBase
 {
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _sessions;
+    private readonly ILogger<AutenticacaoController> _logger;
 
-    public AutenticacaoController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions)
+    public AutenticacaoController(
+        IEmpresaDatabaseResolver resolver,
+        TenantSessionStore sessions,
+        ILogger<AutenticacaoController> logger)
     {
         _resolver = resolver;
         _sessions = sessions;
+        _logger = logger;
     }
 
     [HttpPost("login")]
@@ -25,8 +30,21 @@ public class AutenticacaoController : ControllerBase
             return BadRequest(new { mensagem = "Informe usuário, senha e empresa." });
 
         string connectionString;
-        try { connectionString = _resolver.ObterConnectionString(request.EmpresaId); }
-        catch (Exception) { return Unauthorized(new { mensagem = "Empresa sem acesso configurado." }); }
+        try
+        {
+            connectionString = _resolver.ObterConnectionString(request.EmpresaId);
+        }
+        catch (Exception ex)
+        {
+            // Never log the connection string or exception details that could contain secrets.
+            _logger.LogWarning(
+                "Database configuration could not be resolved for company {EmpresaId}. Error type: {ErrorType}",
+                request.EmpresaId,
+                ex.GetType().Name);
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new { mensagem = "Configuração do banco da empresa incompleta ou inválida." });
+        }
 
         await using var db = new NpgsqlConnection(connectionString);
         await db.OpenAsync();
