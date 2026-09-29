@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using APP_CELULAR_API.Services;
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 
 namespace APP_CELULAR_API.Controllers;
@@ -7,27 +8,31 @@ namespace APP_CELULAR_API.Controllers;
 [Route("api/[controller]")]
 public class TesteController : ControllerBase
 {
-    private readonly IConfiguration _configuration;
+    private readonly IEmpresaDatabaseResolver _databaseResolver;
+    private readonly TenantSessionStore _sessions;
 
-    public TesteController(IConfiguration configuration)
+    public TesteController(
+        IEmpresaDatabaseResolver databaseResolver,
+        TenantSessionStore sessions)
     {
-        _configuration = configuration;
+        _databaseResolver = databaseResolver;
+        _sessions = sessions;
     }
 
     [HttpGet]
-    public async Task<IActionResult> TestarBanco()
+    public async Task<IActionResult> TestarBanco(
+        [FromQuery] long empresaId = 1)
     {
+        if (!_sessions.TryGet(Request.Headers.Authorization.ToString(), out var session))
+            return Unauthorized(new { sucesso = false, mensagem = "Sessão da API inválida ou expirada." });
+        if (session.EmpresaId != empresaId)
+            return StatusCode(403, new { sucesso = false, mensagem = "A sessão não pertence à empresa informada." });
+
         try
         {
-            string? connectionString =
-                _configuration.GetConnectionString("Supabase");
-
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                return StatusCode(
-                    500,
-                    "ConnectionString 'Supabase' não configurada.");
-            }
+            string connectionString =
+                _databaseResolver.ObterConnectionString(
+                    empresaId);
 
             await using var conexao =
                 new NpgsqlConnection(connectionString);
@@ -45,7 +50,9 @@ public class TesteController : ControllerBase
             return Ok(new
             {
                 sucesso = true,
-                mensagem = "API conectada ao Supabase com sucesso.",
+                empresaId,
+                mensagem =
+                    "API conectada ao Supabase da empresa com sucesso.",
                 servidor = resultado
             });
         }
@@ -56,7 +63,9 @@ public class TesteController : ControllerBase
                 new
                 {
                     sucesso = false,
-                    mensagem = "Erro ao conectar ao banco.",
+                    empresaId,
+                    mensagem =
+                        "Erro ao conectar ao banco da empresa.",
                     erro = ex.Message
                 });
         }

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: app-celular-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./APP_CELULAR_API/Dockerfile
+    dockerContext: ./APP_CELULAR_API
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: Empresas__1
+        value: SupabaseEmpresa1
+      - key: ConnectionStrings__SupabaseEmpresa1
+        sync: false
+      - key: Empresas__2
+        value: SupabaseEmpresa2
+      - key: ConnectionStrings__SupabaseEmpresa2
+        sync: false

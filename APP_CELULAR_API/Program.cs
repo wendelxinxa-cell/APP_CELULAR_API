@@ -1,22 +1,46 @@
+using APP_CELULAR_API.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// O Render define PORT dinamicamente; local/Azure podem usar ASPNETCORE_URLS.
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{renderPort}");
+}
+
+// ============================================================
+// SERVIÇOS
+// ============================================================
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
 builder.Services.AddOpenApi();
+
+// ============================================================
+// RESOLVER DE BANCO POR EMPRESA
+// ============================================================
+
+builder.Services.AddSingleton<
+    IEmpresaDatabaseResolver,
+    EmpresaDatabaseResolver>();
+builder.Services.AddSingleton<TenantSessionStore>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ============================================================
+// PIPELINE
+// ============================================================
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { online = true }));
 
 app.MapControllers();
 
