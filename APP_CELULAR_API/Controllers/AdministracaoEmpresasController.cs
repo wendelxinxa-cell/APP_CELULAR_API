@@ -17,19 +17,22 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     private readonly CatalogoCriptografia _criptografia;
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly EmailNotificacaoService _email;
+    private readonly ILogger<AdministracaoEmpresasController> _logger;
 
     public AdministracaoEmpresasController(
         IConfiguration configuration,
         MasterSessionStore sessions,
         CatalogoCriptografia criptografia,
         IEmpresaDatabaseResolver resolver,
-        EmailNotificacaoService email)
+        EmailNotificacaoService email,
+        ILogger<AdministracaoEmpresasController> logger)
     {
         _configuration = configuration;
         _sessions = sessions;
         _criptografia = criptografia;
         _resolver = resolver;
         _email = email;
+        _logger = logger;
     }
 
     [HttpPost("master/login")]
@@ -211,6 +214,8 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     public async Task<IActionResult> ListarAcessosPendentes()
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        long? empresaEmConsulta = null;
+        string etapa = "catálogo central";
         try
         {
             var empresas = await EmpresasAtivas();
@@ -218,8 +223,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             var dispositivos = new List<object>();
             foreach (var empresa in empresas)
             {
+                empresaEmConsulta = empresa.Id;
+                etapa = "conexão com a empresa";
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
+                etapa = "consulta de usuários (migração 003)";
                 const string usuariosSql = "SELECT id, nome, funcao, data_cadastro FROM app.usuario WHERE empresa_id=@empresaId AND aprovado=FALSE AND COALESCE(excluido,FALSE)=FALSE ORDER BY data_cadastro;";
                 await using (var cmd = new NpgsqlCommand(usuariosSql, db))
                 {
@@ -228,6 +236,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(1), funcao = reader.GetString(2), criadoEm = reader.GetDateTime(3) });
                 }
 
+                etapa = "consulta de aparelhos (migração 004)";
                 const string dispositivosSql = """
                     SELECT d.id, d.nome_dispositivo, d.criado_em,
                            COALESCE(solicitado.nome, vinculado.nome, 'Usuário não identificado'),
@@ -247,9 +256,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             }
             return Ok(new { usuarios, dispositivos });
         }
-        catch
+        catch (Exception ex)
         {
-            return StatusCode(503, new { mensagem = "Não foi possível consultar as aprovações nas empresas ativas. Confira a migração 003 e as conexões do catálogo." });
+            _logger.LogError(ex, "Falha nas aprovações. Etapa: {Etapa}; EmpresaId: {EmpresaId}.", etapa, empresaEmConsulta);
+            string local = empresaEmConsulta.HasValue ? $"na empresa código {empresaEmConsulta.Value}" : "no catálogo central";
+            return StatusCode(503, new { mensagem = $"Falha {local} durante {etapa}. Confira a configuração correspondente no Render e as migrações indicadas." });
         }
     }
 
