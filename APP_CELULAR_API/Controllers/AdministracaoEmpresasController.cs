@@ -360,13 +360,31 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             await using var cmd = new NpgsqlCommand("SELECT id,nome FROM platform.empresa_catalogo WHERE ativa=TRUE AND status='ATIVA' ORDER BY id", catalogo);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync()) empresas.Add((reader.GetInt64(0), reader.GetString(1)));
+
+            // Empresas antigas podem continuar configuradas no Render sem registro no catálogo.
+            // Só usa esse modo de compatibilidade quando o catálogo não tem nenhuma empresa ativa.
+            if (empresas.Count == 0)
+                AdicionarEmpresasLegadas(empresas);
         }
         else
         {
-            foreach (var empresa in _configuration.GetSection("Empresas").GetChildren())
-                if (long.TryParse(empresa.Key, out long id)) empresas.Add((id, $"Empresa {id}"));
+            AdicionarEmpresasLegadas(empresas);
         }
         return empresas;
+    }
+
+    private void AdicionarEmpresasLegadas(List<(long Id, string Nome)> empresas)
+    {
+        foreach (var empresa in _configuration.GetSection("Empresas").GetChildren())
+        {
+            if (!long.TryParse(empresa.Key, out long id)) continue;
+            string? nomeConnectionString = empresa.Value;
+            if (string.IsNullOrWhiteSpace(nomeConnectionString)
+                || string.IsNullOrWhiteSpace(_configuration.GetConnectionString(nomeConnectionString)))
+                continue;
+
+            empresas.Add((id, $"Empresa {id}"));
+        }
     }
 
     private bool MasterAutorizado() => _sessions.Validar(Request.Headers.Authorization.ToString());
