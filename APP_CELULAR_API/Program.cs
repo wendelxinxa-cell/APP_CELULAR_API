@@ -25,6 +25,9 @@ builder.Services.AddSingleton<
     IEmpresaDatabaseResolver,
     EmpresaDatabaseResolver>();
 builder.Services.AddSingleton<TenantSessionStore>();
+builder.Services.AddSingleton<MasterSessionStore>();
+builder.Services.AddSingleton<CatalogoCriptografia>();
+builder.Services.AddSingleton<EmailNotificacaoService>();
 
 var app = builder.Build();
 

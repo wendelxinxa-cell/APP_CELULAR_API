@@ -1,23 +1,29 @@
 ﻿namespace APP_CELULAR_API.Services;
 
 using Npgsql;
+using System.Collections.Concurrent;
 
 public interface IEmpresaDatabaseResolver
 {
-    string ObterConnectionString(long empresaId);
+    Task<string> ObterConnectionString(long empresaId);
+    void InvalidarCache(long empresaId);
 }
 
 public class EmpresaDatabaseResolver : IEmpresaDatabaseResolver
 {
     private readonly IConfiguration _configuration;
+    private readonly CatalogoCriptografia _criptografia;
+    private readonly ConcurrentDictionary<long, (string Valor, DateTime Expira)> _cache = new();
 
     public EmpresaDatabaseResolver(
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CatalogoCriptografia criptografia)
     {
         _configuration = configuration;
+        _criptografia = criptografia;
     }
 
-    public string ObterConnectionString(long empresaId)
+    public async Task<string> ObterConnectionString(long empresaId)
     {
         if (empresaId <= 0)
         {
@@ -26,13 +32,28 @@ public class EmpresaDatabaseResolver : IEmpresaDatabaseResolver
                 nameof(empresaId));
         }
 
-        // ---------------------------------------------------------
-        // Descobre qual ConnectionString pertence à empresa.
-        //
-        // Exemplo:
-        // Empresas:1 = SupabaseEmpresa1
-        // Empresas:2 = SupabaseEmpresa2
-        // ---------------------------------------------------------
+        if (_cache.TryGetValue(empresaId, out var cached) && cached.Expira > DateTime.UtcNow)
+            return cached.Valor;
+
+        var catalogo = _configuration.GetConnectionString("CadastroCentral");
+        if (!string.IsNullOrWhiteSpace(catalogo))
+        {
+            await using var db = new NpgsqlConnection(NormalizarConnectionString(catalogo));
+            await db.OpenAsync();
+            await using var cmd = new NpgsqlCommand(
+                "SELECT conexao_criptografada FROM platform.empresa_catalogo WHERE id = @id AND ativa = TRUE AND status = 'ATIVA'",
+                db);
+            cmd.Parameters.AddWithValue("id", empresaId);
+            var valor = await cmd.ExecuteScalarAsync();
+            if (valor is byte[] criptografado)
+            {
+                string resolvido = NormalizarConnectionString(_criptografia.Descriptografar(criptografado));
+                _cache[empresaId] = (resolvido, DateTime.UtcNow.AddMinutes(5));
+                return resolvido;
+            }
+        }
+
+        // Compatibilidade com as empresas antigas pré-configuradas no Render.
 
         string? nomeConnectionString =
             _configuration[$"Empresas:{empresaId}"];
@@ -57,7 +78,9 @@ public class EmpresaDatabaseResolver : IEmpresaDatabaseResolver
         return NormalizarConnectionString(connectionString);
     }
 
-    private static string NormalizarConnectionString(string value)
+    public void InvalidarCache(long empresaId) => _cache.TryRemove(empresaId, out _);
+
+    public static string NormalizarConnectionString(string value)
     {
         value = value.Trim();
         bool isPostgresUri = value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)

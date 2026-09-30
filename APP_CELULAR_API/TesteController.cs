@@ -31,7 +31,7 @@ public class TesteController : ControllerBase
         try
         {
             string connectionString =
-                _databaseResolver.ObterConnectionString(
+                await _databaseResolver.ObterConnectionString(
                     empresaId);
 
             await using var conexao =

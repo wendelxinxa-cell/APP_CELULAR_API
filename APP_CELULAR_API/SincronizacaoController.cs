@@ -54,6 +54,8 @@ public class SincronizacaoController : ControllerBase
             return Unauthorized(new { sucesso = false, mensagem = "Sessão da API expirada. Entre novamente." });
         if (session.EmpresaId != request.EmpresaId)
             return StatusCode(403, new { sucesso = false, mensagem = "A sessão não pertence à empresa informada." });
+        if (session.DispositivoId != request.DispositivoId)
+            return StatusCode(403, new { sucesso = false, mensagem = "A sessão não pertence a este aparelho." });
         if (request.Usuarios.Count > 0 && !session.EhAdministrador)
             return StatusCode(403, new { sucesso = false, mensagem = "Somente administradores podem sincronizar usuários." });
 
@@ -62,7 +64,7 @@ public class SincronizacaoController : ControllerBase
         try
         {
             connectionString =
-                _databaseResolver.ObterConnectionString(
+                await _databaseResolver.ObterConnectionString(
                     request.EmpresaId);
         }
         catch (Exception ex)
@@ -94,6 +96,7 @@ public class SincronizacaoController : ControllerBase
                 conexao,
                 transacao,
                 request.EmpresaId,
+                session.UsuarioId,
                 request.DispositivoId);
 
             // =====================================================
@@ -411,6 +414,7 @@ public class SincronizacaoController : ControllerBase
         NpgsqlConnection conexao,
         NpgsqlTransaction transacao,
         long empresaId,
+        long usuarioId,
         long dispositivoId)
     {
         const string sql = """
@@ -418,6 +422,7 @@ public class SincronizacaoController : ControllerBase
             FROM app.dispositivo
             WHERE id = @dispositivoId
               AND empresa_id = @empresaId
+              AND usuario_id = @usuarioId
               AND ativo = TRUE;
             """;
 
@@ -434,6 +439,10 @@ public class SincronizacaoController : ControllerBase
         cmd.Parameters.AddWithValue(
             "empresaId",
             empresaId);
+
+        cmd.Parameters.AddWithValue(
+            "usuarioId",
+            usuarioId);
 
         long quantidade =
             Convert.ToInt64(
@@ -1570,6 +1579,7 @@ public class SincronizacaoController : ControllerBase
                 senha_hash,
                 funcao,
                 eh_master,
+                aprovado,
                 empresa_id,
                 status_sincronizacao,
                 mensagem_erro,
@@ -1584,6 +1594,7 @@ public class SincronizacaoController : ControllerBase
                 @senhaHash,
                 @funcao,
                 @ehMaster,
+                FALSE,
                 @empresaId,
                 'SINCRONIZADO',
                 NULL,

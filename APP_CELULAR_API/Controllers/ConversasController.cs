@@ -28,13 +28,15 @@ public class ConversasController : ControllerBase
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
 
         const string sql = """
-            SELECT u.id, u.nome,
+            SELECT u.id, COALESCE(a.apelido, u.nome), u.nome,
                    COALESCE(m.texto, CASE WHEN m.foto IS NOT NULL THEN '[Foto]' ELSE '' END) AS ultima_mensagem,
                    m.enviada_em AS data_ultima_mensagem,
                    (SELECT COUNT(*)::int FROM app.mensagem_conversa n
                     WHERE n.empresa_id = @empresaId AND n.remetente_id = u.id
                       AND n.destinatario_id = @usuarioId AND n.lida_em IS NULL) AS nao_lidas
             FROM app.usuario u
+            LEFT JOIN app.usuario_apelido a
+              ON a.empresa_id = u.empresa_id AND a.usuario_id = @usuarioId AND a.contato_id = u.id
             LEFT JOIN LATERAL (
                 SELECT mc.texto, mc.foto, mc.enviada_em
                 FROM app.mensagem_conversa mc
@@ -51,8 +53,42 @@ public class ConversasController : ControllerBase
         await using var reader = await cmd.ExecuteReaderAsync();
         var result = new List<object>();
         while (await reader.ReadAsync())
-            result.Add(new { id = reader.GetInt64(0), nome = reader.GetString(1), ultimaMensagem = reader.GetString(2), dataUltimaMensagem = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3), naoLidas = reader.GetInt32(4) });
+            result.Add(new { id = reader.GetInt64(0), nome = reader.GetString(1), nomeOriginal = reader.GetString(2), ultimaMensagem = reader.GetString(3), dataUltimaMensagem = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4), naoLidas = reader.GetInt32(5) });
         return Ok(result);
+    }
+
+    [HttpPost("apelido")]
+    public async Task<IActionResult> DefinirApelido([FromBody] ApelidoConversaRequest request)
+    {
+        if (!ValidarRequest(request)) return BadRequest(new { mensagem = "Identidade ou contato inválido." });
+        var apelido = request.Apelido?.Trim() ?? "";
+        if (apelido.Length > 60) return BadRequest(new { mensagem = "O apelido pode ter até 60 caracteres." });
+
+        await using var db = await AbrirEValidar(request);
+        if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
+        if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido para esta empresa." });
+
+        if (apelido.Length == 0)
+        {
+            const string excluir = "DELETE FROM app.usuario_apelido WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND contato_id=@contatoId;";
+            await using var cmd = new NpgsqlCommand(excluir, db);
+            AddIdentity(cmd, request); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+            await cmd.ExecuteNonQueryAsync();
+            return Ok(new { sucesso = true, apelido = (string?)null });
+        }
+
+        const string salvar = """
+            INSERT INTO app.usuario_apelido (empresa_id, usuario_id, contato_id, apelido)
+            VALUES (@empresaId, @usuarioId, @contatoId, @apelido)
+            ON CONFLICT (empresa_id, usuario_id, contato_id)
+            DO UPDATE SET apelido=EXCLUDED.apelido, atualizado_em=NOW();
+            """;
+        await using var salvarCmd = new NpgsqlCommand(salvar, db);
+        AddIdentity(salvarCmd, request);
+        salvarCmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+        salvarCmd.Parameters.AddWithValue("apelido", apelido);
+        await salvarCmd.ExecuteNonQueryAsync();
+        return Ok(new { sucesso = true, apelido });
     }
 
     [HttpPost("listar")]
@@ -64,10 +100,12 @@ public class ConversasController : ControllerBase
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido." });
 
         const string sql = """
-            SELECT m.id, m.remetente_id, r.nome, m.destinatario_id, m.texto,
+            SELECT m.id, m.cliente_mensagem_id, m.remetente_id, COALESCE(a.apelido, r.nome), m.destinatario_id, m.texto,
                    m.foto, m.foto_nome, m.foto_tipo, m.enviada_em, m.lida_em
             FROM app.mensagem_conversa m
             JOIN app.usuario r ON r.id = m.remetente_id AND r.empresa_id = m.empresa_id
+            LEFT JOIN app.usuario_apelido a
+              ON a.empresa_id = m.empresa_id AND a.usuario_id = @usuarioId AND a.contato_id = r.id
             WHERE m.empresa_id = @empresaId
               AND ((m.remetente_id = @usuarioId AND m.destinatario_id = @contatoId)
                 OR (m.remetente_id = @contatoId AND m.destinatario_id = @usuarioId))
@@ -78,7 +116,7 @@ public class ConversasController : ControllerBase
         await using var reader = await cmd.ExecuteReaderAsync();
         var rows = new List<object>();
         while (await reader.ReadAsync())
-            rows.Add(new { id = reader.GetInt64(0), remetenteId = reader.GetInt64(1), remetenteNome = reader.GetString(2), destinatarioId = reader.GetInt64(3), texto = reader.GetString(4), foto = reader.IsDBNull(5) ? null : (byte[])reader[5], fotoNome = reader.IsDBNull(6) ? null : reader.GetString(6), fotoTipo = reader.IsDBNull(7) ? null : reader.GetString(7), enviadaEm = reader.GetDateTime(8), lidaEm = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9) });
+            rows.Add(new { id = reader.GetInt64(0), clienteMensagemId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1), remetenteId = reader.GetInt64(2), remetenteNome = reader.GetString(3), destinatarioId = reader.GetInt64(4), texto = reader.GetString(5), foto = reader.IsDBNull(6) ? null : (byte[])reader[6], fotoNome = reader.IsDBNull(7) ? null : reader.GetString(7), fotoTipo = reader.IsDBNull(8) ? null : reader.GetString(8), enviadaEm = reader.GetDateTime(9), lidaEm = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10) });
         return Ok(rows);
     }
 
@@ -86,6 +124,7 @@ public class ConversasController : ControllerBase
     public async Task<IActionResult> Enviar([FromBody] EnviarMensagemRequest request)
     {
         if (!ValidarRequest(request)) return BadRequest(new { mensagem = "Conversa inválida." });
+        if (request.ClienteMensagemId == Guid.Empty) return BadRequest(new { mensagem = "Identificador da mensagem inválido." });
         var texto = request.Texto?.Trim() ?? "";
         if (texto.Length > 4000) return BadRequest(new { mensagem = "A mensagem pode ter até 4.000 caracteres." });
         if (string.IsNullOrEmpty(texto) && request.Foto is not { Length: > 0 }) return BadRequest(new { mensagem = "Informe uma mensagem ou foto." });
@@ -98,19 +137,22 @@ public class ConversasController : ControllerBase
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido." });
 
         const string sql = """
-            INSERT INTO app.mensagem_conversa (empresa_id, remetente_id, destinatario_id, texto, foto, foto_nome, foto_tipo)
-            VALUES (@empresaId, @usuarioId, @contatoId, @texto, @foto, @fotoNome, @fotoTipo)
+            INSERT INTO app.mensagem_conversa (empresa_id, remetente_id, destinatario_id, texto, foto, foto_nome, foto_tipo, cliente_mensagem_id)
+            VALUES (@empresaId, @usuarioId, @contatoId, @texto, @foto, @fotoNome, @fotoTipo, @clienteMensagemId)
+            ON CONFLICT (empresa_id, remetente_id, cliente_mensagem_id) WHERE cliente_mensagem_id IS NOT NULL
+            DO UPDATE SET cliente_mensagem_id = EXCLUDED.cliente_mensagem_id
             RETURNING id, enviada_em;
             """;
         await using var cmd = new NpgsqlCommand(sql, db);
         AddIdentity(cmd, request); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
         cmd.Parameters.AddWithValue("texto", texto);
+        cmd.Parameters.AddWithValue("clienteMensagemId", request.ClienteMensagemId);
         cmd.Parameters.Add(new NpgsqlParameter("foto", NpgsqlDbType.Bytea) { Value = (object?)request.Foto ?? DBNull.Value });
         cmd.Parameters.AddWithValue("fotoNome", (object?)request.FotoNome ?? DBNull.Value);
         cmd.Parameters.AddWithValue("fotoTipo", (object?)request.FotoTipo ?? DBNull.Value);
         await using var reader = await cmd.ExecuteReaderAsync();
         await reader.ReadAsync();
-        return Ok(new { id = reader.GetInt64(0), remetenteId = request.UsuarioId, remetenteNome = "", destinatarioId = request.ContatoId, texto, foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm = reader.GetDateTime(1), lidaEm = (DateTime?)null });
+        return Ok(new { id = reader.GetInt64(0), clienteMensagemId = request.ClienteMensagemId, remetenteId = request.UsuarioId, remetenteNome = "", destinatarioId = request.ContatoId, texto, foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm = reader.GetDateTime(1), lidaEm = (DateTime?)null });
     }
 
     [HttpPost("marcar-lidas")]
@@ -128,9 +170,19 @@ public class ConversasController : ControllerBase
 
     private async Task<NpgsqlConnection?> AbrirEValidar(IdentidadeConversaRequest request)
     {
-        if (!TryGetSession(request, out _)) return null;
-        var db = new NpgsqlConnection(_resolver.ObterConnectionString(request.EmpresaId));
+        if (!TryGetSession(request, out var session)) return null;
+        var db = new NpgsqlConnection(await _resolver.ObterConnectionString(request.EmpresaId));
         await db.OpenAsync();
+        const string validarDispositivo = "SELECT EXISTS (SELECT 1 FROM app.dispositivo WHERE id=@dispositivoId AND empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=TRUE);";
+        await using var cmd = new NpgsqlCommand(validarDispositivo, db);
+        cmd.Parameters.AddWithValue("dispositivoId", session.DispositivoId);
+        cmd.Parameters.AddWithValue("empresaId", session.EmpresaId);
+        cmd.Parameters.AddWithValue("usuarioId", session.UsuarioId);
+        if (await cmd.ExecuteScalarAsync() is not true)
+        {
+            await db.DisposeAsync();
+            return null;
+        }
         return db;
     }
 

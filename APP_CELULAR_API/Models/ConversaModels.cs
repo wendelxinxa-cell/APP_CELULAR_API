@@ -11,8 +11,14 @@ public class ConversaRequest : IdentidadeConversaRequest
     public long ContatoId { get; set; }
 }
 
+public sealed class ApelidoConversaRequest : ConversaRequest
+{
+    public string? Apelido { get; set; }
+}
+
 public class EnviarMensagemRequest : ConversaRequest
 {
+    public Guid ClienteMensagemId { get; set; }
     public string Texto { get; set; } = "";
     public string? FotoNome { get; set; }
     public string? FotoTipo { get; set; }

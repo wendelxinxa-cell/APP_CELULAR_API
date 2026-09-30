@@ -21,3 +21,11 @@ CREATE INDEX IF NOT EXISTS ix_mensagem_conversa_destinatario_nao_lida
 
 CREATE INDEX IF NOT EXISTS ix_mensagem_conversa_par_data
     ON app.mensagem_conversa (empresa_id, remetente_id, destinatario_id, enviada_em, id);
+
+-- Chave idempotente para retentativas de mensagens enviadas sem confirmação.
+ALTER TABLE app.mensagem_conversa
+    ADD COLUMN IF NOT EXISTS cliente_mensagem_id UUID NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_mensagem_conversa_cliente_id
+    ON app.mensagem_conversa (empresa_id, remetente_id, cliente_mensagem_id)
+    WHERE cliente_mensagem_id IS NOT NULL;

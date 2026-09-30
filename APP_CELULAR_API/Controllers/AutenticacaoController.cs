@@ -26,13 +26,13 @@ public class AutenticacaoController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginApiRequest request)
     {
-        if (request.EmpresaId <= 0 || string.IsNullOrWhiteSpace(request.Nome) || string.IsNullOrWhiteSpace(request.SenhaHash))
-            return BadRequest(new { mensagem = "Informe usuário, senha e empresa." });
+        if (request.EmpresaId <= 0 || string.IsNullOrWhiteSpace(request.Nome) || string.IsNullOrWhiteSpace(request.SenhaHash) || request.ChaveInstalacao == Guid.Empty)
+            return BadRequest(new { mensagem = "Informe usuário, senha, empresa e a identidade deste aparelho." });
 
         string connectionString;
         try
         {
-            connectionString = _resolver.ObterConnectionString(request.EmpresaId);
+            connectionString = await _resolver.ObterConnectionString(request.EmpresaId);
         }
         catch (Exception ex)
         {
@@ -49,7 +49,7 @@ public class AutenticacaoController : ControllerBase
         await using var db = new NpgsqlConnection(connectionString);
         await db.OpenAsync();
         const string sql = """
-            SELECT id, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, '')))
+            SELECT id, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, ''))), COALESCE(aprovado, TRUE)
             FROM app.usuario
             WHERE empresa_id = @empresaId
               AND lower(nome) = lower(@nome)
@@ -67,16 +67,120 @@ public class AutenticacaoController : ControllerBase
 
         long usuarioId = reader.GetInt64(0);
         bool ehMaster = reader.GetBoolean(1);
-        bool ehAdministrador = ehMaster || reader.GetString(2) == "ADMINISTRADOR";
+        string funcao = reader.GetString(2);
+        bool usuarioAprovado = reader.GetBoolean(3);
         await reader.CloseAsync();
-        var (token, session) = _sessions.Create(request.EmpresaId, usuarioId, ehAdministrador);
+        if (!usuarioAprovado)
+            return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Este usuário aguarda aprovação do administrador da empresa." });
+
+        var (dispositivoId, dispositivoAtivo) = await ObterOuSolicitarDispositivo(
+            db, request.EmpresaId, usuarioId, request.ChaveInstalacao, request.NomeDispositivo);
+        if (!dispositivoAtivo)
+            return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação do administrador da empresa." });
+
+        bool ehAdministrador = ehMaster || funcao == "ADMINISTRADOR";
+        var (token, session) = _sessions.Create(request.EmpresaId, usuarioId, ehAdministrador, dispositivoId);
         return Ok(new LoginApiResponse
         {
             Token = token,
             EmpresaId = session.EmpresaId,
             UsuarioId = session.UsuarioId,
+            DispositivoId = session.DispositivoId,
+            Funcao = funcao,
+            EhMaster = ehMaster,
             ExpiraEm = session.ExpiresAt
         });
+    }
+
+    private static async Task<(long Id, bool Ativo)> ObterOuSolicitarDispositivo(
+        NpgsqlConnection db, long empresaId, long usuarioId, Guid chaveInstalacao, string? nome)
+    {
+        const string localizar = "SELECT id, ativo, usuario_id, usuario_id_solicitado FROM app.dispositivo WHERE empresa_id=@empresaId AND chave_instalacao=@chave LIMIT 1;";
+        await using (var cmd = new NpgsqlCommand(localizar, db))
+        {
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("chave", chaveInstalacao);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                long id = reader.GetInt64(0);
+                bool ativo = reader.GetBoolean(1);
+                long? usuarioVinculado = reader.IsDBNull(2) ? null : reader.GetInt64(2);
+                long? usuarioSolicitado = reader.IsDBNull(3) ? null : reader.GetInt64(3);
+                await reader.CloseAsync();
+
+                if (usuarioVinculado is null)
+                {
+                    const string vincularLegado = "UPDATE app.dispositivo SET usuario_id=@usuarioId WHERE id=@id AND empresa_id=@empresaId AND usuario_id IS NULL;";
+                    await using var atualizar = new NpgsqlCommand(vincularLegado, db);
+                    atualizar.Parameters.AddWithValue("usuarioId", usuarioId);
+                    atualizar.Parameters.AddWithValue("id", id);
+                    atualizar.Parameters.AddWithValue("empresaId", empresaId);
+                    await atualizar.ExecuteNonQueryAsync();
+                    return (id, ativo);
+                }
+
+                if (usuarioVinculado == usuarioId) return (id, ativo);
+                if (usuarioSolicitado == usuarioId) return (id, false);
+
+                // A identidade da instalação não muda de proprietário sem aprovação
+                // explícita; a solicitação fica auditável sem apagar mensagens.
+                if (usuarioSolicitado is null)
+                {
+                    const string solicitarTroca = "UPDATE app.dispositivo SET usuario_id_solicitado=@usuarioId, solicitado_em=NOW(), nome_dispositivo=@nome WHERE id=@id AND empresa_id=@empresaId AND usuario_id=@usuarioVinculado AND usuario_id_solicitado IS NULL;";
+                    await using var solicitar = new NpgsqlCommand(solicitarTroca, db);
+                    solicitar.Parameters.AddWithValue("usuarioId", usuarioId);
+                    solicitar.Parameters.AddWithValue("nome", string.IsNullOrWhiteSpace(nome) ? "Aparelho" : nome.Trim());
+                    solicitar.Parameters.AddWithValue("id", id);
+                    solicitar.Parameters.AddWithValue("empresaId", empresaId);
+                    solicitar.Parameters.AddWithValue("usuarioVinculado", usuarioVinculado.Value);
+                    await solicitar.ExecuteNonQueryAsync();
+                }
+                return (id, false);
+            }
+        }
+
+        // Vincula uma única instalação legada ao registro ativo existente. Instalações seguintes
+        // precisam ser aprovadas por um administrador já autorizado.
+        const string legado = "SELECT id FROM app.dispositivo WHERE empresa_id=@empresaId AND ativo=TRUE AND chave_instalacao IS NULL ORDER BY id LIMIT 1;";
+        await using (var cmd = new NpgsqlCommand(legado, db))
+        {
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            var legacyId = await cmd.ExecuteScalarAsync();
+            if (legacyId is not null)
+            {
+                const string vincular = "UPDATE app.dispositivo SET chave_instalacao=@chave, nome_dispositivo=@nome, usuario_id=@usuarioId WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
+                await using var update = new NpgsqlCommand(vincular, db);
+                update.Parameters.AddWithValue("chave", chaveInstalacao);
+                update.Parameters.AddWithValue("nome", string.IsNullOrWhiteSpace(nome) ? "Aparelho" : nome.Trim());
+                update.Parameters.AddWithValue("usuarioId", usuarioId);
+                update.Parameters.AddWithValue("id", Convert.ToInt64(legacyId));
+                update.Parameters.AddWithValue("empresaId", empresaId);
+                var id = await update.ExecuteScalarAsync();
+                if (id is not null) return (Convert.ToInt64(id), true);
+            }
+        }
+
+        const string existe = "SELECT EXISTS(SELECT 1 FROM app.dispositivo WHERE empresa_id=@empresaId);";
+        bool jaTemDispositivo;
+        await using (var cmd = new NpgsqlCommand(existe, db))
+        {
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            jaTemDispositivo = (bool)(await cmd.ExecuteScalarAsync() ?? false);
+        }
+
+        bool primeiro = !jaTemDispositivo;
+        const string inserir = "INSERT INTO app.dispositivo (empresa_id, ativo, chave_instalacao, nome_dispositivo, usuario_id, solicitado_em) VALUES (@empresaId, @ativo, @chave, @nome, @usuarioId, CASE WHEN @ativo THEN NULL ELSE NOW() END) RETURNING id;";
+        await using (var cmd = new NpgsqlCommand(inserir, db))
+        {
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("ativo", primeiro);
+            cmd.Parameters.AddWithValue("chave", chaveInstalacao);
+            cmd.Parameters.AddWithValue("nome", string.IsNullOrWhiteSpace(nome) ? "Aparelho" : nome.Trim());
+            cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            long id = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            return (id, primeiro);
+        }
     }
 
     [HttpPost("sair")]
