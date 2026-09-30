@@ -181,10 +181,11 @@ public class AutenticacaoController : ControllerBase
         }
 
         bool primeiro = !jaTemDispositivo;
-        const string inserir = "INSERT INTO app.dispositivo (empresa_id, ativo, chave_instalacao, nome_dispositivo, usuario_id, solicitado_em) VALUES (@empresaId, @ativo, @chave, @nome, @usuarioId, CASE WHEN @ativo THEN NULL ELSE NOW() END) RETURNING id;";
+        const string inserir = "INSERT INTO app.dispositivo (empresa_id, identificador, ativo, chave_instalacao, nome_dispositivo, usuario_id, solicitado_em) VALUES (@empresaId, @identificador, @ativo, @chave, @nome, @usuarioId, CASE WHEN @ativo THEN NULL ELSE NOW() END) RETURNING id;";
         await using (var cmd = new NpgsqlCommand(inserir, db))
         {
             cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("identificador", chaveInstalacao.ToString("D"));
             cmd.Parameters.AddWithValue("ativo", primeiro);
             cmd.Parameters.AddWithValue("chave", chaveInstalacao);
             cmd.Parameters.AddWithValue("nome", string.IsNullOrWhiteSpace(nome) ? "Aparelho" : nome.Trim());
