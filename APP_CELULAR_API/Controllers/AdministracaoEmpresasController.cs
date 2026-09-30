@@ -228,7 +228,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
                 etapa = "consulta de usuários (migração 003)";
-                const string usuariosSql = "SELECT id, nome, funcao, data_cadastro FROM app.usuario WHERE empresa_id=@empresaId AND aprovado=FALSE AND COALESCE(excluido,FALSE)=FALSE ORDER BY data_cadastro;";
+                const string usuariosSql = "SELECT id, nome, funcao, data_cadastro FROM app.usuario WHERE empresa_id=@empresaId AND aprovado=FALSE AND COALESCE(excluido,FALSE)=FALSE AND COALESCE(bloqueado_por_master,FALSE)=FALSE ORDER BY data_cadastro;";
                 await using (var cmd = new NpgsqlCommand(usuariosSql, db))
                 {
                     cmd.Parameters.AddWithValue("empresaId", empresa.Id);
@@ -275,17 +275,45 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             {
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
-                const string sql = "SELECT id, id_local, nome, funcao, aprovado, COALESCE(excluido,FALSE) FROM app.usuario WHERE empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE ORDER BY nome;";
+                const string sql = "SELECT id, id_local, nome, funcao, aprovado, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE)) FROM app.usuario WHERE empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE ORDER BY nome;";
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), idLocal = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1), empresaId = empresa.Id, nome = reader.GetString(2), funcao = reader.GetString(3), aprovado = reader.GetBoolean(4), bloqueado = reader.GetBoolean(5) });
+                while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), idLocal = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(2), funcao = reader.GetString(3), aprovado = reader.GetBoolean(4), bloqueado = reader.GetBoolean(5) });
             }
             return Ok(usuarios);
         }
         catch
         {
             return StatusCode(503, new { mensagem = "Não foi possível consultar os usuários das empresas ativas. Confira a migração 003 e as conexões do catálogo." });
+        }
+    }
+
+    [HttpPost("acessos/empresas/{empresaId:long}/usuarios/{id:long}/bloqueio")]
+    public async Task<IActionResult> DefinirBloqueioUsuario(long empresaId, long id, [FromBody] BloqueioUsuarioRequest request)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (empresaId <= 0 || id <= 0) return BadRequest(new { mensagem = "Empresa ou usuário inválido." });
+
+        try
+        {
+            await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+            await db.OpenAsync();
+            const string sql = "UPDATE app.usuario SET bloqueado_por_master=@bloqueado WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE));";
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("bloqueado", request.Bloqueado);
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Usuário não encontrado ou protegido como administrador Master." });
+            string nome = reader.GetString(0);
+            bool bloqueado = reader.GetBoolean(1);
+            return Ok(new { sucesso = true, id, empresaId, bloqueado, mensagem = bloqueado ? $"Usuário {nome} bloqueado." : $"Usuário {nome} desbloqueado." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao alterar bloqueio do usuário {UsuarioId} na empresa {EmpresaId}.", id, empresaId);
+            return StatusCode(503, new { mensagem = $"Não foi possível alterar o bloqueio do usuário na empresa código {empresaId}." });
         }
     }
 
@@ -419,5 +447,10 @@ public sealed class UsuarioAcessoRequest
     public string? Funcao { get; set; }
     public DateTime CriadoEm { get; set; }
     public DateTime AlteradoEm { get; set; }
+    public bool Bloqueado { get; set; }
+}
+
+public sealed class BloqueioUsuarioRequest
+{
     public bool Bloqueado { get; set; }
 }

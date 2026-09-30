@@ -55,6 +55,7 @@ public class AutenticacaoController : ControllerBase
               AND lower(nome) = lower(@nome)
               AND senha_hash = @senhaHash
               AND COALESCE(excluido, FALSE) = FALSE
+              AND COALESCE(bloqueado_por_master, FALSE) = FALSE
             ORDER BY id
             LIMIT 1;
             """;
