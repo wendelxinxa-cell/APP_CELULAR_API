@@ -18,6 +18,8 @@ services:
         sync: false
       - key: ConnectionStrings__CadastroCentral
         sync: false
+      - key: ChatCentral__Ativo
+        value: "false"
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash

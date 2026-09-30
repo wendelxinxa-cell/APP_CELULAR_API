@@ -13,11 +13,13 @@ public class ConversasController : ControllerBase
     private const int MaxFotoBytes = 8 * 1024 * 1024;
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _sessions;
+    private readonly IConfiguration _configuration;
 
-    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions)
+    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions, IConfiguration configuration)
     {
         _resolver = resolver;
         _sessions = sessions;
+        _configuration = configuration;
     }
 
     [HttpPost("contatos")]
@@ -26,6 +28,7 @@ public class ConversasController : ControllerBase
         if (!ValidarIdentidadeInput(request)) return BadRequest(new { mensagem = "Identidade inválida." });
         await using var db = await AbrirEValidar(request);
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
+        if (await BancoChatCentral.Pronto(_configuration)) return await ContatosCentrais(db, request);
 
         const string sql = """
             SELECT u.id, COALESCE(a.apelido, u.nome), u.nome,
@@ -68,6 +71,31 @@ public class ConversasController : ControllerBase
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido para esta empresa." });
 
+        if (await BancoChatCentral.Pronto(_configuration))
+        {
+            await using var central = await BancoChatCentral.Abrir(_configuration);
+            if (apelido.Length == 0)
+            {
+                const string excluirCentral = "DELETE FROM chat.usuario_apelido WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND contato_id=@contatoId;";
+                await using var apagar = new NpgsqlCommand(excluirCentral, central);
+                AddIdentity(apagar, request); apagar.Parameters.AddWithValue("contatoId", request.ContatoId);
+                await apagar.ExecuteNonQueryAsync();
+                return Ok(new { sucesso = true, apelido = (string?)null });
+            }
+
+            const string salvarCentralSql = """
+                INSERT INTO chat.usuario_apelido (empresa_id, usuario_id, contato_id, apelido)
+                VALUES (@empresaId, @usuarioId, @contatoId, @apelido)
+                ON CONFLICT (empresa_id, usuario_id, contato_id)
+                DO UPDATE SET apelido=EXCLUDED.apelido, atualizado_em=NOW();
+                """;
+            await using var salvarCmdCentral = new NpgsqlCommand(salvarCentralSql, central);
+            AddIdentity(salvarCmdCentral, request); salvarCmdCentral.Parameters.AddWithValue("contatoId", request.ContatoId);
+            salvarCmdCentral.Parameters.AddWithValue("apelido", apelido);
+            await salvarCmdCentral.ExecuteNonQueryAsync();
+            return Ok(new { sucesso = true, apelido });
+        }
+
         if (apelido.Length == 0)
         {
             const string excluir = "DELETE FROM app.usuario_apelido WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND contato_id=@contatoId;";
@@ -98,6 +126,7 @@ public class ConversasController : ControllerBase
         await using var db = await AbrirEValidar(request);
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido." });
+        if (await BancoChatCentral.Pronto(_configuration)) return await ListarCentral(db, request);
 
         const string sql = """
             SELECT m.id, m.cliente_mensagem_id, m.remetente_id, COALESCE(a.apelido, r.nome), m.destinatario_id, m.texto,
@@ -136,6 +165,8 @@ public class ConversasController : ControllerBase
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido." });
 
+        if (await BancoChatCentral.Pronto(_configuration)) return await EnviarCentral(db, request);
+
         const string sql = """
             INSERT INTO app.mensagem_conversa (empresa_id, remetente_id, destinatario_id, texto, foto, foto_nome, foto_tipo, cliente_mensagem_id)
             VALUES (@empresaId, @usuarioId, @contatoId, @texto, @foto, @fotoNome, @fotoTipo, @clienteMensagemId)
@@ -161,6 +192,36 @@ public class ConversasController : ControllerBase
         if (!ValidarRequest(request)) return BadRequest(new { mensagem = "Conversa inválida." });
         await using var db = await AbrirEValidar(request);
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
+        if (await BancoChatCentral.Pronto(_configuration))
+        {
+            await using var central = await BancoChatCentral.Abrir(_configuration);
+            var conversaId = await ObterConversaCentral(central, request.EmpresaId, request.UsuarioId, request.ContatoId);
+            if (conversaId is null) return Ok(new { sucesso = true });
+            await using var transaction = await central.BeginTransactionAsync();
+            const string lidas = """
+                INSERT INTO chat.recibo_mensagem (empresa_id, mensagem_id, usuario_id, entregue_em, lida_em)
+                SELECT @empresaId, m.id, @usuarioId, NOW(), NOW()
+                FROM chat.mensagem m
+                WHERE m.empresa_id=@empresaId AND m.conversa_id=@conversaId AND m.remetente_id=@contatoId
+                ON CONFLICT (empresa_id, mensagem_id, usuario_id)
+                DO UPDATE SET entregue_em=COALESCE(chat.recibo_mensagem.entregue_em, EXCLUDED.entregue_em),
+                              lida_em=COALESCE(chat.recibo_mensagem.lida_em, EXCLUDED.lida_em);
+                """;
+            await using var cmdLidas = new NpgsqlCommand(lidas, central, transaction);
+            cmdLidas.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdLidas.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+            cmdLidas.Parameters.AddWithValue("contatoId", request.ContatoId);
+            cmdLidas.Parameters.AddWithValue("conversaId", conversaId.Value);
+            await cmdLidas.ExecuteNonQueryAsync();
+            const string atualizarLeitura = "UPDATE chat.participante SET ultima_leitura_em=NOW() WHERE empresa_id=@empresaId AND conversa_id=@conversaId AND usuario_id=@usuarioId;";
+            await using var cmdLeitura = new NpgsqlCommand(atualizarLeitura, central, transaction);
+            cmdLeitura.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdLeitura.Parameters.AddWithValue("conversaId", conversaId.Value);
+            cmdLeitura.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+            await cmdLeitura.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
+            return Ok(new { sucesso = true });
+        }
         const string sql = "UPDATE app.mensagem_conversa SET lida_em = now() WHERE empresa_id=@empresaId AND remetente_id=@contatoId AND destinatario_id=@usuarioId AND lida_em IS NULL;";
         await using var cmd = new NpgsqlCommand(sql, db);
         AddIdentity(cmd, request); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
@@ -209,5 +270,233 @@ public class ConversasController : ControllerBase
         await using var cmd = new NpgsqlCommand(sql, db);
         cmd.Parameters.AddWithValue("id", contatoId); cmd.Parameters.AddWithValue("empresaId", empresaId);
         return await cmd.ExecuteScalarAsync() is true;
+    }
+
+    private async Task<IActionResult> ContatosCentrais(NpgsqlConnection empresaDb, IdentidadeConversaRequest request)
+    {
+        var usuarios = new List<(long Id, string Nome)>();
+        const string usuariosSql = "SELECT id,nome FROM app.usuario WHERE empresa_id=@empresaId AND id<>@usuarioId AND COALESCE(excluido,FALSE)=FALSE ORDER BY nome;";
+        await using (var cmdUsuarios = new NpgsqlCommand(usuariosSql, empresaDb))
+        {
+            AddIdentity(cmdUsuarios, request);
+            await using var reader = await cmdUsuarios.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) usuarios.Add((reader.GetInt64(0), reader.GetString(1)));
+        }
+
+        var resumo = new Dictionary<long, (string? Apelido, string UltimaMensagem, DateTime? Data, int NaoLidas)>();
+        await using (var central = await BancoChatCentral.Abrir(_configuration))
+        {
+            const string sql = """
+                SELECT p.usuario_id, a.apelido,
+                       COALESCE(NULLIF(ultima.texto,''), CASE WHEN ultima.foto IS NOT NULL THEN '[Foto]' ELSE '' END),
+                       ultima.enviada_em,
+                       (SELECT COUNT(*)::int
+                        FROM chat.mensagem n
+                        LEFT JOIN chat.recibo_mensagem r
+                          ON r.empresa_id=n.empresa_id AND r.mensagem_id=n.id AND r.usuario_id=@usuarioId
+                        WHERE n.empresa_id=@empresaId AND n.conversa_id=c.id
+                          AND n.remetente_id<>@usuarioId AND r.lida_em IS NULL)
+                FROM chat.conversa c
+                JOIN chat.participante p ON p.empresa_id=c.empresa_id AND p.conversa_id=c.id
+                LEFT JOIN chat.usuario_apelido a
+                  ON a.empresa_id=c.empresa_id AND a.usuario_id=@usuarioId AND a.contato_id=p.usuario_id
+                LEFT JOIN LATERAL (
+                    SELECT m.texto,m.foto,m.enviada_em
+                    FROM chat.mensagem m
+                    WHERE m.empresa_id=c.empresa_id AND m.conversa_id=c.id
+                    ORDER BY m.enviada_em DESC,m.id DESC LIMIT 1
+                ) ultima ON TRUE
+                WHERE c.empresa_id=@empresaId AND c.tipo='DIRETA'
+                  AND EXISTS (SELECT 1 FROM chat.participante eu
+                              WHERE eu.empresa_id=c.empresa_id AND eu.conversa_id=c.id
+                                AND eu.usuario_id=@usuarioId AND eu.saiu_em IS NULL)
+                  AND p.usuario_id<>@usuarioId AND p.saiu_em IS NULL;
+                """;
+            await using var cmdResumo = new NpgsqlCommand(sql, central);
+            AddIdentity(cmdResumo, request);
+            await using var reader = await cmdResumo.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                resumo[reader.GetInt64(0)] = (reader.IsDBNull(1) ? null : reader.GetString(1), reader.GetString(2),
+                    reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3), reader.GetInt32(4));
+        }
+
+        var resultado = usuarios.Select(usuario =>
+        {
+            resumo.TryGetValue(usuario.Id, out var item);
+            var linha = new
+            {
+                id = usuario.Id,
+                nome = string.IsNullOrWhiteSpace(item.Apelido) ? usuario.Nome : item.Apelido,
+                nomeOriginal = usuario.Nome,
+                ultimaMensagem = item.UltimaMensagem ?? "",
+                dataUltimaMensagem = item.Data,
+                naoLidas = item.NaoLidas
+            };
+            return (Data: item.Data, Linha: linha);
+        }).OrderByDescending(x => x.Data ?? DateTime.MinValue).Select(x => x.Linha).ToList();
+        return Ok(resultado);
+    }
+
+    private async Task<IActionResult> ListarCentral(NpgsqlConnection empresaDb, ConversaRequest request)
+    {
+        await using var central = await BancoChatCentral.Abrir(_configuration);
+        var conversaId = await ObterConversaCentral(central, request.EmpresaId, request.UsuarioId, request.ContatoId);
+        if (conversaId is null) return Ok(Array.Empty<object>());
+
+        const string entregar = """
+            INSERT INTO chat.recibo_mensagem (empresa_id,mensagem_id,usuario_id,entregue_em)
+            SELECT @empresaId,m.id,@usuarioId,NOW()
+            FROM chat.mensagem m
+            WHERE m.empresa_id=@empresaId AND m.conversa_id=@conversaId AND m.remetente_id=@contatoId
+            ON CONFLICT (empresa_id,mensagem_id,usuario_id)
+            DO UPDATE SET entregue_em=COALESCE(chat.recibo_mensagem.entregue_em,EXCLUDED.entregue_em);
+            """;
+        await using (var cmdEntrega = new NpgsqlCommand(entregar, central))
+        {
+            cmdEntrega.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdEntrega.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+            cmdEntrega.Parameters.AddWithValue("contatoId", request.ContatoId);
+            cmdEntrega.Parameters.AddWithValue("conversaId", conversaId.Value);
+            await cmdEntrega.ExecuteNonQueryAsync();
+        }
+
+        const string sql = """
+            SELECT m.id,m.cliente_mensagem_id,m.remetente_id,
+                   CASE WHEN m.remetente_id=@usuarioId THEN m.remetente_nome ELSE COALESCE(a.apelido,m.remetente_nome) END,
+                   CASE WHEN m.remetente_id=@usuarioId THEN @contatoId ELSE @usuarioId END,
+                   m.texto,m.foto,m.foto_nome,m.foto_tipo,m.enviada_em,rr.lida_em
+            FROM chat.mensagem m
+            LEFT JOIN chat.usuario_apelido a
+              ON a.empresa_id=m.empresa_id AND a.usuario_id=@usuarioId AND a.contato_id=m.remetente_id
+            LEFT JOIN chat.recibo_mensagem rr
+              ON rr.empresa_id=m.empresa_id AND rr.mensagem_id=m.id
+             AND rr.usuario_id=CASE WHEN m.remetente_id=@usuarioId THEN @contatoId ELSE @usuarioId END
+            WHERE m.empresa_id=@empresaId AND m.conversa_id=@conversaId
+            ORDER BY m.enviada_em,m.id;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, central);
+        cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+        cmd.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+        cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+        cmd.Parameters.AddWithValue("conversaId", conversaId.Value);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var rows = new List<object>();
+        while (await reader.ReadAsync())
+            rows.Add(new { id = reader.GetInt64(0), clienteMensagemId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1), remetenteId = reader.GetInt64(2), remetenteNome = reader.GetString(3), destinatarioId = reader.GetInt64(4), texto = reader.GetString(5), foto = reader.IsDBNull(6) ? null : (byte[])reader[6], fotoNome = reader.IsDBNull(7) ? null : reader.GetString(7), fotoTipo = reader.IsDBNull(8) ? null : reader.GetString(8), enviadaEm = reader.GetDateTime(9), lidaEm = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10) });
+        return Ok(rows);
+    }
+
+    private async Task<IActionResult> EnviarCentral(NpgsqlConnection empresaDb, EnviarMensagemRequest request)
+    {
+        string remetenteNome = await ObterNomeUsuario(empresaDb, request.EmpresaId, request.UsuarioId);
+        string destinatarioNome = await ObterNomeUsuario(empresaDb, request.EmpresaId, request.ContatoId);
+        await using var central = await BancoChatCentral.Abrir(_configuration);
+        await using var transaction = await central.BeginTransactionAsync();
+        var conversaId = await GarantirConversaCentral(central, transaction, request.EmpresaId,
+            request.UsuarioId, request.ContatoId);
+
+        const string participantes = """
+            INSERT INTO chat.participante (empresa_id,conversa_id,usuario_id)
+            VALUES (@empresaId,@conversaId,@usuarioId),(@empresaId,@conversaId,@contatoId)
+            ON CONFLICT (empresa_id,conversa_id,usuario_id)
+            DO UPDATE SET saiu_em=NULL;
+            """;
+        await using (var cmdParticipantes = new NpgsqlCommand(participantes, central, transaction))
+        {
+            cmdParticipantes.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdParticipantes.Parameters.AddWithValue("conversaId", conversaId);
+            cmdParticipantes.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+            cmdParticipantes.Parameters.AddWithValue("contatoId", request.ContatoId);
+            await cmdParticipantes.ExecuteNonQueryAsync();
+        }
+
+        const string inserir = """
+            INSERT INTO chat.mensagem
+                (empresa_id,conversa_id,remetente_id,cliente_mensagem_id,remetente_nome,destinatario_nome,texto,foto,foto_nome,foto_tipo)
+            VALUES (@empresaId,@conversaId,@usuarioId,@clienteMensagemId,@remetenteNome,@destinatarioNome,@texto,@foto,@fotoNome,@fotoTipo)
+            ON CONFLICT (empresa_id,remetente_id,cliente_mensagem_id) WHERE cliente_mensagem_id IS NOT NULL
+            DO UPDATE SET cliente_mensagem_id=EXCLUDED.cliente_mensagem_id
+            RETURNING id,enviada_em;
+            """;
+        long mensagemId;
+        DateTime enviadaEm;
+        await using (var cmdMensagem = new NpgsqlCommand(inserir, central, transaction))
+        {
+            cmdMensagem.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdMensagem.Parameters.AddWithValue("conversaId", conversaId);
+            cmdMensagem.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+            cmdMensagem.Parameters.AddWithValue("clienteMensagemId", request.ClienteMensagemId);
+            cmdMensagem.Parameters.AddWithValue("remetenteNome", remetenteNome);
+            cmdMensagem.Parameters.AddWithValue("destinatarioNome", destinatarioNome);
+            cmdMensagem.Parameters.AddWithValue("texto", request.Texto?.Trim() ?? "");
+            cmdMensagem.Parameters.Add(new NpgsqlParameter("foto", NpgsqlDbType.Bytea) { Value = (object?)request.Foto ?? DBNull.Value });
+            cmdMensagem.Parameters.AddWithValue("fotoNome", (object?)request.FotoNome ?? DBNull.Value);
+            cmdMensagem.Parameters.AddWithValue("fotoTipo", (object?)request.FotoTipo ?? DBNull.Value);
+            await using var reader = await cmdMensagem.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            mensagemId = reader.GetInt64(0);
+            enviadaEm = reader.GetDateTime(1);
+        }
+
+        const string recibo = """
+            INSERT INTO chat.recibo_mensagem (empresa_id,mensagem_id,usuario_id)
+            VALUES (@empresaId,@mensagemId,@contatoId)
+            ON CONFLICT (empresa_id,mensagem_id,usuario_id) DO NOTHING;
+            """;
+        await using (var cmdRecibo = new NpgsqlCommand(recibo, central, transaction))
+        {
+            cmdRecibo.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdRecibo.Parameters.AddWithValue("mensagemId", mensagemId);
+            cmdRecibo.Parameters.AddWithValue("contatoId", request.ContatoId);
+            await cmdRecibo.ExecuteNonQueryAsync();
+        }
+        const string atualizarConversa = "UPDATE chat.conversa SET atualizada_em=GREATEST(atualizada_em,@enviadaEm) WHERE empresa_id=@empresaId AND id=@conversaId;";
+        await using (var cmdAtualizarConversa = new NpgsqlCommand(atualizarConversa, central, transaction))
+        {
+            cmdAtualizarConversa.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmdAtualizarConversa.Parameters.AddWithValue("conversaId", conversaId);
+            cmdAtualizarConversa.Parameters.AddWithValue("enviadaEm", enviadaEm);
+            await cmdAtualizarConversa.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+        return Ok(new { id = mensagemId, clienteMensagemId = request.ClienteMensagemId, remetenteId = request.UsuarioId, remetenteNome, destinatarioId = request.ContatoId, texto = request.Texto?.Trim() ?? "", foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm, lidaEm = (DateTime?)null });
+    }
+
+    private static async Task<string> ObterNomeUsuario(NpgsqlConnection empresaDb, long empresaId, long usuarioId)
+    {
+        const string sql = "SELECT nome FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId AND COALESCE(excluido,FALSE)=FALSE;";
+        await using var cmd = new NpgsqlCommand(sql, empresaDb);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        return (string?)await cmd.ExecuteScalarAsync() ?? $"Usuário {usuarioId}";
+    }
+
+    private static async Task<Guid?> ObterConversaCentral(NpgsqlConnection central, long empresaId, long usuarioId, long contatoId)
+    {
+        const string sql = "SELECT id FROM chat.conversa WHERE empresa_id=@empresaId AND tipo='DIRETA' AND usuario_menor_id=LEAST(@usuarioId,@contatoId) AND usuario_maior_id=GREATEST(@usuarioId,@contatoId);";
+        await using var cmd = new NpgsqlCommand(sql, central);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("contatoId", contatoId);
+        var value = await cmd.ExecuteScalarAsync();
+        return value is Guid id ? id : null;
+    }
+
+    private static async Task<Guid> GarantirConversaCentral(NpgsqlConnection central, NpgsqlTransaction transaction,
+        long empresaId, long usuarioId, long contatoId)
+    {
+        const string sql = """
+            INSERT INTO chat.conversa (empresa_id,tipo,usuario_menor_id,usuario_maior_id,criada_por_usuario_id)
+            VALUES (@empresaId,'DIRETA',LEAST(@usuarioId,@contatoId),GREATEST(@usuarioId,@contatoId),@usuarioId)
+            ON CONFLICT (empresa_id,usuario_menor_id,usuario_maior_id) WHERE tipo='DIRETA'
+            DO UPDATE SET atualizada_em=GREATEST(chat.conversa.atualizada_em,NOW())
+            RETURNING id;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, central, transaction);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("contatoId", contatoId);
+        return (Guid)(await cmd.ExecuteScalarAsync() ?? throw new InvalidOperationException("Não foi possível criar a conversa."));
     }
 }

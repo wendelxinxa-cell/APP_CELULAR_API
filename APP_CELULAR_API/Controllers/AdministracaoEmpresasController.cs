@@ -302,6 +302,9 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
         try
         {
+            if (await BancoChatCentral.Pronto(_configuration))
+                return await ListarConversasChatCentral();
+
             var conversas = new List<MasterChatConversaResponse>();
             foreach (var empresa in await EmpresasAtivas())
             {
@@ -363,6 +366,9 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
         try
         {
+            if (await BancoChatCentral.Pronto(_configuration))
+                return await ListarMensagensChatCentral(empresaId, usuarioId, contatoId);
+
             await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
             await db.OpenAsync();
             const string sql = """
@@ -414,6 +420,9 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
         try
         {
+            if (await BancoChatCentral.Pronto(_configuration))
+                return await MarcarChatComoLidoCentral(empresaId, usuarioId, contatoId);
+
             await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
             await db.OpenAsync();
             const string sql = """
@@ -605,6 +614,118 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             AdicionarEmpresasLegadas(empresas);
         }
         return empresas;
+    }
+
+    private async Task<IActionResult> ListarConversasChatCentral()
+    {
+        var nomesEmpresas = (await EmpresasAtivas()).ToDictionary(x => x.Id, x => x.Nome);
+        await using var db = await BancoChatCentral.Abrir(_configuration);
+        const string sql = """
+            WITH recentes AS
+            (
+                SELECT DISTINCT ON (m.empresa_id,m.conversa_id)
+                       c.empresa_id,c.id AS conversa_id,c.usuario_menor_id,c.usuario_maior_id,
+                       m.remetente_id,m.remetente_nome,m.destinatario_nome,m.texto,m.foto,m.enviada_em
+                FROM chat.conversa c
+                JOIN chat.mensagem m ON m.empresa_id=c.empresa_id AND m.conversa_id=c.id
+                WHERE c.tipo='DIRETA'
+                ORDER BY m.empresa_id,m.conversa_id,m.enviada_em DESC,m.id DESC
+            )
+            SELECT r.empresa_id,r.usuario_menor_id,
+                   CASE WHEN r.remetente_id=r.usuario_menor_id THEN r.remetente_nome ELSE r.destinatario_nome END,
+                   r.usuario_maior_id,
+                   CASE WHEN r.remetente_id=r.usuario_menor_id THEN r.destinatario_nome ELSE r.remetente_nome END,
+                   COALESCE(NULLIF(r.texto,''),CASE WHEN r.foto IS NOT NULL THEN '[Foto]' ELSE '' END),r.enviada_em,
+                   (SELECT COUNT(*)::int FROM chat.recibo_mensagem rec
+                    JOIN chat.mensagem msg ON msg.empresa_id=rec.empresa_id AND msg.id=rec.mensagem_id
+                    WHERE rec.empresa_id=r.empresa_id AND msg.conversa_id=r.conversa_id AND rec.lida_em IS NULL)
+            FROM recentes r
+            ORDER BY r.enviada_em DESC;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var conversas = new List<MasterChatConversaResponse>();
+        while (await reader.ReadAsync())
+        {
+            long empresaId = reader.GetInt64(0);
+            conversas.Add(new MasterChatConversaResponse
+            {
+                EmpresaId = empresaId,
+                Empresa = nomesEmpresas.GetValueOrDefault(empresaId, $"Empresa {empresaId}"),
+                UsuarioId = reader.GetInt64(1),
+                Usuario = reader.GetString(2),
+                ContatoId = reader.GetInt64(3),
+                Contato = reader.GetString(4),
+                UltimaMensagem = reader.GetString(5),
+                DataUltimaMensagem = reader.GetDateTime(6),
+                NaoLidas = reader.GetInt32(7)
+            });
+        }
+        return Ok(conversas);
+    }
+
+    private async Task<IActionResult> ListarMensagensChatCentral(long empresaId, long usuarioId, long contatoId)
+    {
+        await using var db = await BancoChatCentral.Abrir(_configuration);
+        const string sql = """
+            SELECT m.id,m.cliente_mensagem_id,m.remetente_id,m.remetente_nome,
+                   CASE WHEN m.remetente_id=@usuarioId THEN @contatoId ELSE @usuarioId END,
+                   m.texto,m.foto,m.foto_nome,m.foto_tipo,m.enviada_em,rec.lida_em
+            FROM chat.conversa c
+            JOIN chat.mensagem m ON m.empresa_id=c.empresa_id AND m.conversa_id=c.id
+            LEFT JOIN chat.recibo_mensagem rec
+              ON rec.empresa_id=m.empresa_id AND rec.mensagem_id=m.id
+             AND rec.usuario_id=CASE WHEN m.remetente_id=@usuarioId THEN @contatoId ELSE @usuarioId END
+            WHERE c.empresa_id=@empresaId AND c.tipo='DIRETA'
+              AND c.usuario_menor_id=LEAST(@usuarioId,@contatoId)
+              AND c.usuario_maior_id=GREATEST(@usuarioId,@contatoId)
+            ORDER BY m.enviada_em,m.id;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("contatoId", contatoId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var mensagens = new List<object>();
+        while (await reader.ReadAsync())
+            mensagens.Add(new
+            {
+                id = reader.GetInt64(0),
+                clienteMensagemId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1),
+                remetenteId = reader.GetInt64(2),
+                remetenteNome = reader.GetString(3),
+                destinatarioId = reader.GetInt64(4),
+                texto = reader.GetString(5),
+                foto = reader.IsDBNull(6) ? null : (byte[])reader[6],
+                fotoNome = reader.IsDBNull(7) ? null : reader.GetString(7),
+                fotoTipo = reader.IsDBNull(8) ? null : reader.GetString(8),
+                enviadaEm = reader.GetDateTime(9),
+                lidaEm = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10)
+            });
+        return Ok(mensagens);
+    }
+
+    private async Task<IActionResult> MarcarChatComoLidoCentral(long empresaId, long usuarioId, long contatoId)
+    {
+        await using var db = await BancoChatCentral.Abrir(_configuration);
+        const string sql = """
+            WITH conversa_atual AS
+            (
+                SELECT id FROM chat.conversa WHERE empresa_id=@empresaId AND tipo='DIRETA'
+                  AND usuario_menor_id=LEAST(@usuarioId,@contatoId)
+                  AND usuario_maior_id=GREATEST(@usuarioId,@contatoId)
+            )
+            UPDATE chat.recibo_mensagem r SET entregue_em=COALESCE(r.entregue_em,NOW()),lida_em=COALESCE(r.lida_em,NOW())
+            FROM chat.mensagem m,conversa_atual c
+            WHERE r.empresa_id=@empresaId AND r.mensagem_id=m.id AND m.empresa_id=r.empresa_id
+              AND m.conversa_id=c.id AND r.lida_em IS NULL;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("contatoId", contatoId);
+        await cmd.ExecuteNonQueryAsync();
+        return Ok(new { sucesso = true });
     }
 
     private void AdicionarEmpresasLegadas(List<(long Id, string Nome)> empresas)
