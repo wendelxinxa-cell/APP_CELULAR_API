@@ -1520,26 +1520,40 @@ public class SincronizacaoController : ControllerBase
         long empresaId,
         UsuarioSync item)
     {
-        const string procura = """
-            SELECT id
-            FROM app.usuario
-            WHERE empresa_id = @empresaId
-              AND id_local = @idLocal
-            LIMIT 1;
-            """;
+        long? idEncontrado = null;
+        string? hashEncontrado = null;
 
-        await using var cmdProcura =
-            new NpgsqlCommand(procura, conexao, transacao);
-
-        cmdProcura.Parameters.AddWithValue("empresaId", empresaId);
-        cmdProcura.Parameters.AddWithValue("idLocal", (object?)item.IdLocal ?? DBNull.Value);
-
-        object? encontrado =
-            await cmdProcura.ExecuteScalarAsync();
-
-        if (encontrado != null)
+        if (item.IdServidor is > 0)
         {
-            long id = Convert.ToInt64(encontrado);
+            const string porIdServidor = "SELECT id FROM app.usuario WHERE id=@id AND empresa_id=@empresaId LIMIT 1;";
+            await using var cmdPorId = new NpgsqlCommand(porIdServidor, conexao, transacao);
+            cmdPorId.Parameters.AddWithValue("id", item.IdServidor.Value);
+            cmdPorId.Parameters.AddWithValue("empresaId", empresaId);
+            var encontrado = await cmdPorId.ExecuteScalarAsync();
+            if (encontrado is null)
+                throw new InvalidOperationException("O usuário vinculado no servidor não pertence à empresa desta sessão.");
+            idEncontrado = Convert.ToInt64(encontrado);
+        }
+        else
+        {
+            // IDs SQLite são locais ao aparelho. Nunca use id_local como identidade
+            // global: dois celulares normalmente terão o mesmo valor.
+            const string porNome = "SELECT id, senha_hash FROM app.usuario WHERE empresa_id=@empresaId AND lower(trim(nome))=lower(trim(@nome)) ORDER BY id LIMIT 1;";
+            await using var cmdPorNome = new NpgsqlCommand(porNome, conexao, transacao);
+            cmdPorNome.Parameters.AddWithValue("empresaId", empresaId);
+            cmdPorNome.Parameters.AddWithValue("nome", item.Nome);
+            await using var leitor = await cmdPorNome.ExecuteReaderAsync();
+            if (await leitor.ReadAsync())
+            {
+                idEncontrado = leitor.GetInt64(0);
+                hashEncontrado = leitor.GetString(1);
+            }
+        }
+
+        if (idEncontrado is long idExistente)
+        {
+            if (hashEncontrado is not null && !string.Equals(hashEncontrado, item.SenhaHash, StringComparison.Ordinal))
+                throw new InvalidOperationException("Já existe um usuário com esse nome nesta empresa e a senha não confere. O perfil não foi alterado.");
 
             const string update = """
                 UPDATE app.usuario
@@ -1552,13 +1566,14 @@ public class SincronizacaoController : ControllerBase
                     status_sincronizacao = 'SINCRONIZADO',
                     mensagem_erro = NULL,
                     excluido = @excluido
-                WHERE id = @id;
+                WHERE id = @id AND empresa_id = @empresaId;
                 """;
 
             await using var cmd =
                 new NpgsqlCommand(update, conexao, transacao);
 
-            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("id", idExistente);
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
             cmd.Parameters.AddWithValue("nome", item.Nome);
             cmd.Parameters.AddWithValue("senhaHash", item.SenhaHash);
             cmd.Parameters.AddWithValue("funcao", item.Funcao);
@@ -1568,7 +1583,7 @@ public class SincronizacaoController : ControllerBase
 
             await cmd.ExecuteNonQueryAsync();
 
-            return id;
+            return idExistente;
         }
 
         const string insert = """

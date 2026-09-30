@@ -468,11 +468,26 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(request.EmpresaId));
             await db.OpenAsync();
-            const string findSql = "SELECT id FROM app.usuario WHERE empresa_id=@empresaId AND id_local=@idLocal ORDER BY id LIMIT 1;";
+            string findSql = request.IdServidor is > 0
+                ? "SELECT id FROM app.usuario WHERE empresa_id=@empresaId AND id=@idServidor LIMIT 1;"
+                : "SELECT id FROM app.usuario WHERE empresa_id=@empresaId AND lower(trim(nome))=lower(trim(@nome)) AND senha_hash=@senhaHash ORDER BY id LIMIT 1;";
             await using var find = new NpgsqlCommand(findSql, db);
-            find.Parameters.AddWithValue("idLocal", request.IdLocal);
             find.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            find.Parameters.AddWithValue("nome", request.Nome.Trim());
+            find.Parameters.AddWithValue("senhaHash", request.SenhaHash);
+            if (request.IdServidor is > 0) find.Parameters.AddWithValue("idServidor", request.IdServidor.Value);
             var found = await find.ExecuteScalarAsync();
+            if (found is null && request.IdServidor is > 0)
+                return NotFound(new { mensagem = "O usuário indicado não existe nesta empresa." });
+            if (found is null && request.IdServidor is null)
+            {
+                const string nomeEmUsoSql = "SELECT EXISTS(SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND lower(trim(nome))=lower(trim(@nome)));";
+                await using var nomeEmUso = new NpgsqlCommand(nomeEmUsoSql, db);
+                nomeEmUso.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                nomeEmUso.Parameters.AddWithValue("nome", request.Nome.Trim());
+                if ((bool)(await nomeEmUso.ExecuteScalarAsync() ?? false))
+                    return Conflict(new { mensagem = "Já existe um usuário com esse nome e credenciais diferentes nesta empresa. O perfil não foi alterado." });
+            }
             string sql = found is null
                 ? "INSERT INTO app.usuario (id_local,nome,senha_hash,funcao,eh_master,aprovado,empresa_id,status_sincronizacao,data_cadastro,data_alteracao,excluido) VALUES (@idLocal,@nome,@senhaHash,@funcao,FALSE,FALSE,@empresaId,'SINCRONIZADO',@criadoEm,@alteradoEm,@bloqueado) RETURNING id;"
                 : "UPDATE app.usuario SET nome=@nome,senha_hash=@senhaHash,funcao=@funcao,data_alteracao=@alteradoEm,excluido=@bloqueado WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
@@ -583,6 +598,7 @@ public sealed class UsuarioAcessoRequest
 {
     public long EmpresaId { get; set; }
     public int IdLocal { get; set; }
+    public long? IdServidor { get; set; }
     public string Nome { get; set; } = "";
     public string SenhaHash { get; set; } = "";
     public string? Funcao { get; set; }
