@@ -43,41 +43,17 @@ public sealed class AprovacoesAcessoController(
     }
 
     [HttpPost("usuarios/{id:long}/aprovar")]
-    public async Task<IActionResult> AprovarUsuario(long id)
+    public IActionResult AprovarUsuario(long id)
     {
-        if (!AdministradorAtual(out var session)) return Unauthorized(new { mensagem = "Acesso restrito aos administradores da empresa." });
-        await using var db = await AbrirEmpresa(session.EmpresaId);
-        const string sql = "UPDATE app.usuario SET aprovado=TRUE WHERE id=@id AND empresa_id=@empresaId AND aprovado=FALSE AND COALESCE(excluido,FALSE)=FALSE RETURNING nome;";
-        await using var cmd = new NpgsqlCommand(sql, db);
-        cmd.Parameters.AddWithValue("id", id); cmd.Parameters.AddWithValue("empresaId", session.EmpresaId);
-        var nome = await cmd.ExecuteScalarAsync();
-        return nome is null ? NotFound(new { mensagem = "Solicitação pendente não encontrada." }) : Ok(new { sucesso = true, mensagem = $"Usuário {nome} aprovado." });
+        if (!AdministradorAtual(out _)) return Unauthorized(new { mensagem = "Acesso restrito aos administradores da empresa." });
+        return StatusCode(403, new { mensagem = "Somente o Administrador Master (Zeus) pode aprovar usuários." });
     }
 
     [HttpPost("dispositivos/{id:long}/aprovar")]
-    public async Task<IActionResult> AprovarDispositivo(long id)
+    public IActionResult AprovarDispositivo(long id)
     {
-        if (!AdministradorAtual(out var session)) return Unauthorized(new { mensagem = "Acesso restrito aos administradores da empresa." });
-        await using var db = await AbrirEmpresa(session.EmpresaId);
-        const string sql = """
-            UPDATE app.dispositivo
-            SET usuario_id=COALESCE(usuario_id_solicitado, usuario_id),
-                usuario_id_solicitado=NULL,
-                solicitado_em=NULL,
-                ativo=TRUE,
-                aprovado_por_usuario_id=@aprovadorId,
-                aprovado_em=NOW()
-            WHERE id=@id AND empresa_id=@empresaId
-              AND (ativo=FALSE OR usuario_id_solicitado IS NOT NULL)
-            RETURNING nome_dispositivo;
-            """;
-        await using var cmd = new NpgsqlCommand(sql, db);
-        cmd.Parameters.AddWithValue("id", id); cmd.Parameters.AddWithValue("empresaId", session.EmpresaId);
-        cmd.Parameters.AddWithValue("aprovadorId", session.UsuarioId);
-        var nome = await cmd.ExecuteScalarAsync();
-        if (nome is null) return NotFound(new { mensagem = "Solicitação pendente não encontrada." });
-        sessions.RevokeDeviceSessions(session.EmpresaId, id);
-        return Ok(new { sucesso = true, mensagem = $"Aparelho {nome} aprovado." });
+        if (!AdministradorAtual(out _)) return Unauthorized(new { mensagem = "Acesso restrito aos administradores da empresa." });
+        return StatusCode(403, new { mensagem = "Somente o Administrador Master (Zeus) pode aprovar aparelhos." });
     }
 
     private bool AdministradorAtual(out TenantSession session) =>

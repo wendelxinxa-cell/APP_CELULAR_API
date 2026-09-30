@@ -16,6 +16,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     private readonly MasterSessionStore _sessions;
     private readonly CatalogoCriptografia _criptografia;
     private readonly IEmpresaDatabaseResolver _resolver;
+    private readonly TenantSessionStore _tenantSessions;
     private readonly EmailNotificacaoService _email;
     private readonly ILogger<AdministracaoEmpresasController> _logger;
 
@@ -24,6 +25,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         MasterSessionStore sessions,
         CatalogoCriptografia criptografia,
         IEmpresaDatabaseResolver resolver,
+        TenantSessionStore tenantSessions,
         EmailNotificacaoService email,
         ILogger<AdministracaoEmpresasController> logger)
     {
@@ -31,6 +33,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         _sessions = sessions;
         _criptografia = criptografia;
         _resolver = resolver;
+        _tenantSessions = tenantSessions;
         _email = email;
         _logger = logger;
     }
@@ -238,7 +241,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
                 etapa = "consulta de aparelhos (migração 004)";
                 const string dispositivosSql = """
-                    SELECT d.id, d.nome_dispositivo, d.criado_em,
+                    SELECT d.id,
+                           concat_ws(' · ', NULLIF(trim(d.nome_dispositivo), ''),
+                               CASE WHEN d.chave_instalacao IS NOT NULL
+                                    THEN 'ID ' || upper(right(replace(d.chave_instalacao::text, '-', ''), 8)) END),
+                           d.criado_em,
                            COALESCE(solicitado.nome, vinculado.nome, 'Usuário não identificado'),
                            CASE WHEN d.usuario_id_solicitado IS NULL THEN 'Novo aparelho' ELSE 'Troca de usuário solicitada' END
                     FROM app.dispositivo d
@@ -532,16 +539,48 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
         await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
         await db.OpenAsync();
-        const string sql = """
-            UPDATE app.dispositivo SET usuario_id=COALESCE(usuario_id_solicitado,usuario_id), usuario_id_solicitado=NULL,
-                solicitado_em=NULL, ativo=TRUE, aprovado_em=NOW()
-            WHERE id=@id AND empresa_id=@empresaId AND (ativo=FALSE OR usuario_id_solicitado IS NOT NULL)
-            RETURNING nome_dispositivo;
-            """;
-        await using var cmd = new NpgsqlCommand(sql, db);
-        cmd.Parameters.AddWithValue("id", id); cmd.Parameters.AddWithValue("empresaId", empresaId);
-        var nome = await cmd.ExecuteScalarAsync();
-        return nome is null ? NotFound(new { mensagem = "Solicitação pendente não encontrada." }) : Ok(new { sucesso = true, mensagem = $"Aparelho {nome} aprovado." });
+        await using var transaction = await db.BeginTransactionAsync();
+        const string localizar = "SELECT nome_dispositivo, COALESCE(usuario_id_solicitado, usuario_id) FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (ativo=FALSE OR usuario_id_solicitado IS NOT NULL) FOR UPDATE;";
+        string nome;
+        long? usuarioId;
+        await using (var localizarCmd = new NpgsqlCommand(localizar, db, transaction))
+        {
+            localizarCmd.Parameters.AddWithValue("id", id);
+            localizarCmd.Parameters.AddWithValue("empresaId", empresaId);
+            await using var reader = await localizarCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Solicitação pendente não encontrada." });
+            nome = reader.GetString(0);
+            usuarioId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
+        }
+        if (usuarioId is null)
+            return BadRequest(new { mensagem = "O aparelho não está associado a um usuário." });
+
+        var aparelhosAnteriores = new List<long>();
+        const string desativarAnteriores = "UPDATE app.dispositivo SET ativo=FALSE WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=TRUE AND id<>@id RETURNING id;";
+        await using (var anterioresCmd = new NpgsqlCommand(desativarAnteriores, db, transaction))
+        {
+            anterioresCmd.Parameters.AddWithValue("empresaId", empresaId);
+            anterioresCmd.Parameters.AddWithValue("usuarioId", usuarioId.Value);
+            anterioresCmd.Parameters.AddWithValue("id", id);
+            await using var reader = await anterioresCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) aparelhosAnteriores.Add(reader.GetInt64(0));
+        }
+
+        const string aprovar = "UPDATE app.dispositivo SET usuario_id=COALESCE(usuario_id_solicitado,usuario_id), usuario_id_solicitado=NULL, solicitado_em=NULL, ativo=TRUE, aprovado_em=NOW() WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
+        await using (var aprovarCmd = new NpgsqlCommand(aprovar, db, transaction))
+        {
+            aprovarCmd.Parameters.AddWithValue("id", id);
+            aprovarCmd.Parameters.AddWithValue("empresaId", empresaId);
+            if (await aprovarCmd.ExecuteScalarAsync() is null)
+                return NotFound(new { mensagem = "Solicitação pendente não encontrada." });
+        }
+        await transaction.CommitAsync();
+
+        foreach (var aparelhoAnterior in aparelhosAnteriores)
+            _tenantSessions.RevokeDeviceSessions(empresaId, aparelhoAnterior);
+        _tenantSessions.RevokeDeviceSessions(empresaId, id);
+
+        return Ok(new { sucesso = true, mensagem = $"Aparelho {nome} aprovado. O aparelho anterior foi desativado e as sessões antigas foram encerradas." });
     }
 
     private async Task<List<(long Id, string Nome)>> EmpresasAtivas()

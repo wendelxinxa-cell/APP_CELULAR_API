@@ -2,6 +2,8 @@ using APP_CELULAR_API.Models;
 using APP_CELULAR_API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace APP_CELULAR_API.Controllers;
 
@@ -49,35 +51,42 @@ public class AutenticacaoController : ControllerBase
         await using var db = new NpgsqlConnection(connectionString);
         await db.OpenAsync();
         const string sql = """
-            SELECT id, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, ''))), COALESCE(aprovado, TRUE)
+            SELECT id, senha_hash, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, ''))),
+                   COALESCE(aprovado, TRUE), COALESCE(excluido, FALSE), COALESCE(bloqueado_por_master, FALSE)
             FROM app.usuario
             WHERE empresa_id = @empresaId
-              AND lower(nome) = lower(@nome)
-              AND senha_hash = @senhaHash
-              AND COALESCE(excluido, FALSE) = FALSE
-              AND COALESCE(bloqueado_por_master, FALSE) = FALSE
+              AND lower(trim(nome)) = lower(trim(@nome))
             ORDER BY id
             LIMIT 1;
             """;
         await using var cmd = new NpgsqlCommand(sql, db);
         cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
         cmd.Parameters.AddWithValue("nome", request.Nome.Trim());
-        cmd.Parameters.AddWithValue("senhaHash", request.SenhaHash);
         await using var reader = await cmd.ExecuteReaderAsync();
-        if (!await reader.ReadAsync()) return Unauthorized(new { mensagem = "Este usuário não está habilitado na empresa selecionada." });
+        if (!await reader.ReadAsync())
+            return NotFound(new { codigo = "USUARIO_NAO_CADASTRADO", mensagem = "Este usuário não está cadastrado na empresa selecionada." });
 
         long usuarioId = reader.GetInt64(0);
-        bool ehMaster = reader.GetBoolean(1);
-        string funcao = reader.GetString(2);
-        bool usuarioAprovado = reader.GetBoolean(3);
+        string senhaHashCadastrada = reader.GetString(1);
+        bool ehMaster = reader.GetBoolean(2);
+        string funcao = reader.GetString(3);
+        bool usuarioAprovado = reader.GetBoolean(4);
+        bool usuarioExcluido = reader.GetBoolean(5);
+        bool usuarioBloqueado = reader.GetBoolean(6);
         await reader.CloseAsync();
+        byte[] senhaCadastrada = Encoding.UTF8.GetBytes(senhaHashCadastrada.Trim().ToUpperInvariant());
+        byte[] senhaInformada = Encoding.UTF8.GetBytes(request.SenhaHash.Trim().ToUpperInvariant());
+        if (!CryptographicOperations.FixedTimeEquals(senhaCadastrada, senhaInformada))
+            return Unauthorized(new { codigo = "SENHA_INCORRETA", mensagem = "A senha informada está incorreta." });
+        if (usuarioExcluido || usuarioBloqueado)
+            return StatusCode(403, new { codigo = "USUARIO_BLOQUEADO", mensagem = "Este usuário está bloqueado. Solicite a liberação ao Administrador Master (Zeus)." });
         if (!usuarioAprovado)
-            return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Este usuário aguarda aprovação do administrador da empresa." });
+            return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Cadastro pendente de aprovação do Administrador Master (Zeus). O acesso será liberado após a aprovação." });
 
         var (dispositivoId, dispositivoAtivo) = await ObterOuSolicitarDispositivo(
             db, request.EmpresaId, usuarioId, request.ChaveInstalacao, request.NomeDispositivo);
         if (!dispositivoAtivo)
-            return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação do administrador da empresa." });
+            return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação do Administrador Master (Zeus). O acesso será liberado após a aprovação." });
 
         bool ehAdministrador = ehMaster || funcao == "ADMINISTRADOR";
         var (token, session) = _sessions.Create(request.EmpresaId, usuarioId, ehAdministrador, dispositivoId);
@@ -143,10 +152,11 @@ public class AutenticacaoController : ControllerBase
 
         // Vincula uma única instalação legada ao registro ativo existente. Instalações seguintes
         // precisam ser aprovadas por um administrador já autorizado.
-        const string legado = "SELECT id FROM app.dispositivo WHERE empresa_id=@empresaId AND ativo=TRUE AND chave_instalacao IS NULL ORDER BY id LIMIT 1;";
+        const string legado = "SELECT id FROM app.dispositivo WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=TRUE AND chave_instalacao IS NULL ORDER BY id LIMIT 1;";
         await using (var cmd = new NpgsqlCommand(legado, db))
         {
             cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("usuarioId", usuarioId);
             var legacyId = await cmd.ExecuteScalarAsync();
             if (legacyId is not null)
             {
