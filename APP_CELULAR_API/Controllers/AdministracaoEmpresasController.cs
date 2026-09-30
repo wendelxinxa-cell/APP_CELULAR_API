@@ -251,7 +251,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     FROM app.dispositivo d
                     LEFT JOIN app.usuario vinculado ON vinculado.id=d.usuario_id AND vinculado.empresa_id=d.empresa_id
                     LEFT JOIN app.usuario solicitado ON solicitado.id=d.usuario_id_solicitado AND solicitado.empresa_id=d.empresa_id
-                    WHERE d.empresa_id=@empresaId AND (d.ativo=FALSE OR d.usuario_id_solicitado IS NOT NULL)
+                    WHERE d.empresa_id=@empresaId AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL)
                     ORDER BY COALESCE(d.solicitado_em, d.criado_em), d.id;
                     """;
                 await using (var cmd = new NpgsqlCommand(dispositivosSql, db))
@@ -540,7 +540,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
         await db.OpenAsync();
         await using var transaction = await db.BeginTransactionAsync();
-        const string localizar = "SELECT nome_dispositivo, COALESCE(usuario_id_solicitado, usuario_id) FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (ativo=FALSE OR usuario_id_solicitado IS NOT NULL) FOR UPDATE;";
+        const string localizar = "SELECT nome_dispositivo, COALESCE(usuario_id_solicitado, usuario_id) FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (solicitado_em IS NOT NULL OR usuario_id_solicitado IS NOT NULL) FOR UPDATE;";
         string nome;
         long? usuarioId;
         await using (var localizarCmd = new NpgsqlCommand(localizar, db, transaction))

@@ -31,7 +31,7 @@ public sealed class AprovacoesAcessoController(
             FROM app.dispositivo d
             LEFT JOIN app.usuario vinculado ON vinculado.id=d.usuario_id AND vinculado.empresa_id=d.empresa_id
             LEFT JOIN app.usuario solicitado ON solicitado.id=d.usuario_id_solicitado AND solicitado.empresa_id=d.empresa_id
-            WHERE d.empresa_id=@empresaId AND (d.ativo=FALSE OR d.usuario_id_solicitado IS NOT NULL)
+            WHERE d.empresa_id=@empresaId AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL)
             ORDER BY COALESCE(d.solicitado_em, d.criado_em), d.id;
             """;
         await using var dispositivosCmd = new NpgsqlCommand(dispositivosSql, db);
