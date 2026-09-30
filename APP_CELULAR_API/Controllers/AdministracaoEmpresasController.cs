@@ -289,6 +289,147 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         }
     }
 
+    [HttpGet("chat/contatos")]
+    public async Task<IActionResult> ListarConversasChatMaster()
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        try
+        {
+            var conversas = new List<MasterChatConversaResponse>();
+            foreach (var empresa in await EmpresasAtivas())
+            {
+                await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
+                await db.OpenAsync();
+                const string sql = """
+                    WITH recentes AS (
+                        SELECT DISTINCT ON (LEAST(m.remetente_id,m.destinatario_id), GREATEST(m.remetente_id,m.destinatario_id))
+                               m.remetente_id, m.destinatario_id, m.texto, m.foto, m.enviada_em
+                        FROM app.mensagem_conversa m
+                        WHERE m.empresa_id=@empresaId
+                        ORDER BY LEAST(m.remetente_id,m.destinatario_id), GREATEST(m.remetente_id,m.destinatario_id), m.enviada_em DESC, m.id DESC
+                    )
+                    SELECT x.remetente_id, r.nome, x.destinatario_id, d.nome,
+                           COALESCE(NULLIF(x.texto,''), CASE WHEN x.foto IS NOT NULL THEN '[Foto]' ELSE '' END),
+                           x.enviada_em,
+                           (SELECT COUNT(*)::int FROM app.mensagem_conversa u
+                            WHERE u.empresa_id=@empresaId
+                              AND LEAST(u.remetente_id,u.destinatario_id)=LEAST(x.remetente_id,x.destinatario_id)
+                              AND GREATEST(u.remetente_id,u.destinatario_id)=GREATEST(x.remetente_id,x.destinatario_id)
+                              AND u.lida_em IS NULL)
+                    FROM recentes x
+                    JOIN app.usuario r ON r.id=x.remetente_id AND r.empresa_id=@empresaId
+                    JOIN app.usuario d ON d.id=x.destinatario_id AND d.empresa_id=@empresaId
+                    ORDER BY x.enviada_em DESC;
+                    """;
+                await using var cmd = new NpgsqlCommand(sql, db);
+                cmd.Parameters.AddWithValue("empresaId", empresa.Id);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    conversas.Add(new MasterChatConversaResponse
+                    {
+                        EmpresaId = empresa.Id,
+                        Empresa = empresa.Nome,
+                        UsuarioId = reader.GetInt64(0),
+                        Usuario = reader.GetString(1),
+                        ContatoId = reader.GetInt64(2),
+                        Contato = reader.GetString(3),
+                        UltimaMensagem = reader.GetString(4),
+                        DataUltimaMensagem = reader.GetDateTime(5),
+                        NaoLidas = reader.GetInt32(6)
+                    });
+            }
+            return Ok(conversas.OrderByDescending(x => x.DataUltimaMensagem));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao listar chats para Zeus.");
+            return StatusCode(503, new { mensagem = "Não foi possível carregar os chats das empresas ativas." });
+        }
+    }
+
+    [HttpGet("chat/empresas/{empresaId:long}/usuarios/{usuarioId:long}/contatos/{contatoId:long}/mensagens")]
+    public async Task<IActionResult> ListarMensagensChatMaster(long empresaId, long usuarioId, long contatoId)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (empresaId <= 0 || usuarioId <= 0 || contatoId <= 0 || usuarioId == contatoId)
+            return BadRequest(new { mensagem = "Chat inválido." });
+
+        try
+        {
+            await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+            await db.OpenAsync();
+            const string sql = """
+                SELECT m.id, m.cliente_mensagem_id, m.remetente_id, r.nome, m.destinatario_id, m.texto,
+                       m.foto, m.foto_nome, m.foto_tipo, m.enviada_em, m.lida_em
+                FROM app.mensagem_conversa m
+                JOIN app.usuario r ON r.id=m.remetente_id AND r.empresa_id=m.empresa_id
+                WHERE m.empresa_id=@empresaId
+                  AND ((m.remetente_id=@usuarioId AND m.destinatario_id=@contatoId)
+                    OR (m.remetente_id=@contatoId AND m.destinatario_id=@usuarioId))
+                ORDER BY m.enviada_em, m.id;
+                """;
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            cmd.Parameters.AddWithValue("contatoId", contatoId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            var mensagens = new List<object>();
+            while (await reader.ReadAsync())
+                mensagens.Add(new
+                {
+                    id = reader.GetInt64(0),
+                    clienteMensagemId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1),
+                    remetenteId = reader.GetInt64(2),
+                    remetenteNome = reader.GetString(3),
+                    destinatarioId = reader.GetInt64(4),
+                    texto = reader.GetString(5),
+                    foto = reader.IsDBNull(6) ? null : (byte[])reader[6],
+                    fotoNome = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    fotoTipo = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    enviadaEm = reader.GetDateTime(9),
+                    lidaEm = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10)
+                });
+            return Ok(mensagens);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao abrir chat da empresa {EmpresaId}.", empresaId);
+            return StatusCode(503, new { mensagem = $"Não foi possível abrir o chat da empresa código {empresaId}." });
+        }
+    }
+
+    [HttpPost("chat/empresas/{empresaId:long}/usuarios/{usuarioId:long}/contatos/{contatoId:long}/marcar-lidas")]
+    public async Task<IActionResult> MarcarChatComoLidoMaster(long empresaId, long usuarioId, long contatoId)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (empresaId <= 0 || usuarioId <= 0 || contatoId <= 0 || usuarioId == contatoId)
+            return BadRequest(new { mensagem = "Chat inválido." });
+
+        try
+        {
+            await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+            await db.OpenAsync();
+            const string sql = """
+                UPDATE app.mensagem_conversa SET lida_em=NOW()
+                WHERE empresa_id=@empresaId
+                  AND ((remetente_id=@usuarioId AND destinatario_id=@contatoId)
+                    OR (remetente_id=@contatoId AND destinatario_id=@usuarioId))
+                  AND lida_em IS NULL;
+                """;
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            cmd.Parameters.AddWithValue("contatoId", contatoId);
+            await cmd.ExecuteNonQueryAsync();
+            return Ok(new { sucesso = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao marcar chat como lido na empresa {EmpresaId}.", empresaId);
+            return StatusCode(503, new { mensagem = $"Não foi possível atualizar o chat da empresa código {empresaId}." });
+        }
+    }
+
     [HttpPost("acessos/empresas/{empresaId:long}/usuarios/{id:long}/bloqueio")]
     public async Task<IActionResult> DefinirBloqueioUsuario(long empresaId, long id, [FromBody] BloqueioUsuarioRequest request)
     {
@@ -453,4 +594,17 @@ public sealed class UsuarioAcessoRequest
 public sealed class BloqueioUsuarioRequest
 {
     public bool Bloqueado { get; set; }
+}
+
+public sealed class MasterChatConversaResponse
+{
+    public long EmpresaId { get; set; }
+    public string Empresa { get; set; } = "";
+    public long UsuarioId { get; set; }
+    public string Usuario { get; set; } = "";
+    public long ContatoId { get; set; }
+    public string Contato { get; set; } = "";
+    public string UltimaMensagem { get; set; } = "";
+    public DateTime DataUltimaMensagem { get; set; }
+    public int NaoLidas { get; set; }
 }
