@@ -12,14 +12,20 @@ services:
         value: SupabaseEmpresa1
       - key: ConnectionStrings__SupabaseEmpresa1
         sync: false
-      - key: Empresas__2
-        value: SupabaseEmpresa2
-      - key: ConnectionStrings__SupabaseEmpresa2
-        sync: false
       - key: ConnectionStrings__CadastroCentral
         sync: false
       - key: ChatCentral__Ativo
         value: "false"
+      - key: AppUpdate__Version
+        value: "0.0.002"
+      - key: AppUpdate__Build
+        value: "2"
+      - key: AppUpdate__FileName
+        value: "APP_CELULAR_0.0.002_build_2.apk"
+      - key: AppUpdate__Sha256
+        value: "0A5CB2B59AC3C33F9854B46F552C30FD85811E8EBF9A0AC71CF2AAE23AEF4DE1"
+      - key: AppUpdate__Notes
+        value: "Primeira atualização automática do aplicativo."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
@@ -40,3 +46,4 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+

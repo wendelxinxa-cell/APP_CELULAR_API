@@ -14,6 +14,7 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 // ============================================================
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
 
 builder.Services.AddOpenApi();
 

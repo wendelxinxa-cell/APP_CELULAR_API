@@ -2,6 +2,21 @@
 ALTER TABLE app.usuario
     ADD COLUMN IF NOT EXISTS aprovado BOOLEAN NOT NULL DEFAULT TRUE;
 
+-- Campos usados pela sincronização e pelo painel Zeus. Eles ficam aqui também
+-- para que bancos antigos preparados apenas com a migração 003 não quebrem as
+-- consultas de usuários; IF NOT EXISTS torna a atualização segura para repetir.
+ALTER TABLE app.usuario
+    ADD COLUMN IF NOT EXISTS id_local INTEGER NULL;
+
+ALTER TABLE app.usuario
+    ADD COLUMN IF NOT EXISTS status_sincronizacao TEXT NOT NULL DEFAULT 'SINCRONIZADO';
+
+ALTER TABLE app.usuario
+    ADD COLUMN IF NOT EXISTS data_alteracao TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE app.usuario
+    ADD COLUMN IF NOT EXISTS bloqueado_por_master BOOLEAN NOT NULL DEFAULT FALSE;
+
 ALTER TABLE app.dispositivo
     ADD COLUMN IF NOT EXISTS chave_instalacao UUID NULL;
 

@@ -35,6 +35,20 @@ public class EmpresaDatabaseResolver : IEmpresaDatabaseResolver
         if (_cache.TryGetValue(empresaId, out var cached) && cached.Expira > DateTime.UtcNow)
             return cached.Valor;
 
+        // O produto usa um único banco físico (o banco da Empresa 1) para todas
+        // as empresas. O empresa_id continua isolando os dados dentro desse
+        // banco; o código da empresa não seleciona outro servidor Supabase.
+        string? bancoUnico = _configuration["Empresas:1"];
+        string? connectionUnica = string.IsNullOrWhiteSpace(bancoUnico)
+            ? null
+            : _configuration.GetConnectionString(bancoUnico);
+        if (!string.IsNullOrWhiteSpace(connectionUnica))
+        {
+            string resolvido = NormalizarConnectionString(connectionUnica);
+            _cache[empresaId] = (resolvido, DateTime.UtcNow.AddMinutes(5));
+            return resolvido;
+        }
+
         var catalogo = _configuration.GetConnectionString("CadastroCentral");
         if (!string.IsNullOrWhiteSpace(catalogo))
         {

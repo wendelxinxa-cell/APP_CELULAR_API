@@ -95,6 +95,9 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         string nome = request.Nome?.Trim() ?? "";
         string emailResponsavel = request.EmailResponsavel?.Trim() ?? "";
         string connectionString = request.ConnectionString?.Trim() ?? "";
+        string? bancoUnicoConfigurado = ObterConnectionBancoUnico();
+        if (!string.IsNullOrWhiteSpace(bancoUnicoConfigurado))
+            connectionString = bancoUnicoConfigurado;
         if (nome.Length is < 2 or > 120)
             return BadRequest(new { mensagem = "O nome da empresa deve ter entre 2 e 120 caracteres." });
         if (connectionString.Length is < 20 or > 2048)
@@ -275,13 +278,18 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     public async Task<IActionResult> ListarStatusUsuarios()
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        long? empresaEmConsulta = null;
+        string etapa = "catálogo central";
         try
         {
             var usuarios = new List<object>();
             foreach (var empresa in await EmpresasAtivas())
             {
+                empresaEmConsulta = empresa.Id;
+                etapa = "conexão com a empresa";
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
+                etapa = "consulta de usuários (migração 003)";
                 const string sql = "SELECT id, id_local, nome, funcao, aprovado, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE)) FROM app.usuario WHERE empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE ORDER BY nome;";
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
@@ -290,9 +298,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             }
             return Ok(usuarios);
         }
-        catch
+        catch (Exception ex)
         {
-            return StatusCode(503, new { mensagem = "Não foi possível consultar os usuários das empresas ativas. Confira a migração 003 e as conexões do catálogo." });
+            _logger.LogError(ex, "Falha na lista de usuários. Etapa: {Etapa}; EmpresaId: {EmpresaId}.", etapa, empresaEmConsulta);
+            string local = empresaEmConsulta.HasValue ? $"na empresa código {empresaEmConsulta.Value}" : "no catálogo central";
+            return StatusCode(503, new { mensagem = $"Falha {local} durante {etapa}. Execute a migração 003 no banco único da Empresa 1 e confira a configuração do Render." });
         }
     }
 
@@ -740,6 +750,14 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
             empresas.Add((id, $"Empresa {id}"));
         }
+    }
+
+    private string? ObterConnectionBancoUnico()
+    {
+        string? nome = _configuration["Empresas:1"];
+        if (string.IsNullOrWhiteSpace(nome)) return null;
+        string? valor = _configuration.GetConnectionString(nome);
+        return string.IsNullOrWhiteSpace(valor) ? null : EmpresaDatabaseResolver.NormalizarConnectionString(valor);
     }
 
     private bool MasterAutorizado() => _sessions.Validar(Request.Headers.Authorization.ToString());
