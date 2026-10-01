@@ -17,13 +17,13 @@ services:
       - key: ChatCentral__Ativo
         value: "false"
       - key: AppUpdate__Version
-        value: "0.0.006"
+        value: "0.0.007"
       - key: AppUpdate__Build
-        value: "6"
+        value: "7"
       - key: AppUpdate__FileName
-        value: "APP_CELULAR_0.0.006_build_6.apk"
+        value: "APP_CELULAR_0.0.007_build_7.apk"
       - key: AppUpdate__Sha256
-        value: "CA7DE498BEF429925BE55AA3961C274D555E7362D2A04BF01CD29B0361538719"
+        value: "50A947D8A4494FF9A5E164C99F777EFFD85B04539434D29D2399E4844E136E07"
       - key: AppUpdate__Notes
         value: "Chat com personalização, emojis e paletas em todas as telas."
       - key: MasterAdmin__Username
