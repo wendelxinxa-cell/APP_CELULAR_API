@@ -17,15 +17,15 @@ services:
       - key: ChatCentral__Ativo
         value: "false"
       - key: AppUpdate__Version
-        value: "0.0.002"
+        value: "0.0.003"
       - key: AppUpdate__Build
-        value: "2"
+        value: "3"
       - key: AppUpdate__FileName
-        value: "APP_CELULAR_0.0.002_build_2.apk"
+        value: "APP_CELULAR_0.0.003_build_3.apk"
       - key: AppUpdate__Sha256
-        value: "0A5CB2B59AC3C33F9854B46F552C30FD85811E8EBF9A0AC71CF2AAE23AEF4DE1"
+        value: "0C5B74C397F21C4015803FAAC4BF021C86B7EE64BAA37CCA199114515DBCBAA9"
       - key: AppUpdate__Notes
-        value: "Primeira atualização automática do aplicativo."
+        value: "Chat com personalização, emojis e paletas em todas as telas."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
