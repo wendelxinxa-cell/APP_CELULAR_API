@@ -19,13 +19,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "16"
+        value: "17"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_16.apk"
+        value: "CHATCAT_0.0.001_build_17.apk"
       - key: AppUpdate__Sha256
-        value: "0527978ABC61211E076051B190360561A664469872A94FB18CE6CD2D7EDD1733"
+        value: "FB785257AC1F95366F33319A156E9539BAB0185041FDC954E8923CA919328FCA"
       - key: AppUpdate__Notes
-        value: "ChatCat: winks com três pulsos lentos em tela cheia; splash e barras na paleta preto e amarelo."
+        value: "ChatCat: figurinhas enviadas como mensagem com animação e neon; raio e estrela com três pulsos sincronizados."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
