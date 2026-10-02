@@ -17,15 +17,15 @@ services:
       - key: ChatCentral__Ativo
         value: "false"
       - key: AppUpdate__Version
-        value: "0.0.009"
+        value: "0.0.010"
       - key: AppUpdate__Build
-        value: "9"
+        value: "10"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.009_build_9.apk"
+        value: "CHATCAT_0.0.010_build_10.apk"
       - key: AppUpdate__Sha256
-        value: "8918C376A4ECF7559465949F02848C28FC22B307DB3F8A4D8493C726E940B0E6"
+        value: "D74CB7AA0D62B6B38B0B61A9D089836D3F4CECC776F7FC9DE4D963BBFF953A15"
       - key: AppUpdate__Notes
-        value: "ChatCat com Winks, pacotes personalizados, som e novo ícone."
+        value: "ChatCat: tema preto e amarelo, modos Sucata e Chat, conversas e mídia em tela inteira."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
