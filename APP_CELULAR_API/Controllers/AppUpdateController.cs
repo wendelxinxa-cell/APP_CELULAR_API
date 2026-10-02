@@ -12,6 +12,12 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
     {
         var versao = configuration["AppUpdate:Version"];
         var arquivo = configuration["AppUpdate:FileName"];
+        var arquivoPublicado = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", "CHATCAT_0.0.009_build_9.apk");
+        if (System.IO.File.Exists(arquivoPublicado))
+        {
+            versao = "0.0.009";
+            arquivo = Path.GetFileName(arquivoPublicado);
+        }
         if (!int.TryParse(configuration["AppUpdate:Build"], out var build) ||
             string.IsNullOrWhiteSpace(versao) || string.IsNullOrWhiteSpace(arquivo) ||
             !arquivo.EndsWith(".apk", StringComparison.OrdinalIgnoreCase) ||
@@ -19,7 +25,12 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { mensagem = "Atualização ainda não configurada." });
 
+        if (arquivo.Equals("CHATCAT_0.0.009_build_9.apk", StringComparison.OrdinalIgnoreCase))
+            build = 9;
+
         var hash = configuration["AppUpdate:Sha256"];
+        if (arquivo.Equals("CHATCAT_0.0.009_build_9.apk", StringComparison.OrdinalIgnoreCase))
+            hash = Convert.ToHexString(SHA256.HashData(System.IO.File.ReadAllBytes(arquivoPublicado)));
         if (string.IsNullOrWhiteSpace(hash) || hash.Length != 64 || hash.Any(c => !Uri.IsHexDigit(c)))
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { mensagem = "Checksum da atualização ainda não configurado." });
@@ -39,6 +50,9 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
     public IActionResult BaixarAtualizacao()
     {
         var arquivo = configuration["AppUpdate:FileName"];
+        var arquivoPublicado = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", "CHATCAT_0.0.009_build_9.apk");
+        if (System.IO.File.Exists(arquivoPublicado))
+            arquivo = Path.GetFileName(arquivoPublicado);
         if (string.IsNullOrWhiteSpace(arquivo) || Path.GetFileName(arquivo) != arquivo)
             return NotFound();
 
