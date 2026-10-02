@@ -19,7 +19,7 @@ services:
       - key: AppUpdate__Version
         value: "0.0.009"
       - key: AppUpdate__Build
-        value: "8"
+        value: "9"
       - key: AppUpdate__FileName
         value: "CHATCAT_0.0.009_build_9.apk"
       - key: AppUpdate__Sha256
@@ -46,5 +46,6 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+
 
 
