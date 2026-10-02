@@ -19,13 +19,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "12"
+        value: "13"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_12.apk"
+        value: "CHATCAT_0.0.001_build_13.apk"
       - key: AppUpdate__Sha256
-        value: "0A09DA0C57BA89505AE33CD3EB09ACF30FD819B0689C0FD32B96A8B7542DC6C0"
+        value: "B0DB7E42FA93347614CA423D0A0A0C3D0884711C53BD05D884546F6C824C06F3"
       - key: AppUpdate__Notes
-        value: "ChatCat: aprovações identificam usuário e aparelho; cada troca libera um único aparelho e invalida as outras solicitações pendentes do usuário."
+        value: "ChatCat: ações de atenção e wink com animação independente da vibração, envio direto e aviso de pendência; atualização da conversa mais rápida."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
