@@ -87,6 +87,10 @@ public class SincronizacaoController : ControllerBase
 
         await conexao.OpenAsync();
 
+        await using (var prepararTipoNegocio = new NpgsqlCommand(
+            "ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata';", conexao))
+            await prepararTipoNegocio.ExecuteNonQueryAsync();
+
         await using var transacao =
             await conexao.BeginTransactionAsync();
 
@@ -1561,6 +1565,7 @@ public class SincronizacaoController : ControllerBase
                     nome = @nome,
                     senha_hash = @senhaHash,
                     funcao = @funcao,
+                    tipo_negocio = @tipoNegocio,
                     eh_master = @ehMaster,
                     data_alteracao = @dataAlteracao,
                     status_sincronizacao = 'SINCRONIZADO',
@@ -1577,6 +1582,7 @@ public class SincronizacaoController : ControllerBase
             cmd.Parameters.AddWithValue("nome", item.Nome);
             cmd.Parameters.AddWithValue("senhaHash", item.SenhaHash);
             cmd.Parameters.AddWithValue("funcao", item.Funcao);
+            cmd.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio == "chat" ? "chat" : "sucata");
             cmd.Parameters.AddWithValue("ehMaster", item.EhMaster);
             cmd.Parameters.AddWithValue("dataAlteracao", item.DataAlteracao);
             cmd.Parameters.AddWithValue("excluido", item.Excluido);
@@ -1593,6 +1599,7 @@ public class SincronizacaoController : ControllerBase
                 nome,
                 senha_hash,
                 funcao,
+                tipo_negocio,
                 eh_master,
                 aprovado,
                 empresa_id,
@@ -1608,6 +1615,7 @@ public class SincronizacaoController : ControllerBase
                 @nome,
                 @senhaHash,
                 @funcao,
+                @tipoNegocio,
                 @ehMaster,
                 FALSE,
                 @empresaId,
@@ -1627,6 +1635,7 @@ public class SincronizacaoController : ControllerBase
         cmdInsert.Parameters.AddWithValue("nome", item.Nome);
         cmdInsert.Parameters.AddWithValue("senhaHash", item.SenhaHash);
         cmdInsert.Parameters.AddWithValue("funcao", item.Funcao);
+        cmdInsert.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio == "chat" ? "chat" : "sucata");
         cmdInsert.Parameters.AddWithValue("ehMaster", item.EhMaster);
         cmdInsert.Parameters.AddWithValue("empresaId", empresaId);
         cmdInsert.Parameters.AddWithValue("dataCadastro", item.DataCadastro);

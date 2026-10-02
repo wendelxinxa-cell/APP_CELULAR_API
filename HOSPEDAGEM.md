@@ -1,5 +1,9 @@
 # Publicar a API no Render
 
+## Numeração das versões do aplicativo
+
+O aplicativo usa versões no formato `0.0.NNN`, iniciando em `0.0.001`. Cada versão tem builds de 1 a 99. Ao passar do build 99, incremente NNN e reinicie o build em 1. O `ApplicationVersion` interno do Android não reinicia: use `(NNN - 1) × 99 + build` para que o Android aceite as atualizações. A API calcula e envia esse código como `codigoVersao`; o app compara esse campo para continuar atualizando depois da virada de ciclo.
+
 O arquivo `render.yaml`, na raiz do repositório, define o serviço web gratuito, o contêiner .NET, a porta HTTPS pública, a verificação `/health`, publicação automática a cada commit e os segredos das conexões Supabase. O processo da API usa a variável `PORT` do Render; localmente continua usando a configuração existente.
 
 ## Criar o serviço

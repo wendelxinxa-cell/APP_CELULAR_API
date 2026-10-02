@@ -289,12 +289,22 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 etapa = "conexão com a empresa";
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
-                etapa = "consulta de usuários (migração 003)";
-                const string sql = "SELECT id, id_local, nome, funcao, aprovado, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE)) FROM app.usuario WHERE empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE ORDER BY nome;";
+                await GarantirColunaTipoNegocio(db);
+                etapa = "consulta de usuário e aparelho";
+                const string sql = """
+                    SELECT u.id,u.id_local,u.nome,u.funcao,COALESCE(u.aprovado,FALSE),
+                           (COALESCE(u.excluido,FALSE) OR COALESCE(u.bloqueado_por_master,FALSE)),
+                           COALESCE(u.tipo_negocio,'sucata'),
+                           EXISTS (SELECT 1 FROM app.dispositivo d WHERE d.empresa_id=u.empresa_id
+                               AND (d.usuario_id=u.id OR d.usuario_id_solicitado=u.id)
+                               AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL))
+                    FROM app.usuario u
+                    WHERE u.empresa_id=@empresaId AND COALESCE(u.eh_master,FALSE)=FALSE ORDER BY u.nome;
+                    """;
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), idLocal = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(2), funcao = reader.GetString(3), aprovado = reader.GetBoolean(4), bloqueado = reader.GetBoolean(5) });
+                while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), idLocal = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(2), funcao = reader.GetString(3), aprovado = reader.GetBoolean(4), bloqueado = reader.GetBoolean(5), tipoNegocio = reader.GetString(6), aparelhoPendente = reader.GetBoolean(7) });
             }
             return Ok(usuarios);
         }
@@ -494,6 +504,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(request.EmpresaId));
             await db.OpenAsync();
+            await GarantirColunaTipoNegocio(db);
             string findSql = request.IdServidor is > 0
                 ? "SELECT id FROM app.usuario WHERE empresa_id=@empresaId AND id=@idServidor LIMIT 1;"
                 : "SELECT id FROM app.usuario WHERE empresa_id=@empresaId AND lower(trim(nome))=lower(trim(@nome)) AND senha_hash=@senhaHash ORDER BY id LIMIT 1;";
@@ -515,12 +526,13 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     return Conflict(new { mensagem = "Já existe um usuário com esse nome e credenciais diferentes nesta empresa. O perfil não foi alterado." });
             }
             string sql = found is null
-                ? "INSERT INTO app.usuario (id_local,nome,senha_hash,funcao,eh_master,aprovado,empresa_id,status_sincronizacao,data_cadastro,data_alteracao,excluido) VALUES (@idLocal,@nome,@senhaHash,@funcao,FALSE,FALSE,@empresaId,'SINCRONIZADO',@criadoEm,@alteradoEm,@bloqueado) RETURNING id;"
-                : "UPDATE app.usuario SET nome=@nome,senha_hash=@senhaHash,funcao=@funcao,data_alteracao=@alteradoEm,excluido=@bloqueado WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
+                ? "INSERT INTO app.usuario (id_local,nome,senha_hash,funcao,tipo_negocio,eh_master,aprovado,empresa_id,status_sincronizacao,data_cadastro,data_alteracao,excluido) VALUES (@idLocal,@nome,@senhaHash,@funcao,@tipoNegocio,FALSE,FALSE,@empresaId,'SINCRONIZADO',@criadoEm,@alteradoEm,@bloqueado) RETURNING id;"
+                : "UPDATE app.usuario SET nome=@nome,senha_hash=@senhaHash,funcao=@funcao,tipo_negocio=@tipoNegocio,data_alteracao=@alteradoEm,excluido=@bloqueado WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
             await using var cmd = new NpgsqlCommand(sql, db);
             cmd.Parameters.AddWithValue("nome", request.Nome.Trim());
             cmd.Parameters.AddWithValue("senhaHash", request.SenhaHash);
             cmd.Parameters.AddWithValue("funcao", request.Funcao?.Trim() ?? "USUARIO");
+            cmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio == "chat" ? "chat" : "sucata");
             cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
             cmd.Parameters.AddWithValue("alteradoEm", request.AlteradoEm);
             cmd.Parameters.AddWithValue("bloqueado", request.Bloqueado);
@@ -538,6 +550,28 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             return StatusCode(503, new { mensagem = "Não foi possível registrar o usuário na empresa selecionada." });
         }
+    }
+
+    [HttpPut("acessos/empresas/{empresaId:long}/usuarios/{id:long}/tipo-negocio")]
+    public async Task<IActionResult> DefinirTipoNegocio(long empresaId, long id, [FromBody] TipoNegocioUsuarioRequest request)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (request.TipoNegocio is not ("sucata" or "chat")) return BadRequest(new { mensagem = "Tipo de negócio inválido." });
+        await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+        await db.OpenAsync();
+        await GarantirColunaTipoNegocio(db);
+        await using var cmd = new NpgsqlCommand("UPDATE app.usuario SET tipo_negocio=@tipo WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome;", db);
+        cmd.Parameters.AddWithValue("tipo", request.TipoNegocio);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        var nome = await cmd.ExecuteScalarAsync();
+        return nome is null ? NotFound(new { mensagem = "Usuário não encontrado." }) : Ok(new { sucesso = true, nome, tipoNegocio = request.TipoNegocio });
+    }
+
+    private static async Task GarantirColunaTipoNegocio(NpgsqlConnection db)
+    {
+        await using var cmd = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata';", db);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     [HttpPost("acessos/empresas/{empresaId:long}/usuarios/{id:long}/aprovar")]
@@ -780,9 +814,15 @@ public sealed class UsuarioAcessoRequest
     public string Nome { get; set; } = "";
     public string SenhaHash { get; set; } = "";
     public string? Funcao { get; set; }
+    public string TipoNegocio { get; set; } = "sucata";
     public DateTime CriadoEm { get; set; }
     public DateTime AlteradoEm { get; set; }
     public bool Bloqueado { get; set; }
+}
+
+public sealed class TipoNegocioUsuarioRequest
+{
+    public string TipoNegocio { get; set; } = "sucata";
 }
 
 public sealed class BloqueioUsuarioRequest

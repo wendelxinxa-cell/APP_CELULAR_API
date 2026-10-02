@@ -17,15 +17,15 @@ services:
       - key: ChatCentral__Ativo
         value: "false"
       - key: AppUpdate__Version
-        value: "0.0.010"
+        value: "0.0.001"
       - key: AppUpdate__Build
-        value: "10"
+        value: "11"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.010_build_10.apk"
+        value: "CHATCAT_0.0.001_build_11.apk"
       - key: AppUpdate__Sha256
-        value: "D74CB7AA0D62B6B38B0B61A9D089836D3F4CECC776F7FC9DE4D963BBFF953A15"
+        value: "FF79E27BF3CFD26924AEAAF5684719CA7D791B04C426673C76FA1EC5752F766E"
       - key: AppUpdate__Notes
-        value: "ChatCat: tema preto e amarelo, modos Sucata e Chat, conversas e mídia em tela inteira."
+        value: "ChatCat: login preto e amarelo, módulos por usuário, ações com animação e vibração entre usuários, foco nas mensagens recentes e permissões de usuário/aparelho identificadas."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash

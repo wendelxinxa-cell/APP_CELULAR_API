@@ -50,9 +50,11 @@ public class AutenticacaoController : ControllerBase
 
         await using var db = new NpgsqlConnection(connectionString);
         await db.OpenAsync();
+        await GarantirColunaTipoNegocio(db);
         const string sql = """
             SELECT id, senha_hash, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, ''))),
-                   COALESCE(aprovado, TRUE), COALESCE(excluido, FALSE), COALESCE(bloqueado_por_master, FALSE)
+                   COALESCE(aprovado, TRUE), COALESCE(excluido, FALSE), COALESCE(bloqueado_por_master, FALSE),
+                   COALESCE(tipo_negocio, 'sucata')
             FROM app.usuario
             WHERE empresa_id = @empresaId
               AND lower(trim(nome)) = lower(trim(@nome))
@@ -73,6 +75,7 @@ public class AutenticacaoController : ControllerBase
         bool usuarioAprovado = reader.GetBoolean(4);
         bool usuarioExcluido = reader.GetBoolean(5);
         bool usuarioBloqueado = reader.GetBoolean(6);
+        string tipoNegocio = reader.GetString(7);
         await reader.CloseAsync();
         byte[] senhaCadastrada = Encoding.UTF8.GetBytes(senhaHashCadastrada.Trim().ToUpperInvariant());
         byte[] senhaInformada = Encoding.UTF8.GetBytes(request.SenhaHash.Trim().ToUpperInvariant());
@@ -97,9 +100,17 @@ public class AutenticacaoController : ControllerBase
             UsuarioId = session.UsuarioId,
             DispositivoId = session.DispositivoId,
             Funcao = funcao,
+            TipoNegocio = tipoNegocio == "chat" ? "chat" : "sucata",
             EhMaster = ehMaster,
             ExpiraEm = session.ExpiresAt
         });
+    }
+
+    private static async Task GarantirColunaTipoNegocio(NpgsqlConnection db)
+    {
+        const string sql = "ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata';";
+        await using var command = new NpgsqlCommand(sql, db);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<(long Id, bool Ativo)> ObterOuSolicitarDispositivo(

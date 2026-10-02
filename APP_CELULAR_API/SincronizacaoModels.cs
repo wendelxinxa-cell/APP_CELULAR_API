@@ -203,6 +203,8 @@ public class UsuarioSync
 
     public string Funcao { get; set; } = "USUARIO";
 
+    public string TipoNegocio { get; set; } = "sucata";
+
     public bool EhMaster { get; set; }
 
     public string StatusSincronizacao { get; set; } = "PENDENTE";

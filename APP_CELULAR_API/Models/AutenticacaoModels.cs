@@ -16,6 +16,7 @@ public class LoginApiResponse
     public long UsuarioId { get; set; }
     public long DispositivoId { get; set; }
     public string Funcao { get; set; } = "USUARIO";
+    public string TipoNegocio { get; set; } = "sucata";
     public bool EhMaster { get; set; }
     public DateTimeOffset ExpiraEm { get; set; }
 }
