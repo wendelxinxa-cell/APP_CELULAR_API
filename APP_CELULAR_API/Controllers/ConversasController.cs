@@ -3,6 +3,7 @@ using APP_CELULAR_API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using NpgsqlTypes;
+using System.Collections.Concurrent;
 
 namespace APP_CELULAR_API.Controllers;
 
@@ -11,6 +12,8 @@ namespace APP_CELULAR_API.Controllers;
 public class ConversasController : ControllerBase
 {
     private const int MaxFotoBytes = 8 * 1024 * 1024;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> ActionSchemaLocks = new();
+    private static readonly ConcurrentDictionary<string, byte> ActionSchemasReady = new();
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _sessions;
     private readonly IConfiguration _configuration;
@@ -147,6 +150,115 @@ public class ConversasController : ControllerBase
         while (await reader.ReadAsync())
             rows.Add(new { id = reader.GetInt64(0), clienteMensagemId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1), remetenteId = reader.GetInt64(2), remetenteNome = reader.GetString(3), destinatarioId = reader.GetInt64(4), texto = reader.GetString(5), foto = reader.IsDBNull(6) ? null : (byte[])reader[6], fotoNome = reader.IsDBNull(7) ? null : reader.GetString(7), fotoTipo = reader.IsDBNull(8) ? null : reader.GetString(8), enviadaEm = reader.GetDateTime(9), lidaEm = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10) });
         return Ok(rows);
+    }
+
+    [HttpPost("acao-visual")]
+    public async Task<IActionResult> EnviarAcaoVisual([FromBody] EnviarAcaoVisualRequest request)
+    {
+        if (!ValidarRequest(request)) return BadRequest(new { mensagem = "Conversa inválida." });
+        if (request.Tipo is not ("WINK" or "ATTENTION"))
+            return BadRequest(new { mensagem = "Tipo de ação inválido." });
+        if (request.Tipo == "WINK" && (string.IsNullOrWhiteSpace(request.Simbolo) || request.Simbolo.Length > 32))
+            return BadRequest(new { mensagem = "O wink precisa de um símbolo válido." });
+
+        await using var tenantDb = await AbrirEValidar(request);
+        if (tenantDb is null) return Unauthorized(new { mensagem = "Usuário ou aparelho inválido para esta empresa." });
+        if (!await ContatoValido(tenantDb, request.EmpresaId, request.ContatoId))
+            return BadRequest(new { mensagem = "Contato inválido para esta empresa." });
+
+        bool central = await BancoChatCentral.Pronto(_configuration);
+        if (central)
+        {
+            await using var centralDb = await BancoChatCentral.Abrir(_configuration);
+            await GarantirTabelaAcoesVisuais(centralDb, central: true, request.EmpresaId);
+            await ExpirarAcoesVisuais(centralDb, central: true, request.EmpresaId);
+            await using var command = new NpgsqlCommand("INSERT INTO chat.acao_visual (empresa_id,remetente_id,destinatario_id,tipo,simbolo) VALUES (@empresaId,@usuarioId,@contatoId,@tipo,@simbolo);", centralDb);
+            AddIdentity(command, request);
+            command.Parameters.AddWithValue("contatoId", request.ContatoId);
+            command.Parameters.AddWithValue("tipo", request.Tipo);
+            command.Parameters.AddWithValue("simbolo", request.Tipo == "ATTENTION" ? "⚡" : request.Simbolo.Trim());
+            await command.ExecuteNonQueryAsync();
+        }
+        else
+        {
+            await GarantirTabelaAcoesVisuais(tenantDb, central: false, request.EmpresaId);
+            await ExpirarAcoesVisuais(tenantDb, central: false, request.EmpresaId);
+            await using var command = new NpgsqlCommand("INSERT INTO app.acao_visual (remetente_id,destinatario_id,tipo,simbolo) VALUES (@usuarioId,@contatoId,@tipo,@simbolo);", tenantDb);
+            AddIdentity(command, request);
+            command.Parameters.AddWithValue("contatoId", request.ContatoId);
+            command.Parameters.AddWithValue("tipo", request.Tipo);
+            command.Parameters.AddWithValue("simbolo", request.Tipo == "ATTENTION" ? "⚡" : request.Simbolo.Trim());
+            await command.ExecuteNonQueryAsync();
+        }
+
+        return Accepted(new { enviada = true, registradaNoHistorico = false });
+    }
+
+    [HttpPost("acoes-visuais/pendentes")]
+    public async Task<IActionResult> ObterAcoesVisuaisPendentes([FromBody] ConversaRequest request)
+    {
+        if (!ValidarRequest(request)) return BadRequest(new { mensagem = "Conversa inválida." });
+        await using var tenantDb = await AbrirEValidar(request);
+        if (tenantDb is null) return Unauthorized(new { mensagem = "Usuário ou aparelho inválido para esta empresa." });
+        if (!await ContatoValido(tenantDb, request.EmpresaId, request.ContatoId))
+            return BadRequest(new { mensagem = "Contato inválido para esta empresa." });
+
+        bool central = await BancoChatCentral.Pronto(_configuration);
+        if (central)
+        {
+            await using var centralDb = await BancoChatCentral.Abrir(_configuration);
+            await GarantirTabelaAcoesVisuais(centralDb, central: true, request.EmpresaId);
+            await ExpirarAcoesVisuais(centralDb, central: true, request.EmpresaId);
+            return Ok(await ConsumirAcoesVisuais(centralDb, central: true, request));
+        }
+
+        await GarantirTabelaAcoesVisuais(tenantDb, central: false, request.EmpresaId);
+        await ExpirarAcoesVisuais(tenantDb, central: false, request.EmpresaId);
+        return Ok(await ConsumirAcoesVisuais(tenantDb, central: false, request));
+    }
+
+    private static async Task GarantirTabelaAcoesVisuais(NpgsqlConnection db, bool central, long empresaId)
+    {
+        string chave = central ? "central" : $"empresa:{empresaId}";
+        if (ActionSchemasReady.ContainsKey(chave)) return;
+        var gate = ActionSchemaLocks.GetOrAdd(chave, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        try
+        {
+            if (ActionSchemasReady.ContainsKey(chave)) return;
+            string sql = central
+                ? "CREATE TABLE IF NOT EXISTS chat.acao_visual (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, empresa_id BIGINT NOT NULL, remetente_id BIGINT NOT NULL, destinatario_id BIGINT NOT NULL, tipo TEXT NOT NULL CHECK (tipo IN ('WINK','ATTENTION')), simbolo TEXT NOT NULL, criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW()); CREATE INDEX IF NOT EXISTS ix_chat_acao_visual_destino ON chat.acao_visual (empresa_id,destinatario_id,remetente_id,id);"
+                : "CREATE TABLE IF NOT EXISTS app.acao_visual (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, remetente_id BIGINT NOT NULL, destinatario_id BIGINT NOT NULL, tipo TEXT NOT NULL CHECK (tipo IN ('WINK','ATTENTION')), simbolo TEXT NOT NULL, criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW()); CREATE INDEX IF NOT EXISTS ix_app_acao_visual_destino ON app.acao_visual (destinatario_id,remetente_id,id);";
+            await using var command = new NpgsqlCommand(sql, db);
+            await command.ExecuteNonQueryAsync();
+            ActionSchemasReady.TryAdd(chave, 0);
+        }
+        finally { gate.Release(); }
+    }
+
+    private static async Task ExpirarAcoesVisuais(NpgsqlConnection db, bool central, long empresaId)
+    {
+        string sql = central
+            ? "DELETE FROM chat.acao_visual WHERE empresa_id=@empresaId AND criada_em < NOW() - INTERVAL '30 seconds';"
+            : "DELETE FROM app.acao_visual WHERE criada_em < NOW() - INTERVAL '30 seconds';";
+        await using var command = new NpgsqlCommand(sql, db);
+        if (central) command.Parameters.AddWithValue("empresaId", empresaId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<List<AcaoVisualConversaResponse>> ConsumirAcoesVisuais(NpgsqlConnection db, bool central, ConversaRequest request)
+    {
+        string sql = central
+            ? "WITH fila AS (SELECT id FROM chat.acao_visual WHERE empresa_id=@empresaId AND remetente_id=@contatoId AND destinatario_id=@usuarioId AND criada_em >= NOW() - INTERVAL '30 seconds' ORDER BY id LIMIT 10), removidas AS (DELETE FROM chat.acao_visual a USING fila f WHERE a.id=f.id RETURNING a.id,a.tipo,a.simbolo) SELECT tipo,simbolo FROM removidas ORDER BY id;"
+            : "WITH fila AS (SELECT id FROM app.acao_visual WHERE remetente_id=@contatoId AND destinatario_id=@usuarioId AND criada_em >= NOW() - INTERVAL '30 seconds' ORDER BY id LIMIT 10), removidas AS (DELETE FROM app.acao_visual a USING fila f WHERE a.id=f.id RETURNING a.id,a.tipo,a.simbolo) SELECT tipo,simbolo FROM removidas ORDER BY id;";
+        await using var command = new NpgsqlCommand(sql, db);
+        command.Parameters.AddWithValue("usuarioId", request.UsuarioId);
+        command.Parameters.AddWithValue("contatoId", request.ContatoId);
+        if (central) command.Parameters.AddWithValue("empresaId", request.EmpresaId);
+        await using var reader = await command.ExecuteReaderAsync();
+        var rows = new List<AcaoVisualConversaResponse>();
+        while (await reader.ReadAsync()) rows.Add(new() { Tipo = reader.GetString(0), Simbolo = reader.GetString(1) });
+        return rows;
     }
 
     [HttpPost("enviar")]

@@ -24,3 +24,15 @@ public class EnviarMensagemRequest : ConversaRequest
     public string? FotoTipo { get; set; }
     public byte[]? Foto { get; set; }
 }
+
+public sealed class EnviarAcaoVisualRequest : ConversaRequest
+{
+    public string Tipo { get; set; } = "WINK";
+    public string Simbolo { get; set; } = "⭐";
+}
+
+public sealed class AcaoVisualConversaResponse
+{
+    public string Tipo { get; set; } = "WINK";
+    public string Simbolo { get; set; } = "⭐";
+}
