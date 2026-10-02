@@ -19,13 +19,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "11"
+        value: "12"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_11.apk"
+        value: "CHATCAT_0.0.001_build_12.apk"
       - key: AppUpdate__Sha256
-        value: "FF79E27BF3CFD26924AEAAF5684719CA7D791B04C426673C76FA1EC5752F766E"
+        value: "0A09DA0C57BA89505AE33CD3EB09ACF30FD819B0689C0FD32B96A8B7542DC6C0"
       - key: AppUpdate__Notes
-        value: "ChatCat: login preto e amarelo, módulos por usuário, ações com animação e vibração entre usuários, foco nas mensagens recentes e permissões de usuário/aparelho identificadas."
+        value: "ChatCat: aprovações identificam usuário e aparelho; cada troca libera um único aparelho e invalida as outras solicitações pendentes do usuário."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash

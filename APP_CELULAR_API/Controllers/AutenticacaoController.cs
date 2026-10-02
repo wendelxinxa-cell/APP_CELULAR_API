@@ -141,7 +141,21 @@ public class AutenticacaoController : ControllerBase
                     return (id, ativo);
                 }
 
-                if (usuarioVinculado == usuarioId) return (id, ativo);
+                if (usuarioVinculado == usuarioId)
+                {
+                    if (ativo) return (id, true);
+
+                    // Um aparelho que já foi substituído continua vinculado ao usuário,
+                    // mas precisa gerar uma nova solicitação se tentar voltar a acessar.
+                    const string solicitarReativacao = "UPDATE app.dispositivo SET solicitado_em=COALESCE(solicitado_em,NOW()), nome_dispositivo=@nome WHERE id=@id AND empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=FALSE;";
+                    await using var reativar = new NpgsqlCommand(solicitarReativacao, db);
+                    reativar.Parameters.AddWithValue("nome", string.IsNullOrWhiteSpace(nome) ? "Aparelho" : nome.Trim());
+                    reativar.Parameters.AddWithValue("id", id);
+                    reativar.Parameters.AddWithValue("empresaId", empresaId);
+                    reativar.Parameters.AddWithValue("usuarioId", usuarioId);
+                    await reativar.ExecuteNonQueryAsync();
+                    return (id, false);
+                }
                 if (usuarioSolicitado == usuarioId) return (id, false);
 
                 // A identidade da instalação não muda de proprietário sem aprovação

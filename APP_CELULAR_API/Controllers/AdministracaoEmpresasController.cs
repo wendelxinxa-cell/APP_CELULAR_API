@@ -593,7 +593,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
         await db.OpenAsync();
         await using var transaction = await db.BeginTransactionAsync();
-        const string localizar = "SELECT nome_dispositivo, COALESCE(usuario_id_solicitado, usuario_id) FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (solicitado_em IS NOT NULL OR usuario_id_solicitado IS NOT NULL) FOR UPDATE;";
+        const string localizar = "SELECT nome_dispositivo, COALESCE(usuario_id_solicitado, usuario_id) FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (solicitado_em IS NOT NULL OR usuario_id_solicitado IS NOT NULL);";
         string nome;
         long? usuarioId;
         await using (var localizarCmd = new NpgsqlCommand(localizar, db, transaction))
@@ -608,6 +608,24 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         if (usuarioId is null)
             return BadRequest(new { mensagem = "O aparelho não está associado a um usuário." });
 
+        // Serializa as trocas do mesmo usuário para que duas aprovações simultâneas
+        // não deixem dois aparelhos ativos.
+        await using (var lockCmd = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(hashtextextended(@chave, 0));", db, transaction))
+        {
+            lockCmd.Parameters.AddWithValue("chave", $"{empresaId}:{usuarioId.Value}");
+            await lockCmd.ExecuteNonQueryAsync();
+        }
+
+        const string confirmarSolicitacao = "SELECT id FROM app.dispositivo WHERE id=@id AND empresa_id=@empresaId AND (solicitado_em IS NOT NULL OR usuario_id_solicitado IS NOT NULL) FOR UPDATE;";
+        await using (var confirmarCmd = new NpgsqlCommand(confirmarSolicitacao, db, transaction))
+        {
+            confirmarCmd.Parameters.AddWithValue("id", id);
+            confirmarCmd.Parameters.AddWithValue("empresaId", empresaId);
+            if (await confirmarCmd.ExecuteScalarAsync() is null)
+                return NotFound(new { mensagem = "Solicitação pendente não encontrada." });
+        }
+
         var aparelhosAnteriores = new List<long>();
         const string desativarAnteriores = "UPDATE app.dispositivo SET ativo=FALSE WHERE empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=TRUE AND id<>@id RETURNING id;";
         await using (var anterioresCmd = new NpgsqlCommand(desativarAnteriores, db, transaction))
@@ -617,6 +635,17 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             anterioresCmd.Parameters.AddWithValue("id", id);
             await using var reader = await anterioresCmd.ExecuteReaderAsync();
             while (await reader.ReadAsync()) aparelhosAnteriores.Add(reader.GetInt64(0));
+        }
+
+        // Se havia mais de uma tentativa de troca pendente, aprovar este cartão
+        // libera somente o aparelho escolhido e cancela as outras solicitações.
+        const string cancelarOutrasSolicitacoes = "UPDATE app.dispositivo SET usuario_id_solicitado=NULL, solicitado_em=NULL, ativo=FALSE WHERE empresa_id=@empresaId AND id<>@id AND COALESCE(usuario_id_solicitado,usuario_id)=@usuarioId AND (solicitado_em IS NOT NULL OR usuario_id_solicitado IS NOT NULL);";
+        await using (var cancelarCmd = new NpgsqlCommand(cancelarOutrasSolicitacoes, db, transaction))
+        {
+            cancelarCmd.Parameters.AddWithValue("empresaId", empresaId);
+            cancelarCmd.Parameters.AddWithValue("id", id);
+            cancelarCmd.Parameters.AddWithValue("usuarioId", usuarioId.Value);
+            await cancelarCmd.ExecuteNonQueryAsync();
         }
 
         const string aprovar = "UPDATE app.dispositivo SET usuario_id=COALESCE(usuario_id_solicitado,usuario_id), usuario_id_solicitado=NULL, solicitado_em=NULL, ativo=TRUE, aprovado_em=NOW() WHERE id=@id AND empresa_id=@empresaId RETURNING id;";
