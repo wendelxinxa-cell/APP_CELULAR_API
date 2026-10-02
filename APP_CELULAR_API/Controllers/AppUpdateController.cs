@@ -30,7 +30,7 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
 
         var hash = configuration["AppUpdate:Sha256"];
         if (arquivo.Equals("CHATCAT_0.0.009_build_9.apk", StringComparison.OrdinalIgnoreCase))
-            hash = Convert.ToHexString(SHA256.HashData(System.IO.File.ReadAllBytes(arquivoPublicado)));
+            hash = "8918C376A4ECF7559465949F02848C28FC22B307DB3F8A4D8493C726E940B0E6";
         if (string.IsNullOrWhiteSpace(hash) || hash.Length != 64 || hash.Any(c => !Uri.IsHexDigit(c)))
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { mensagem = "Checksum da atualização ainda não configurado." });
@@ -60,6 +60,8 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
         if (!System.IO.File.Exists(caminho)) return NotFound();
 
         var hashEsperado = configuration["AppUpdate:Sha256"];
+        if (arquivo.Equals("CHATCAT_0.0.009_build_9.apk", StringComparison.OrdinalIgnoreCase))
+            hashEsperado = "8918C376A4ECF7559465949F02848C28FC22B307DB3F8A4D8493C726E940B0E6";
         using (var stream = System.IO.File.OpenRead(caminho))
         {
             var hashReal = Convert.ToHexString(SHA256.HashData(stream));
