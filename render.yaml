@@ -17,15 +17,15 @@ services:
       - key: ChatCentral__Ativo
         value: "false"
       - key: AppUpdate__Version
-        value: "0.0.008"
+        value: "0.0.009"
       - key: AppUpdate__Build
         value: "8"
       - key: AppUpdate__FileName
-        value: "APP_CELULAR_0.0.008_build_8.apk"
+        value: "CHATCAT_0.0.009_build_9.apk"
       - key: AppUpdate__Sha256
-        value: "751140E7EC411C39A219CB9AAF0604CC48044B199FB01BD82B44F2EA03F82536"
+        value: "8918C376A4ECF7559465949F02848C28FC22B307DB3F8A4D8493C726E940B0E6"
       - key: AppUpdate__Notes
-        value: "Chat com personalização, emojis e paletas em todas as telas."
+        value: "ChatCat com Winks, pacotes personalizados, som e novo ícone."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
@@ -46,4 +46,5 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+
 
