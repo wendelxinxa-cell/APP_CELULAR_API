@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "19"
+        value: "20"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_19.apk"
+        value: "CHATCAT_0.0.001_build_20.apk"
       - key: AppUpdate__Sha256
-        value: "1734AD7E397C481F4CFC42981C8411855080FCD18F8037B2B02997F8F9ACCB6D"
+        value: "E890D24A49F9270AC435F1FCF1C4CE1FAB364BA430CA6CC433007D124CEB845D"
       - key: AppUpdate__Notes
-        value: "ChatCat: novas paletas de cores, figurinhas Stipop, melhorias no chat, efeito LED de borda no raio e proteção local do histórico."
+        value: "ChatCat: novas paletas de cores, figurinhas Stipop, melhorias no chat, efeito LED de borda com o gato do app, proteção do histórico com senha da conta e ajustes dos menus de conversa."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
