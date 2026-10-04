@@ -16,16 +16,18 @@ services:
         sync: false
       - key: ChatCentral__Ativo
         value: "false"
+      - key: Stipop__ApiKey
+        sync: false
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "17"
+        value: "18"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_17.apk"
+        value: "CHATCAT_0.0.001_build_18.apk"
       - key: AppUpdate__Sha256
-        value: "FB785257AC1F95366F33319A156E9539BAB0185041FDC954E8923CA919328FCA"
+        value: "6F931638045703FEB2D661E7B54C2A5E97A5A79768A90E2A197E5634BB6ACA20"
       - key: AppUpdate__Notes
-        value: "ChatCat: figurinhas enviadas como mensagem com animação e neon; raio e estrela com três pulsos sincronizados."
+        value: "ChatCat: novas paletas de cores, figurinhas Stipop, melhorias no chat e na experiência do aplicativo."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
