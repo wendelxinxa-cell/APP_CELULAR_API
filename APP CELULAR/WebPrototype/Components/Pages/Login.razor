@@ -1,0 +1,81 @@
+@page "/"
+@page "/login"
+@using WebPrototype.Services
+@inject DemoPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar · APP CELULAR</PageTitle>
+
+<main class="login-page">
+    <section class="login-card">
+        <div class="brand-mark" aria-hidden="true">♻</div>
+        <p class="eyebrow">APP CELULAR</p>
+        <h1>Acesso ao sistema</h1>
+        <p class="muted login-intro">Entre para acompanhar seus materiais e estoques.</p>
+
+        <EditForm Model="form" OnValidSubmit="Entrar">
+            <div class="field">
+                <label for="username">Usuário</label>
+                <input id="username" @bind="form.Usuario" autocomplete="username" placeholder="Digite seu usuário" />
+            </div>
+            <div class="field">
+                <label for="password">Senha</label>
+                <div class="password-field">
+                    <input id="password" type="@(mostrarSenha ? "text" : "password")" @bind="form.Senha" autocomplete="current-password" placeholder="Digite sua senha" />
+                    <button class="reveal-button" type="button" @onclick="() => mostrarSenha = !mostrarSenha" aria-label="Mostrar ou ocultar senha">@(mostrarSenha ? "Ocultar" : "Mostrar")</button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(erro))
+            {
+                <div class="notice error" role="alert">@erro</div>
+            }
+
+            <button class="primary-button login-submit" type="submit">Entrar <span aria-hidden="true">→</span></button>
+        </EditForm>
+
+        <div class="demo-hint">
+            <span class="hint-icon">i</span>
+            <div><strong>Acesso de demonstração</strong><br />Usuário: <code>teste</code> · Senha: <code>Teste@123</code></div>
+        </div>
+        <p class="prototype-label">Protótipo de interface · dados de teste em memória</p>
+    </section>
+    <aside class="login-side">
+        <div class="side-content">
+            <span class="side-kicker">GESTÃO SIMPLES</span>
+            <h2>Seu estoque,<br />em um só lugar.</h2>
+            <p>Uma prévia da experiência web do APP CELULAR.</p>
+            <div class="side-stats"><span>♻</span><div><strong>Materiais</strong><small>Cadastro e consulta rápida</small></div></div>
+        </div>
+        <div class="side-orbit orbit-one"></div><div class="side-orbit orbit-two"></div>
+    </aside>
+</main>
+
+@code {
+    private readonly LoginForm form = new();
+    private bool mostrarSenha;
+    private string? erro;
+
+    private void Entrar()
+    {
+        if (string.IsNullOrWhiteSpace(form.Usuario) || string.IsNullOrWhiteSpace(form.Senha))
+        {
+            erro = "Informe seu usuário e sua senha.";
+            return;
+        }
+
+        if (!Portal.Entrar(form.Usuario, form.Senha))
+        {
+            erro = "Usuário ou senha inválidos.";
+            return;
+        }
+
+        Navigation.NavigateTo("/produtos");
+    }
+
+    private sealed class LoginForm
+    {
+        public string Usuario { get; set; } = "";
+        public string Senha { get; set; } = "";
+    }
+}

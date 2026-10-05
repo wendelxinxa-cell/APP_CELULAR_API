@@ -1,0 +1,180 @@
+@page "/produtos"
+@using WebPrototype.Services
+@inject DemoPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Produtos · APP CELULAR</PageTitle>
+
+@if (Portal.UsuarioLogado is null)
+{
+    <div class="page-loading">Abrindo acesso…</div>
+}
+else
+{
+    <div class="products-shell">
+        <header class="topbar">
+            <a class="wordmark" href="/produtos"><span class="wordmark-icon">♻</span> APP CELULAR</a>
+            <div class="topbar-actions"><span class="user-chip"><span class="avatar">@Portal.UsuarioLogado[..1].ToUpperInvariant()</span> @Portal.UsuarioLogado</span><button class="logout-button" @onclick="Sair">Sair <span aria-hidden="true">↗</span></button></div>
+        </header>
+
+        <main class="products-main">
+            <div class="breadcrumb"><span>Início</span><span>/</span><strong>Produtos</strong></div>
+            <section class="page-heading">
+                <div><p class="eyebrow">CATÁLOGO</p><h1>Produtos</h1><p class="muted">Cadastre e gerencie os materiais utilizados no sistema.</p></div>
+                <button class="primary-button add-button" @onclick="AbrirNovo"><span class="plus">＋</span> Novo produto</button>
+            </section>
+
+            <section class="summary-row">
+                <article class="summary-card"><div class="summary-icon purple">▦</div><div><span>Total de produtos</span><strong>@Portal.Materiais.Count.ToString("00")</strong></div></article>
+                <article class="summary-card"><div class="summary-icon green">↗</div><div><span>Unidades cadastradas</span><strong>@Portal.Materiais.Select(x => x.Unidade).Distinct().Count().ToString("00")</strong></div></article>
+                <article class="summary-card"><div class="summary-icon orange">◷</div><div><span>Estoque controlado</span><strong>@Portal.Materiais.Count(x => x.EstoqueAtual > 0).ToString("00")</strong></div></article>
+            </section>
+
+            <section class="catalog-card">
+                <div class="catalog-toolbar"><div><h2>Todos os produtos</h2><p>@ItensFiltrados.Count() itens cadastrados</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input @bind="pesquisa" @bind:event="oninput" placeholder="Buscar produto..." aria-label="Buscar produto" /></label></div>
+                @if (!string.IsNullOrWhiteSpace(aviso))
+                {
+                    <div class="notice @tipoAviso">@aviso</div>
+                }
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>PRODUTO</th><th>UNIDADE</th><th>ESTOQUE ATUAL</th><th>STATUS</th><th><span class="sr-only">Ações</span></th></tr></thead>
+                        <tbody>
+                            @foreach (var material in ItensFiltrados)
+                            {
+                                <tr>
+                                    <td><div class="product-name"><span class="product-icon">♻</span><strong>@material.Nome</strong></div></td>
+                                    <td><span class="unit-pill">@material.Unidade</span></td>
+                                    <td class="stock-value">@material.EstoqueAtual.ToString("N2") <span>@material.Unidade</span></td>
+                                    <td><span class="status-pill @(material.EstoqueAtual > 0 ? "in-stock" : "empty-stock")"><i></i>@(material.EstoqueAtual > 0 ? "Em estoque" : "Sem estoque")</span></td>
+                                    <td><div class="row-actions"><button title="Editar" aria-label="Editar @material.Nome" @onclick="() => AbrirEdicao(material)">✎</button><button title="Excluir" aria-label="Excluir @material.Nome" @onclick="() => ConfirmarExclusao(material)">×</button></div></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (!ItensFiltrados.Any())
+                    {
+                        <div class="empty-state"><span>⌕</span><strong>Nenhum produto encontrado</strong><p>Tente outro termo ou cadastre um novo produto.</p></div>
+                    }
+                </div>
+                <footer class="table-footer">Mostrando <strong>@ItensFiltrados.Count()</strong> de <strong>@Portal.Materiais.Count</strong> produtos</footer>
+            </section>
+            <p class="prototype-note">Demonstração: as alterações ficam apenas nesta sessão e não alteram o banco do aplicativo.</p>
+        </main>
+    </div>
+}
+
+@if (mostrarFormulario)
+{
+    <div class="modal-backdrop" @onclick="FecharFormulario">
+        <section class="modal-card" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="form-title">
+            <button class="modal-close" aria-label="Fechar" @onclick="FecharFormulario">×</button>
+            <p class="eyebrow">CATÁLOGO</p><h2 id="form-title">@(materialEditando is null ? "Novo produto" : "Editar produto")</h2><p class="muted">Preencha os dados do material.</p>
+            <div class="field"><label for="product-name">Nome do produto</label><input id="product-name" @bind="nome" placeholder="Ex.: Cobre" /></div>
+            <div class="field"><label for="product-unit">Unidade de medida</label><select id="product-unit" @bind="unidade"><option>KG</option><option>UN</option><option>TON</option><option>M</option><option>L</option></select></div>
+            @if (!string.IsNullOrWhiteSpace(erroFormulario)) { <div class="notice error">@erroFormulario</div> }
+            <div class="modal-actions"><button class="secondary-button" @onclick="FecharFormulario">Cancelar</button><button class="primary-button" @onclick="Salvar">Salvar produto</button></div>
+        </section>
+    </div>
+}
+
+@if (materialExcluir is not null)
+{
+    <div class="modal-backdrop" @onclick="() => materialExcluir = null">
+        <section class="modal-card confirm-card" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+            <div class="delete-icon">!</div><h2 id="delete-title">Excluir produto?</h2><p>Deseja realmente excluir <strong>@materialExcluir.Nome</strong> desta demonstração?</p>
+            <div class="modal-actions"><button class="secondary-button" @onclick="() => materialExcluir = null">Cancelar</button><button class="danger-button" @onclick="Excluir">Excluir</button></div>
+        </section>
+    </div>
+}
+
+@code {
+    private string pesquisa = "";
+    private bool mostrarFormulario;
+    private string nome = "";
+    private string unidade = "KG";
+    private string? erroFormulario;
+    private string? aviso;
+    private string tipoAviso = "success";
+    private MaterialWeb? materialEditando;
+    private MaterialWeb? materialExcluir;
+
+    private IEnumerable<MaterialWeb> ItensFiltrados => Portal.Materiais
+        .Where(x => x.Nome.Contains(pesquisa.Trim(), StringComparison.OrdinalIgnoreCase))
+        .OrderBy(x => x.Nome);
+
+    protected override void OnInitialized()
+    {
+        if (Portal.UsuarioLogado is null)
+            Navigation.NavigateTo("/login", replace: true);
+    }
+
+    private void AbrirNovo()
+    {
+        materialEditando = null;
+        nome = "";
+        unidade = "KG";
+        erroFormulario = null;
+        mostrarFormulario = true;
+    }
+
+    private void AbrirEdicao(MaterialWeb material)
+    {
+        materialEditando = material;
+        nome = material.Nome;
+        unidade = material.Unidade;
+        erroFormulario = null;
+        mostrarFormulario = true;
+    }
+
+    private void Salvar()
+    {
+        var nomeNormalizado = nome.Trim();
+        if (nomeNormalizado.Length == 0)
+        {
+            erroFormulario = "Informe o nome do produto.";
+            return;
+        }
+
+        if (Portal.Materiais.Any(item => item != materialEditando && item.Nome.Equals(nomeNormalizado, StringComparison.OrdinalIgnoreCase)))
+        {
+            erroFormulario = "Já existe um produto com esse nome.";
+            return;
+        }
+
+        if (materialEditando is null)
+            Portal.Adicionar(nomeNormalizado, unidade);
+        else
+            Portal.Atualizar(materialEditando, nomeNormalizado, unidade);
+
+        mostrarFormulario = false;
+        aviso = materialEditando is null ? "Produto cadastrado com sucesso." : "Produto atualizado com sucesso.";
+        tipoAviso = "success";
+        materialEditando = null;
+    }
+
+    private void FecharFormulario()
+    {
+        mostrarFormulario = false;
+        erroFormulario = null;
+    }
+
+    private void ConfirmarExclusao(MaterialWeb material) => materialExcluir = material;
+
+    private void Excluir()
+    {
+        if (materialExcluir is not null)
+        {
+            Portal.Excluir(materialExcluir);
+            aviso = "Produto removido da demonstração.";
+            tipoAviso = "success";
+            materialExcluir = null;
+        }
+    }
+
+    private void Sair()
+    {
+        Portal.Sair();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}
