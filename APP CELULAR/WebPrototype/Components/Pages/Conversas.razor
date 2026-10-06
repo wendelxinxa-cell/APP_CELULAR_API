@@ -5,7 +5,7 @@
 @inject ChatPortalState Portal
 @inject NavigationManager Navigation
 
-<PageTitle>Conversas · APP CELULAR</PageTitle>
+<PageTitle>Conversas · ChatCat</PageTitle>
 
 @if (!Portal.Autenticado)
 {
@@ -15,7 +15,7 @@ else
 {
     <div class="messaging-shell">
         <header class="messaging-topbar">
-            <a class="wordmark" href="/conversas"><span class="wordmark-icon">♻</span> APP CELULAR</a>
+            <a class="wordmark chatcat-wordmark" href="/conversas"><img src="app-icon-512.png" alt="" /> CHATCAT <small>APP CELULAR</small></a>
             <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario · Empresa @Portal.Sessao.EmpresaId</span><button class="logout-button" @onclick="SairAsync">Sair <span aria-hidden="true">↗</span></button></div>
         </header>
 
@@ -66,6 +66,10 @@ else
                     </header>
 
                     <section class="messages-body" aria-label="Mensagens da conversa">
+                        @if (!string.IsNullOrWhiteSpace(acaoVisual))
+                        {
+                            <div class="visual-action-toast" role="status">@acaoVisual</div>
+                        }
                         @if (carregandoMensagens && mensagens.Count == 0)
                         {
                             <p class="chat-loading">Carregando mensagens…</p>
@@ -87,7 +91,7 @@ else
                                         }
                                         @if (!string.IsNullOrWhiteSpace(mensagem.Texto))
                                         {
-                                            <p>@mensagem.Texto</p>
+                                            <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)">@mensagem.Texto</p>
                                         }
                                         <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.LidaEm.HasValue ? "✓✓" : "✓")</span> }</footer>
                                     </article>
@@ -97,6 +101,18 @@ else
                     </section>
 
                     <form class="message-composer" @onsubmit="EnviarAsync" @onsubmit:preventDefault="true">
+                        <div class="chatcat-actions" aria-label="Winks e ações visuais">
+                            <button type="button" title="Enviar wink" aria-label="Enviar wink" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "😺")'>😺</button>
+                            <button type="button" title="Enviar brilho" aria-label="Enviar brilho" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "✨")'>✨</button>
+                            <button type="button" title="Enviar festa" aria-label="Enviar festa" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "🎉")'>🎉</button>
+                            <button type="button" title="Chamar atenção" aria-label="Chamar atenção" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("ATTENTION", "⚡")'>⚡</button>
+                        </div>
+                        <div class="chatcat-stickers" aria-label="Figurinhas rápidas">
+                            <button type="button" title="Enviar figurinha de gato" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😺")'>😺</button>
+                            <button type="button" title="Enviar figurinha de riso" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😂")'>😂</button>
+                            <button type="button" title="Enviar coração" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("❤️")'>❤️</button>
+                            <button type="button" title="Enviar figurinha de fogo" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("🔥")'>🔥</button>
+                        </div>
                         <textarea @bind="texto" @bind:event="oninput" placeholder="Digite uma mensagem…" aria-label="Mensagem" rows="1" maxlength="4000" disabled="enviando"></textarea>
                         <button class="primary-button" type="submit" disabled="@(!PodeEnviar)">@(enviando ? "Enviando…" : "Enviar")</button>
                     </form>
@@ -115,6 +131,7 @@ else
     private string filtroContato = "";
     private string texto = "";
     private string? erro;
+    private string? acaoVisual;
     private long? contatoCarregado;
     private bool carregandoContatos;
     private bool carregandoMensagens;
@@ -199,6 +216,15 @@ else
                 await Portal.MarcarComoLidasAsync(ContatoId.Value);
                 ContatoAtual.NaoLidas = 0;
             }
+            var acoes = await Portal.ObterAcoesVisuaisAsync(ContatoId.Value);
+            if (acoes.Count > 0)
+            {
+                var acao = acoes[^1];
+                acaoVisual = acao.Tipo == "ATTENTION"
+                    ? $"⚡ {acao.Simbolo} chamou sua atenção"
+                    : $"{acao.Simbolo} recebeu um wink";
+                _ = LimparAcaoVisualAsync(acaoVisual);
+            }
             erro = null;
         }
         catch (InvalidOperationException ex)
@@ -265,6 +291,63 @@ else
         }
     }
 
+    private async Task EnviarAcaoVisualAsync(string tipo, string simbolo)
+    {
+        if (enviando || ContatoAtual is null)
+            return;
+
+        enviando = true;
+        erro = null;
+        try
+        {
+            await Portal.EnviarAcaoVisualAsync(ContatoAtual.Id, tipo, simbolo);
+            acaoVisual = tipo == "ATTENTION" ? $"⚡ Você chamou {ContatoAtual.Nome}" : $"{simbolo} Wink enviado";
+            _ = LimparAcaoVisualAsync(acaoVisual);
+        }
+        catch (InvalidOperationException ex)
+        {
+            erro = ex.Message;
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task EnviarFigurinhaAsync(string emoji)
+    {
+        if (enviando || ContatoAtual is null)
+            return;
+
+        enviando = true;
+        erro = null;
+        try
+        {
+            await Portal.EnviarMensagemAsync(ContatoAtual.Id, emoji);
+            await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: false);
+            await CarregarContatosAsync(exibirErro: false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            erro = ex.Message;
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task LimparAcaoVisualAsync(string? exibida)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2.5));
+        await InvokeAsync(() =>
+        {
+            if (acaoVisual == exibida)
+                acaoVisual = null;
+            StateHasChanged();
+        });
+    }
+
     private async Task SairAsync()
     {
         try
@@ -280,6 +363,9 @@ else
 
     private static string PrimeiraLetra(string nome) =>
         string.IsNullOrWhiteSpace(nome) ? "?" : nome.Trim()[..1].ToUpperInvariant();
+
+    private static bool EhFigurinha(string texto) =>
+        new[] { "😺", "😂", "😍", "🙌", "👍", "❤️", "🎉", "🔥" }.Contains(texto.Trim(), StringComparer.Ordinal);
 
     public ValueTask DisposeAsync()
     {

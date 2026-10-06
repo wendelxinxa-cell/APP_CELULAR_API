@@ -1,0 +1,55 @@
+:root{color-scheme:dark;--cat-bg:#111;--cat-surface:#1d1d1d;--cat-border:#423b24;--cat-yellow:#f4c400;--cat-text:#fff8d6;--cat-muted:#c8be8a}
+body{background:var(--cat-bg);color:var(--cat-text)}
+.login-page{background:var(--cat-bg)}
+.login-card h1,.page-heading h1,.sidebar-title h1{color:var(--cat-text)}
+.brand-mark{background:var(--cat-surface);color:var(--cat-yellow);border:1px solid var(--cat-border)}
+.eyebrow,.side-kicker{color:var(--cat-yellow)}
+.muted,.login-intro{color:var(--cat-muted)}
+.field label{color:var(--cat-text)}
+.field input,.field select{background:var(--cat-surface);border-color:var(--cat-border);color:var(--cat-text)}
+.field input:focus,.field select:focus{border-color:var(--cat-yellow);box-shadow:0 0 0 3px #f4c40024}
+.reveal-button,.logout-button{color:var(--cat-yellow)}
+.primary-button{background:var(--cat-yellow);color:#111;box-shadow:0 5px 14px #f4c40020}
+.primary-button:hover{background:#ffda35;color:#111}
+.demo-hint{background:var(--cat-surface);border-color:var(--cat-border);color:var(--cat-muted)}
+.demo-hint strong{color:var(--cat-text)}
+.hint-icon{background:var(--cat-yellow);color:#111}
+.login-side{background:linear-gradient(145deg,#111,#1d1d1d 65%,#332a08)}
+.side-content h2{color:var(--cat-text)}
+.side-content>p,.side-stats small{color:var(--cat-muted)}
+.side-stats{border-color:var(--cat-border);background:#ffffff08}
+.side-stats>span{background:#f4c400;color:#111}
+.messaging-shell{background:var(--cat-bg);color:var(--cat-text)}
+.messaging-topbar,.conversation-sidebar,.conversation-panel,.message-composer{background:var(--cat-surface);border-color:var(--cat-border)}
+.chatcat-wordmark{gap:8px;color:var(--cat-yellow)}
+.chatcat-wordmark img{width:34px;height:34px;object-fit:contain;border-radius:10px;background:#f4c400;padding:3px}
+.chatcat-wordmark small{font-size:10px;letter-spacing:.04em;color:var(--cat-muted)}
+.sidebar-title h1,.active-contact strong,.contact-copy strong,.conversation-welcome h2{color:var(--cat-text)}
+.contact-count,.welcome-icon{background:#332a08;color:var(--cat-yellow)}
+.contact-search{border-color:var(--cat-border);color:var(--cat-muted)}
+.contact-search input{background:transparent;color:var(--cat-text)}
+.contact-item{color:var(--cat-text)}
+.contact-item:hover,.contact-active{background:#292929}
+.contact-avatar{background:#332a08;color:var(--cat-yellow)}
+.contact-copy small,.active-contact small,.chat-sync-note,.conversation-welcome,.chat-loading,.contact-empty{color:var(--cat-muted)}
+.chat-sync-note,.active-contact,.message-composer{border-color:var(--cat-border)}
+.messages-body{background:#151515}
+.message-bubble{background:#292929;border-color:var(--cat-border)}
+.message-own .message-bubble{background:var(--cat-yellow);border-color:var(--cat-yellow)}
+.message-own .message-bubble p{color:#111}
+.message-bubble p{color:var(--cat-text)}
+.message-bubble footer{color:var(--cat-muted)}
+.message-own .message-bubble footer{color:#554400}
+.message-composer textarea{background:#111;border-color:var(--cat-border);color:var(--cat-text)}
+.message-composer textarea:focus{border-color:var(--cat-yellow);box-shadow:0 0 0 3px #f4c40024}
+.mobile-back{color:var(--cat-yellow)}
+.chatcat-actions,.chatcat-stickers{display:flex;align-items:center;gap:4px}
+.chatcat-actions{width:100%;padding:0 2px}
+.chatcat-stickers{flex:0 0 auto}
+.chatcat-actions button,.chatcat-stickers button{width:34px;height:34px;padding:0;border:1px solid var(--cat-border);border-radius:9px;background:#111;color:var(--cat-text);font-size:17px}
+.chatcat-actions button:hover,.chatcat-stickers button:hover{border-color:var(--cat-yellow);background:#332a08}
+.chatcat-actions button:disabled,.chatcat-stickers button:disabled{opacity:.5}
+.message-sticker{font-size:48px!important;line-height:1.1!important}
+.visual-action-toast{position:sticky;top:8px;z-index:2;width:max-content;max-width:100%;margin:0 auto 14px;padding:9px 15px;border:1px solid var(--cat-yellow);border-radius:999px;background:#1d1d1dee;color:var(--cat-yellow);font-weight:700;text-align:center;animation:cat-toast .25s ease-out}
+@keyframes cat-toast{from{opacity:0;transform:translateY(-8px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:760px){.messaging-topbar{background:#111}.message-composer{flex-wrap:wrap}.chatcat-actions{order:0}.chatcat-stickers{order:1;margin-left:auto}.message-composer textarea{order:2;flex:1 1 calc(100% - 100px)}.message-composer>.primary-button{order:3}}

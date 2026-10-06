@@ -59,6 +59,24 @@ public sealed class ChatApiClient(HttpClient http)
             ContatoId = contatoId
         }, sessao.Token);
 
+    public Task EnviarAcaoVisualAsync(ChatSessao sessao, long contatoId, string tipo, string simbolo) =>
+        PostSemRespostaAsync("api/conversas/acao-visual", new EnviarAcaoVisualRequest
+        {
+            EmpresaId = sessao.EmpresaId,
+            UsuarioId = sessao.UsuarioId,
+            ContatoId = contatoId,
+            Tipo = tipo,
+            Simbolo = simbolo
+        }, sessao.Token);
+
+    public Task<List<AcaoVisualConversa>> ObterAcoesVisuaisAsync(ChatSessao sessao, long contatoId) =>
+        PostAsync<List<AcaoVisualConversa>>("api/conversas/acoes-visuais/pendentes", new ConversaRequest
+        {
+            EmpresaId = sessao.EmpresaId,
+            UsuarioId = sessao.UsuarioId,
+            ContatoId = contatoId
+        }, sessao.Token);
+
     public Task SairAsync(ChatSessao sessao) =>
         PostSemRespostaAsync("api/autenticacao/sair", new { }, sessao.Token);
 
@@ -171,6 +189,12 @@ public sealed class ChatPortalState(ChatApiClient api)
     public Task MarcarComoLidasAsync(long contatoId) =>
         api.MarcarComoLidasAsync(ObterSessao(), contatoId);
 
+    public Task EnviarAcaoVisualAsync(long contatoId, string tipo, string simbolo) =>
+        api.EnviarAcaoVisualAsync(ObterSessao(), contatoId, tipo, simbolo);
+
+    public Task<List<AcaoVisualConversa>> ObterAcoesVisuaisAsync(long contatoId) =>
+        api.ObterAcoesVisuaisAsync(ObterSessao(), contatoId);
+
     public async Task SairAsync()
     {
         var sessao = Sessao;
@@ -232,6 +256,18 @@ public sealed class EnviarMensagemRequest : ConversaRequest
 {
     public Guid ClienteMensagemId { get; set; }
     public string Texto { get; set; } = "";
+}
+
+public sealed class EnviarAcaoVisualRequest : ConversaRequest
+{
+    public string Tipo { get; set; } = "WINK";
+    public string Simbolo { get; set; } = "✨";
+}
+
+public sealed class AcaoVisualConversa
+{
+    public string Tipo { get; set; } = "WINK";
+    public string Simbolo { get; set; } = "✨";
 }
 
 public sealed class ContatoConversa

@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "APP CELULAR",
-  "short_name": "APP CELULAR",
+  "name": "ChatCat · APP CELULAR",
+  "short_name": "ChatCat",
   "description": "Conversas do APP CELULAR no navegador.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f7f6f8",
-  "theme_color": "#39064f",
+  "background_color": "#111111",
+  "theme_color": "#111111",
   "icons": [
     {
       "src": "app-icon-512.png",
