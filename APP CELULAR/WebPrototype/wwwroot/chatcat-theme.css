@@ -53,3 +53,9 @@ body{background:var(--cat-bg);color:var(--cat-text)}
 .visual-action-toast{position:sticky;top:8px;z-index:2;width:max-content;max-width:100%;margin:0 auto 14px;padding:9px 15px;border:1px solid var(--cat-yellow);border-radius:999px;background:#1d1d1dee;color:var(--cat-yellow);font-weight:700;text-align:center;animation:cat-toast .25s ease-out}
 @keyframes cat-toast{from{opacity:0;transform:translateY(-8px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:760px){.messaging-topbar{background:#111}.message-composer{flex-wrap:wrap}.chatcat-actions{order:0}.chatcat-stickers{order:1;margin-left:auto}.message-composer textarea{order:2;flex:1 1 calc(100% - 100px)}.message-composer>.primary-button{order:3}}
+.message-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end}
+.message-composer .chatcat-actions,.message-composer .chatcat-stickers{grid-column:1/-1;width:100%;margin:0;justify-self:start}
+.message-composer textarea{grid-column:1;grid-row:auto;width:100%;color:#fff8d6!important;-webkit-text-fill-color:#fff8d6;caret-color:#f4c400}
+.message-composer textarea::placeholder{color:#c8be8a;opacity:1}
+.message-composer>.primary-button{grid-column:2;grid-row:auto}
+@media(max-width:760px){.message-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}.message-composer .chatcat-actions,.message-composer .chatcat-stickers{grid-column:1/-1}.message-composer textarea{grid-column:1;grid-row:auto;min-width:0;flex:initial}.message-composer>.primary-button{grid-column:2;grid-row:auto}}
