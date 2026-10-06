@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "22"
+        value: "23"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_22.apk"
+        value: "CHATCAT_0.0.001_build_23.apk"
       - key: AppUpdate__Sha256
-        value: "330D3E56FB4041961A6CB6C8CBB9B18C15D6E086CBC2C83B8FA7BBBA2CBD4E00"
+        value: "B01564B69BA75680C19A1A2B3CD72F45EE8D5D842F34A02686736F8717BF78D5"
       - key: AppUpdate__Notes
-        value: "ChatCat build 22: melhorias nas conversas, winks personalizados e ações visuais, efeitos do gato e figurinhas."
+        value: "ChatCat build 23: envio imediato de mensagens com status e rolagem automática no chat."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
