@@ -41,13 +41,13 @@ public sealed class ChatApiClient(HttpClient http)
             ContatoId = contatoId
         }, sessao.Token);
 
-    public Task<MensagemConversa> EnviarMensagemAsync(ChatSessao sessao, long contatoId, string texto) =>
+    public Task<MensagemConversa> EnviarMensagemAsync(ChatSessao sessao, long contatoId, string texto, Guid clienteMensagemId) =>
         PostAsync<MensagemConversa>("api/conversas/enviar", new EnviarMensagemRequest
         {
             EmpresaId = sessao.EmpresaId,
             UsuarioId = sessao.UsuarioId,
             ContatoId = contatoId,
-            ClienteMensagemId = Guid.NewGuid(),
+            ClienteMensagemId = clienteMensagemId,
             Texto = texto
         }, sessao.Token);
 
@@ -183,8 +183,8 @@ public sealed class ChatPortalState(ChatApiClient api)
     public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId) =>
         api.ObterMensagensAsync(ObterSessao(), contatoId);
 
-    public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto) =>
-        api.EnviarMensagemAsync(ObterSessao(), contatoId, texto);
+    public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto, Guid clienteMensagemId) =>
+        api.EnviarMensagemAsync(ObterSessao(), contatoId, texto, clienteMensagemId);
 
     public Task MarcarComoLidasAsync(long contatoId) =>
         api.MarcarComoLidasAsync(ObterSessao(), contatoId);
@@ -283,6 +283,7 @@ public sealed class ContatoConversa
 public sealed class MensagemConversa
 {
     public long Id { get; set; }
+    public Guid ClienteMensagemId { get; set; }
     public long RemetenteId { get; set; }
     public string RemetenteNome { get; set; } = "";
     public long DestinatarioId { get; set; }
@@ -292,4 +293,5 @@ public sealed class MensagemConversa
     public string? FotoTipo { get; set; }
     public DateTime EnviadaEm { get; set; }
     public DateTime? LidaEm { get; set; }
+    public string? StatusEnvio { get; set; }
 }

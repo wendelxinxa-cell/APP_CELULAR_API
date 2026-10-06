@@ -1,0 +1,46 @@
+@page "/main"
+@using WebPrototype.Services
+@inject ChatPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Painel principal · APP CELULAR</PageTitle>
+
+@if (!Portal.Autenticado)
+{
+    <div class="page-loading">Abrindo acesso…</div>
+}
+else
+{
+    <main class="home-shell">
+        <header class="home-topbar">
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> APP CELULAR</a>
+            <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario</span><button class="logout-button" @onclick="SairAsync">Sair</button></div>
+        </header>
+        <section class="home-content">
+            <p class="eyebrow">PAINEL PRINCIPAL</p>
+            <h1>Olá, @Portal.Sessao!.Usuario 👋</h1>
+            <p class="home-intro">Acesse rapidamente as funções do sistema.</p>
+            <a class="home-module" href="/conversas">
+                <span class="home-module-icon">💬</span>
+                <span><strong>Conversas</strong><small>Mensagens sincronizadas com o APP CELULAR</small></span>
+                <span class="home-module-arrow">›</span>
+            </a>
+            <div class="home-unavailable"><strong>Outros módulos do aplicativo</strong><p>Clientes, produtos, vendas e configurações ainda não estão disponíveis nesta versão web.</p></div>
+        </section>
+    </main>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!Portal.Autenticado)
+            Navigation.NavigateTo("/login", replace: true);
+    }
+
+    private async Task SairAsync()
+    {
+        try { await Portal.SairAsync(); }
+        catch (InvalidOperationException) { }
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

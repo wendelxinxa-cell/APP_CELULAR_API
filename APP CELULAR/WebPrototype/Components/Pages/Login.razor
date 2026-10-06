@@ -64,6 +64,12 @@
     private string? erro;
     private long EmpresaId => Configuration.GetValue<long>("Api:EmpresaId", 1);
 
+    protected override void OnInitialized()
+    {
+        if (Portal.Autenticado)
+            Navigation.NavigateTo("/main", replace: true);
+    }
+
     private async Task EntrarAsync()
     {
         erro = null;
@@ -88,7 +94,7 @@
 
             await Portal.EntrarAsync(EmpresaId, form.Usuario, form.Senha, chaveInstalacao);
             form.Senha = "";
-            Navigation.NavigateTo("/conversas");
+            Navigation.NavigateTo("/main");
         }
         catch (InvalidOperationException ex)
         {

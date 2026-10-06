@@ -2,8 +2,10 @@
 @page "/conversas/{ContatoId:long}"
 @implements IAsyncDisposable
 @using WebPrototype.Services
+@using Microsoft.JSInterop
 @inject ChatPortalState Portal
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Conversas · ChatCat</PageTitle>
 
@@ -15,7 +17,7 @@ else
 {
     <div class="messaging-shell">
         <header class="messaging-topbar">
-            <a class="wordmark chatcat-wordmark" href="/conversas"><img src="app-icon-512.png" alt="" /> CHATCAT <small>APP CELULAR</small></a>
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CHATCAT <small>APP CELULAR</small></a>
             <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario · Empresa @Portal.Sessao.EmpresaId</span><button class="logout-button" @onclick="SairAsync">Sair <span aria-hidden="true">↗</span></button></div>
         </header>
 
@@ -65,7 +67,7 @@ else
                         <div><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
                     </header>
 
-                    <section class="messages-body" aria-label="Mensagens da conversa">
+                    <section class="messages-body" aria-label="Mensagens da conversa" @ref="painelMensagens">
                         @if (!string.IsNullOrWhiteSpace(acaoVisual))
                         {
                             <div class="visual-action-toast" role="status">@acaoVisual</div>
@@ -93,7 +95,7 @@ else
                                         {
                                             <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)">@mensagem.Texto</p>
                                         }
-                                        <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.LidaEm.HasValue ? "✓✓" : "✓")</span> }</footer>
+                                        <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
                                     </article>
                                 </div>
                             }
@@ -113,7 +115,7 @@ else
                             <button type="button" title="Enviar coração" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("❤️")'>❤️</button>
                             <button type="button" title="Enviar figurinha de fogo" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("🔥")'>🔥</button>
                         </div>
-                        <textarea @bind="texto" @bind:event="oninput" placeholder="Digite uma mensagem…" aria-label="Mensagem" rows="1" maxlength="4000" disabled="enviando"></textarea>
+                        <textarea @bind="texto" @bind:event="oninput" placeholder="Digite uma mensagem…" aria-label="Mensagem" rows="1" maxlength="4000" disabled="@enviando"></textarea>
                         <button class="primary-button" type="submit" disabled="@(!PodeEnviar)">@(enviando ? "Enviando…" : "Enviar")</button>
                     </form>
                 }
@@ -137,6 +139,9 @@ else
     private bool carregandoMensagens;
     private bool enviando;
     private bool inicializado;
+    private bool rolarMensagens;
+    private ElementReference painelMensagens;
+    private long idMensagemLocal;
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -168,7 +173,20 @@ else
         contatoCarregado = ContatoId;
         mensagens.Clear();
         if (ContatoId.HasValue && ContatoAtual is not null)
+        {
             await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: true);
+            rolarMensagens = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!rolarMensagens)
+            return;
+
+        rolarMensagens = false;
+        try { await JS.InvokeVoidAsync("appCelular.scrollMessagesToBottom", painelMensagens); }
+        catch (JSException) { }
     }
 
     private async Task CarregarContatosAsync(bool exibirErro)
@@ -203,8 +221,19 @@ else
         try
         {
             var atualizadas = await Portal.ObterMensagensAsync(ContatoId.Value);
+            var pendentes = mensagens.Where(m => m.StatusEnvio == "Enviando…" || m.StatusEnvio == "Falha no envio").ToList();
+            foreach (var pendente in pendentes)
+            {
+                bool chegouDaApi = atualizadas.Any(m => m.Id == pendente.Id ||
+                    (pendente.ClienteMensagemId != Guid.Empty && m.ClienteMensagemId == pendente.ClienteMensagemId));
+                if (chegouDaApi && pendente.StatusEnvio == "Enviando…")
+                    pendente.StatusEnvio = null;
+                else if (!chegouDaApi)
+                    atualizadas.Add(pendente);
+            }
+            atualizadas = atualizadas.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id).ToList();
             bool mudou = mensagens.Count != atualizadas.Count || mensagens.Count == 0 && atualizadas.Count > 0 ||
-                mensagens.Count > 0 && atualizadas.Count > 0 && mensagens[^1].Id != atualizadas[^1].Id;
+                mensagens.Count > 0 && atualizadas.Count > 0 && (mensagens[^1].Id != atualizadas[^1].Id || mensagens[^1].StatusEnvio != atualizadas[^1].StatusEnvio);
             if (mudou)
             {
                 mensagens.Clear();
@@ -272,17 +301,38 @@ else
             return;
 
         var textoEnviado = texto.Trim();
+        var idCliente = Guid.NewGuid();
+        var mensagemLocal = new MensagemConversa
+        {
+            Id = --idMensagemLocal,
+            ClienteMensagemId = idCliente,
+            RemetenteId = Portal.Sessao!.UsuarioId,
+            RemetenteNome = Portal.Sessao.Usuario,
+            DestinatarioId = ContatoId.Value,
+            Texto = textoEnviado,
+            EnviadaEm = DateTime.Now,
+            StatusEnvio = "Enviando…"
+        };
+        mensagens.Add(mensagemLocal);
+        texto = "";
         enviando = true;
+        rolarMensagens = true;
         erro = null;
+        await InvokeAsync(StateHasChanged);
         try
         {
-            await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado);
-            texto = "";
-            await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: false);
+            var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente);
+            enviada.StatusEnvio = null;
+            var indiceLocal = mensagens.IndexOf(mensagemLocal);
+            if (indiceLocal >= 0)
+                mensagens[indiceLocal] = enviada;
+            rolarMensagens = true;
             await CarregarContatosAsync(exibirErro: false);
         }
         catch (InvalidOperationException ex)
         {
+            mensagemLocal.StatusEnvio = "Falha no envio";
+            texto = textoEnviado;
             erro = ex.Message;
         }
         finally
@@ -318,23 +368,8 @@ else
     {
         if (enviando || ContatoAtual is null)
             return;
-
-        enviando = true;
-        erro = null;
-        try
-        {
-            await Portal.EnviarMensagemAsync(ContatoAtual.Id, emoji);
-            await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: false);
-            await CarregarContatosAsync(exibirErro: false);
-        }
-        catch (InvalidOperationException ex)
-        {
-            erro = ex.Message;
-        }
-        finally
-        {
-            enviando = false;
-        }
+        texto = emoji;
+        await EnviarAsync();
     }
 
     private async Task LimparAcaoVisualAsync(string? exibida)
