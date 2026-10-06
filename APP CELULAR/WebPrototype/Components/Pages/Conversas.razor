@@ -1,0 +1,290 @@
+@page "/conversas"
+@page "/conversas/{ContatoId:long}"
+@implements IAsyncDisposable
+@using WebPrototype.Services
+@inject ChatPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Conversas · APP CELULAR</PageTitle>
+
+@if (!Portal.Autenticado)
+{
+    <div class="page-loading">Abrindo acesso…</div>
+}
+else
+{
+    <div class="messaging-shell">
+        <header class="messaging-topbar">
+            <a class="wordmark" href="/conversas"><span class="wordmark-icon">♻</span> APP CELULAR</a>
+            <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario · Empresa @Portal.Sessao.EmpresaId</span><button class="logout-button" @onclick="SairAsync">Sair <span aria-hidden="true">↗</span></button></div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(erro))
+        {
+            <div class="chat-notice" role="alert">@erro <button aria-label="Fechar aviso" @onclick="() => erro = null">×</button></div>
+        }
+
+        <div class="messaging-layout">
+            <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
+                <div class="sidebar-title"><div><p class="eyebrow">CHATCAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span></div>
+                <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
+                <div class="contact-list">
+                    @if (carregandoContatos && contatos.Count == 0)
+                    {
+                        <p class="chat-loading">Carregando contatos…</p>
+                    }
+                    else if (!ContatosFiltrados.Any())
+                    {
+                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? "Nenhum contato disponível." : "Nenhuma pessoa encontrada.")</div>
+                    }
+                    else
+                    {
+                        @foreach (var contato in ContatosFiltrados)
+                        {
+                            <a class="contact-item @(ContatoId == contato.Id ? "contact-active" : "")" href="@($"/conversas/{contato.Id}")">
+                                <span class="contact-avatar">@PrimeiraLetra(contato.Nome)</span>
+                                <span class="contact-copy"><strong>@contato.Nome</strong><small>@(string.IsNullOrWhiteSpace(contato.UltimaMensagem) ? "Iniciar conversa" : contato.UltimaMensagem)</small></span>
+                                <span class="contact-meta">@if (contato.NaoLidas > 0) { <b>@contato.NaoLidas</b> }</span>
+                            </a>
+                        }
+                    }
+                </div>
+                <p class="chat-sync-note">Atualização automática a cada 4 segundos</p>
+            </aside>
+
+            <main class="conversation-panel @(ContatoId.HasValue ? "chat-on-mobile" : "")">
+                @if (ContatoAtual is null)
+                {
+                    <div class="conversation-welcome"><span class="welcome-icon">✉</span><h2>Suas conversas</h2><p>Escolha uma pessoa para abrir o chat. As mensagens usam sua conta do APP CELULAR.</p></div>
+                }
+                else
+                {
+                    <header class="active-contact">
+                        <a class="mobile-back" href="/conversas" aria-label="Voltar às conversas">‹</a>
+                        <span class="contact-avatar large">@PrimeiraLetra(ContatoAtual.Nome)</span>
+                        <div><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
+                    </header>
+
+                    <section class="messages-body" aria-label="Mensagens da conversa">
+                        @if (carregandoMensagens && mensagens.Count == 0)
+                        {
+                            <p class="chat-loading">Carregando mensagens…</p>
+                        }
+                        else if (mensagens.Count == 0)
+                        {
+                            <div class="conversation-welcome compact"><span class="welcome-icon">✉</span><h2>Comece a conversa</h2><p>Envie uma mensagem para @ContatoAtual.Nome.</p></div>
+                        }
+                        else
+                        {
+                            @foreach (var mensagem in mensagens)
+                            {
+                                var minha = mensagem.RemetenteId == Portal.Sessao!.UsuarioId;
+                                <div class="message-row @(minha ? "message-own" : "message-incoming")">
+                                    <article class="message-bubble">
+                                        @if (mensagem.Foto is { Length: > 0 } foto && !string.IsNullOrWhiteSpace(mensagem.FotoTipo) && mensagem.FotoTipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <img class="message-image" src="@($"data:{mensagem.FotoTipo};base64,{Convert.ToBase64String(foto)}")" alt="Imagem enviada na conversa" />
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(mensagem.Texto))
+                                        {
+                                            <p>@mensagem.Texto</p>
+                                        }
+                                        <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.LidaEm.HasValue ? "✓✓" : "✓")</span> }</footer>
+                                    </article>
+                                </div>
+                            }
+                        }
+                    </section>
+
+                    <form class="message-composer" @onsubmit="EnviarAsync" @onsubmit:preventDefault="true">
+                        <textarea @bind="texto" @bind:event="oninput" placeholder="Digite uma mensagem…" aria-label="Mensagem" rows="1" maxlength="4000" disabled="enviando"></textarea>
+                        <button class="primary-button" type="submit" disabled="@(!PodeEnviar)">@(enviando ? "Enviando…" : "Enviar")</button>
+                    </form>
+                }
+            </main>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public long? ContatoId { get; set; }
+
+    private readonly CancellationTokenSource polling = new();
+    private readonly List<ContatoConversa> contatos = new();
+    private readonly List<MensagemConversa> mensagens = new();
+    private string filtroContato = "";
+    private string texto = "";
+    private string? erro;
+    private long? contatoCarregado;
+    private bool carregandoContatos;
+    private bool carregandoMensagens;
+    private bool enviando;
+    private bool inicializado;
+
+    private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
+        .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(contato => contato.DataUltimaMensagem.HasValue)
+        .ThenByDescending(contato => contato.DataUltimaMensagem)
+        .ThenBy(contato => contato.Nome);
+
+    private ContatoConversa? ContatoAtual => ContatoId is null ? null : contatos.FirstOrDefault(contato => contato.Id == ContatoId.Value);
+    private bool PodeEnviar => !enviando && ContatoAtual is not null && !string.IsNullOrWhiteSpace(texto);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Portal.Autenticado)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        inicializado = true;
+        await CarregarContatosAsync(exibirErro: true);
+        _ = AcompanharConversasAsync(polling.Token);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!inicializado || ContatoId == contatoCarregado)
+            return;
+
+        contatoCarregado = ContatoId;
+        mensagens.Clear();
+        if (ContatoId.HasValue && ContatoAtual is not null)
+            await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: true);
+    }
+
+    private async Task CarregarContatosAsync(bool exibirErro)
+    {
+        if (carregandoContatos || !Portal.Autenticado)
+            return;
+
+        carregandoContatos = true;
+        try
+        {
+            var atualizados = await Portal.ObterContatosAsync();
+            contatos.Clear();
+            contatos.AddRange(atualizados);
+            erro = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (exibirErro) erro = ex.Message;
+        }
+        finally
+        {
+            carregandoContatos = false;
+        }
+    }
+
+    private async Task CarregarMensagensAsync(bool exibirErro, bool marcarComoLidas)
+    {
+        if (carregandoMensagens || !ContatoId.HasValue || !Portal.Autenticado)
+            return;
+
+        carregandoMensagens = true;
+        try
+        {
+            var atualizadas = await Portal.ObterMensagensAsync(ContatoId.Value);
+            bool mudou = mensagens.Count != atualizadas.Count || mensagens.Count == 0 && atualizadas.Count > 0 ||
+                mensagens.Count > 0 && atualizadas.Count > 0 && mensagens[^1].Id != atualizadas[^1].Id;
+            if (mudou)
+            {
+                mensagens.Clear();
+                mensagens.AddRange(atualizadas);
+            }
+
+            if (marcarComoLidas && ContatoAtual?.NaoLidas > 0)
+            {
+                await Portal.MarcarComoLidasAsync(ContatoId.Value);
+                ContatoAtual.NaoLidas = 0;
+            }
+            erro = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (exibirErro) erro = ex.Message;
+        }
+        finally
+        {
+            carregandoMensagens = false;
+        }
+    }
+
+    private async Task AcompanharConversasAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(4));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (!Portal.Autenticado)
+                    return;
+
+                await InvokeAsync(async () =>
+                {
+                    await CarregarContatosAsync(exibirErro: false);
+                    if (ContatoId.HasValue)
+                        await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A navegação encerra a atualização periódica ao fechar a página.
+        }
+        catch (ObjectDisposedException)
+        {
+            // O circuito foi encerrado.
+        }
+    }
+
+    private async Task EnviarAsync()
+    {
+        if (!PodeEnviar || !ContatoId.HasValue)
+            return;
+
+        var textoEnviado = texto.Trim();
+        enviando = true;
+        erro = null;
+        try
+        {
+            await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado);
+            texto = "";
+            await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: false);
+            await CarregarContatosAsync(exibirErro: false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            erro = ex.Message;
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task SairAsync()
+    {
+        try
+        {
+            await Portal.SairAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // A sessão local deve ser encerrada mesmo se a API estiver indisponível.
+        }
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    private static string PrimeiraLetra(string nome) =>
+        string.IsNullOrWhiteSpace(nome) ? "?" : nome.Trim()[..1].ToUpperInvariant();
+
+    public ValueTask DisposeAsync()
+    {
+        polling.Cancel();
+        polling.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

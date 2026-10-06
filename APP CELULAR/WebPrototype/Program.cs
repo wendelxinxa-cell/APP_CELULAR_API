@@ -11,7 +11,14 @@ builder.Logging.AddConsole();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddScoped<DemoPortalState>();
+builder.Services.AddHttpClient<ChatApiClient>((services, client) =>
+{
+    var endpoint = services.GetRequiredService<IConfiguration>()["Api:BaseUrl"]
+        ?? "https://app-celular-api.onrender.com/";
+    client.BaseAddress = new Uri(endpoint.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<ChatPortalState>();
 
 var app = builder.Build();
 
