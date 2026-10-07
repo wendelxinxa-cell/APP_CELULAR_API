@@ -289,6 +289,20 @@ else
         mensagens.Clear();
         if (ContatoId.HasValue && ContatoAtual is not null)
         {
+            try
+            {
+                var locais = await JS.InvokeAsync<List<MensagemConversa>>("appCelular.getChatMessages", ChaveCacheConversa(ContatoId.Value));
+                if (locais.Count > 0)
+                {
+                    mensagens.AddRange(locais.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id));
+                    rolarMensagens = true;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (JSException)
+            {
+                // Se o armazenamento local não estiver disponível, a conversa continua usando a API.
+            }
             await CarregarMensagensAsync(exibirErro: true, marcarComoLidas: true);
             rolarMensagens = true;
         }
@@ -336,28 +350,43 @@ else
         carregandoMensagens = true;
         try
         {
-            var atualizadas = await Portal.ObterMensagensAsync(ContatoId.Value);
-            bool novaRecebida = atualizadas.Any(m => m.RemetenteId != Portal.Sessao!.UsuarioId &&
+            var cursor = mensagens.Where(m => m.Id > 0).Select(m => m.Id).DefaultIfEmpty(0).Max();
+            var recebidas = await Portal.ObterMensagensAsync(ContatoId.Value, cursor);
+            bool novaRecebida = recebidas.Any(m => m.RemetenteId != Portal.Sessao!.UsuarioId &&
                 !mensagens.Any(atual => atual.Id == m.Id ||
                     (m.ClienteMensagemId != Guid.Empty && atual.ClienteMensagemId == m.ClienteMensagemId)));
+            bool mudou = recebidas.Count > 0;
+            foreach (var recebida in recebidas)
+            {
+                var indice = mensagens.FindIndex(atual =>
+                    (recebida.Id > 0 && atual.Id == recebida.Id) ||
+                    (recebida.ClienteMensagemId != Guid.Empty && atual.ClienteMensagemId == recebida.ClienteMensagemId));
+                if (indice >= 0)
+                    mensagens[indice] = recebida;
+                else
+                    mensagens.Add(recebida);
+            }
+            if (recebidas.Count > 0)
+            {
+                try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), recebidas); }
+                catch (JSException) { /* A conversa segue ativa mesmo se o navegador bloquear o cache. */ }
+            }
             var pendentes = mensagens.Where(m => m.StatusEnvio == "Enviando…" || m.StatusEnvio == "Falha no envio").ToList();
             foreach (var pendente in pendentes)
             {
-                bool chegouDaApi = atualizadas.Any(m => m.Id == pendente.Id ||
+                bool chegouDaApi = recebidas.Any(m => m.Id == pendente.Id ||
                     (pendente.ClienteMensagemId != Guid.Empty && m.ClienteMensagemId == pendente.ClienteMensagemId));
                 if (chegouDaApi && pendente.StatusEnvio == "Enviando…")
+                {
                     pendente.StatusEnvio = null;
-                else if (!chegouDaApi)
-                    atualizadas.Add(pendente);
+                    mudou = true;
+                }
             }
-            atualizadas = atualizadas.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id).ToList();
-            bool mudou = mensagens.Count != atualizadas.Count || mensagens.Where((m, i) => i >= atualizadas.Count ||
-                m.Id != atualizadas[i].Id || m.ClienteMensagemId != atualizadas[i].ClienteMensagemId ||
-                m.StatusEnvio != atualizadas[i].StatusEnvio || m.Texto != atualizadas[i].Texto).Any();
+            var ordenadas = mensagens.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id).ToList();
             if (mudou)
             {
                 mensagens.Clear();
-                mensagens.AddRange(atualizadas);
+                mensagens.AddRange(ordenadas);
                 rolarMensagens = true;
             }
 
@@ -455,6 +484,8 @@ else
             StatusEnvio = "Enviando…"
         };
         mensagens.Add(mensagemLocal);
+        try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), new[] { mensagemLocal }); }
+        catch (JSException) { }
         texto = "";
         RemoverFoto();
         enviando = true;
@@ -468,12 +499,16 @@ else
             var indiceLocal = mensagens.IndexOf(mensagemLocal);
             if (indiceLocal >= 0)
                 mensagens[indiceLocal] = enviada;
+            try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), new[] { enviada }); }
+            catch (JSException) { }
             rolarMensagens = true;
         }
         catch (InvalidOperationException ex)
         {
             AplicarPausaApi(ex);
             mensagemLocal.StatusEnvio = "Falha no envio";
+            try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), new[] { mensagemLocal }); }
+            catch (JSException) { }
             texto = textoEnviado;
             fotoSelecionada = fotoEnviada;
             fotoNome = nomeFotoEnviada;
@@ -568,6 +603,9 @@ else
 
     private static string PrimeiraLetra(string nome) =>
         string.IsNullOrWhiteSpace(nome) ? "?" : nome.Trim()[..1].ToUpperInvariant();
+
+    private string ChaveCacheConversa(long contatoId) =>
+        $"{Portal.Sessao!.EmpresaId}:{Portal.Sessao.UsuarioId}:{contatoId}";
 
     private static bool EhFigurinha(string texto) =>
         new[] { "😺", "😂", "😍", "🙌", "👍", "❤️", "🎉", "🔥" }.Contains(texto.Trim(), StringComparer.Ordinal);

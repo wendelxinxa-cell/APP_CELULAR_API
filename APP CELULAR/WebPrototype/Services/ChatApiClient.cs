@@ -33,12 +33,13 @@ public sealed class ChatApiClient(HttpClient http)
             UsuarioId = sessao.UsuarioId
         }, sessao.Token);
 
-    public Task<List<MensagemConversa>> ObterMensagensAsync(ChatSessao sessao, long contatoId) =>
+    public Task<List<MensagemConversa>> ObterMensagensAsync(ChatSessao sessao, long contatoId, long depoisDoId = 0) =>
         PostAsync<List<MensagemConversa>>("api/conversas/listar", new ConversaRequest
         {
             EmpresaId = sessao.EmpresaId,
             UsuarioId = sessao.UsuarioId,
-            ContatoId = contatoId
+            ContatoId = contatoId,
+            DepoisDoId = depoisDoId
         }, sessao.Token);
 
     public Task<MensagemConversa> EnviarMensagemAsync(ChatSessao sessao, long contatoId, string texto, Guid clienteMensagemId, byte[]? foto, string? fotoNome, string? fotoTipo) =>
@@ -211,8 +212,8 @@ public sealed class ChatPortalState(ChatApiClient api)
     public Task<List<ContatoConversa>> ObterContatosAsync() =>
         api.ObterContatosAsync(ObterSessao());
 
-    public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId) =>
-        api.ObterMensagensAsync(ObterSessao(), contatoId);
+    public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId, long depoisDoId = 0) =>
+        api.ObterMensagensAsync(ObterSessao(), contatoId, depoisDoId);
 
     public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto, Guid clienteMensagemId, byte[]? foto, string? fotoNome, string? fotoTipo) =>
         api.EnviarMensagemAsync(ObterSessao(), contatoId, texto, clienteMensagemId, foto, fotoNome, fotoTipo);
@@ -281,6 +282,7 @@ public class IdentidadeConversa
 public class ConversaRequest : IdentidadeConversa
 {
     public long ContatoId { get; set; }
+    public long DepoisDoId { get; set; }
 }
 
 public sealed class EnviarMensagemRequest : ConversaRequest
