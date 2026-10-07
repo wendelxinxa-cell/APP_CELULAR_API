@@ -51,7 +51,7 @@ else
                         }
                     }
                 </div>
-                <p class="chat-sync-note">Atualização automática a cada 15 segundos</p>
+                <p class="chat-sync-note">Mensagens sincronizadas automaticamente</p>
             </aside>
 
             <main class="conversation-panel @(ContatoId.HasValue ? "chat-on-mobile" : "")">
@@ -95,7 +95,7 @@ else
                                         {
                                             <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)" style="font-size:@(tamanhoFonte)px;font-weight:@(fonteSemibold ? 600 : 400)">@mensagem.Texto</p>
                                         }
-                                        <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
+                                        <footer><time>@HoraBrasilia(mensagem.EnviadaEm)</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
                                     </article>
                                 </div>
                             }
@@ -177,6 +177,8 @@ else
     private int tamanhoFonte = 13;
     private bool fonteSemibold;
     private DateTimeOffset pausaApiAte;
+    private int ciclosPolling;
+    private static readonly TimeZoneInfo FusoBrasilia = ObterFusoBrasilia();
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -186,6 +188,23 @@ else
 
     private ContatoConversa? ContatoAtual => ContatoId is null ? null : contatos.FirstOrDefault(contato => contato.Id == ContatoId.Value);
     private bool PodeEnviar => !enviando && ContatoAtual is not null && (!string.IsNullOrWhiteSpace(texto) || fotoSelecionada is { Length: > 0 });
+
+    private static string HoraBrasilia(DateTime data)
+    {
+        var utc = data.Kind switch
+        {
+            DateTimeKind.Utc => data,
+            DateTimeKind.Local => data.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(data, DateTimeKind.Utc)
+        };
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, FusoBrasilia).ToString("HH:mm");
+    }
+
+    private static TimeZoneInfo ObterFusoBrasilia()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo"); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"); }
+    }
 
     private async Task SelecionarFotoAsync(InputFileChangeEventArgs args)
     {
@@ -309,7 +328,7 @@ else
         }
     }
 
-    private async Task CarregarMensagensAsync(bool exibirErro, bool marcarComoLidas)
+    private async Task CarregarMensagensAsync(bool exibirErro, bool marcarComoLidas, bool buscarAcoes = true)
     {
         if (carregandoMensagens || !ContatoId.HasValue || !Portal.Autenticado)
             return;
@@ -318,6 +337,9 @@ else
         try
         {
             var atualizadas = await Portal.ObterMensagensAsync(ContatoId.Value);
+            bool novaRecebida = atualizadas.Any(m => m.RemetenteId != Portal.Sessao!.UsuarioId &&
+                !mensagens.Any(atual => atual.Id == m.Id ||
+                    (m.ClienteMensagemId != Guid.Empty && atual.ClienteMensagemId == m.ClienteMensagemId)));
             var pendentes = mensagens.Where(m => m.StatusEnvio == "Enviando…" || m.StatusEnvio == "Falha no envio").ToList();
             foreach (var pendente in pendentes)
             {
@@ -329,27 +351,33 @@ else
                     atualizadas.Add(pendente);
             }
             atualizadas = atualizadas.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id).ToList();
-            bool mudou = mensagens.Count != atualizadas.Count || mensagens.Count == 0 && atualizadas.Count > 0 ||
-                mensagens.Count > 0 && atualizadas.Count > 0 && (mensagens[^1].Id != atualizadas[^1].Id || mensagens[^1].StatusEnvio != atualizadas[^1].StatusEnvio);
+            bool mudou = mensagens.Count != atualizadas.Count || mensagens.Where((m, i) => i >= atualizadas.Count ||
+                m.Id != atualizadas[i].Id || m.ClienteMensagemId != atualizadas[i].ClienteMensagemId ||
+                m.StatusEnvio != atualizadas[i].StatusEnvio || m.Texto != atualizadas[i].Texto).Any();
             if (mudou)
             {
                 mensagens.Clear();
                 mensagens.AddRange(atualizadas);
+                rolarMensagens = true;
             }
 
-            if (marcarComoLidas && ContatoAtual?.NaoLidas > 0)
+            if (marcarComoLidas && (ContatoAtual?.NaoLidas > 0 || novaRecebida))
             {
                 await Portal.MarcarComoLidasAsync(ContatoId.Value);
-                ContatoAtual.NaoLidas = 0;
+                if (ContatoAtual is { } contatoLido)
+                    contatoLido.NaoLidas = 0;
             }
-            var acoes = await Portal.ObterAcoesVisuaisAsync(ContatoId.Value);
-            if (acoes.Count > 0)
+            if (buscarAcoes)
             {
-                var acao = acoes[^1];
-                acaoVisual = acao.Tipo == "ATTENTION"
-                    ? $"⚡ {acao.Simbolo} chamou sua atenção"
-                    : $"{acao.Simbolo} recebeu um wink";
-                _ = LimparAcaoVisualAsync(acaoVisual);
+                var acoes = await Portal.ObterAcoesVisuaisAsync(ContatoId.Value);
+                if (acoes.Count > 0)
+                {
+                    var acao = acoes[^1];
+                    acaoVisual = acao.Tipo == "ATTENTION"
+                        ? $"⚡ {acao.Simbolo} chamou sua atenção"
+                        : $"{acao.Simbolo} recebeu um wink";
+                    _ = LimparAcaoVisualAsync(acaoVisual);
+                }
             }
             erro = null;
         }
@@ -366,7 +394,7 @@ else
 
     private async Task AcompanharConversasAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(6));
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
@@ -376,11 +404,16 @@ else
                 if (DateTimeOffset.UtcNow < pausaApiAte)
                     continue;
 
+                ciclosPolling++;
+                bool atualizarContatos = ciclosPolling % 5 == 0;
+                bool buscarAcoes = ciclosPolling % 3 == 0;
+
                 await InvokeAsync(async () =>
                 {
-                    await CarregarContatosAsync(exibirErro: false);
+                    if (atualizarContatos)
+                        await CarregarContatosAsync(exibirErro: false);
                     if (ContatoId.HasValue && DateTimeOffset.UtcNow >= pausaApiAte)
-                        await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true);
+                        await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true, buscarAcoes: buscarAcoes);
                     StateHasChanged();
                 });
             }
@@ -418,7 +451,7 @@ else
             Foto = fotoEnviada,
             FotoNome = nomeFotoEnviada,
             FotoTipo = tipoFotoEnviada,
-            EnviadaEm = DateTime.Now,
+            EnviadaEm = DateTime.UtcNow,
             StatusEnvio = "Enviando…"
         };
         mensagens.Add(mensagemLocal);
@@ -436,7 +469,6 @@ else
             if (indiceLocal >= 0)
                 mensagens[indiceLocal] = enviada;
             rolarMensagens = true;
-            await CarregarContatosAsync(exibirErro: false);
         }
         catch (InvalidOperationException ex)
         {

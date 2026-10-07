@@ -1,6 +1,12 @@
 window.appCelular = window.appCelular || {};
 window.appCelular.scrollMessagesToBottom = (element) => {
-    if (element) element.scrollTop = element.scrollHeight;
+    if (!element) return;
+    const scroll = () => { element.scrollTop = element.scrollHeight; };
+    scroll();
+    requestAnimationFrame(() => {
+        scroll();
+        setTimeout(scroll, 100);
+    });
 };
 window.appCelular.getSavedSession = () => {
     try {
