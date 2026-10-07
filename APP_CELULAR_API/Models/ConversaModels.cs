@@ -9,6 +9,7 @@ public class IdentidadeConversaRequest
 public class ConversaRequest : IdentidadeConversaRequest
 {
     public long ContatoId { get; set; }
+    public long DepoisDoId { get; set; }
 }
 
 public sealed class ApelidoConversaRequest : ConversaRequest

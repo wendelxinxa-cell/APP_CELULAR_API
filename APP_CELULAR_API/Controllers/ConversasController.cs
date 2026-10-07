@@ -141,10 +141,12 @@ public class ConversasController : ControllerBase
             WHERE m.empresa_id = @empresaId
               AND ((m.remetente_id = @usuarioId AND m.destinatario_id = @contatoId)
                 OR (m.remetente_id = @contatoId AND m.destinatario_id = @usuarioId))
+              AND m.id > @depoisDoId
             ORDER BY m.enviada_em, m.id;
             """;
         await using var cmd = new NpgsqlCommand(sql, db);
         AddIdentity(cmd, request); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+        cmd.Parameters.AddWithValue("depoisDoId", Math.Max(0, request.DepoisDoId));
         await using var reader = await cmd.ExecuteReaderAsync();
         var rows = new List<object>();
         while (await reader.ReadAsync())
@@ -460,6 +462,7 @@ public class ConversasController : ControllerBase
             SELECT @empresaId,m.id,@usuarioId,NOW()
             FROM chat.mensagem m
             WHERE m.empresa_id=@empresaId AND m.conversa_id=@conversaId AND m.remetente_id=@contatoId
+              AND m.id > @depoisDoId
             ON CONFLICT (empresa_id,mensagem_id,usuario_id)
             DO UPDATE SET entregue_em=COALESCE(chat.recibo_mensagem.entregue_em,EXCLUDED.entregue_em);
             """;
@@ -469,6 +472,7 @@ public class ConversasController : ControllerBase
             cmdEntrega.Parameters.AddWithValue("usuarioId", request.UsuarioId);
             cmdEntrega.Parameters.AddWithValue("contatoId", request.ContatoId);
             cmdEntrega.Parameters.AddWithValue("conversaId", conversaId.Value);
+            cmdEntrega.Parameters.AddWithValue("depoisDoId", Math.Max(0, request.DepoisDoId));
             await cmdEntrega.ExecuteNonQueryAsync();
         }
 
@@ -484,6 +488,7 @@ public class ConversasController : ControllerBase
               ON rr.empresa_id=m.empresa_id AND rr.mensagem_id=m.id
              AND rr.usuario_id=CASE WHEN m.remetente_id=@usuarioId THEN @contatoId ELSE @usuarioId END
             WHERE m.empresa_id=@empresaId AND m.conversa_id=@conversaId
+              AND m.id > @depoisDoId
             ORDER BY m.enviada_em,m.id;
             """;
         await using var cmd = new NpgsqlCommand(sql, central);
@@ -491,6 +496,7 @@ public class ConversasController : ControllerBase
         cmd.Parameters.AddWithValue("usuarioId", request.UsuarioId);
         cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
         cmd.Parameters.AddWithValue("conversaId", conversaId.Value);
+        cmd.Parameters.AddWithValue("depoisDoId", Math.Max(0, request.DepoisDoId));
         await using var reader = await cmd.ExecuteReaderAsync();
         var rows = new List<object>();
         while (await reader.ReadAsync())
