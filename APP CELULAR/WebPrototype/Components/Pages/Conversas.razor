@@ -51,7 +51,7 @@ else
                         }
                     }
                 </div>
-                <p class="chat-sync-note">Atualização automática a cada 4 segundos</p>
+                <p class="chat-sync-note">Atualização automática a cada 15 segundos</p>
             </aside>
 
             <main class="conversation-panel @(ContatoId.HasValue ? "chat-on-mobile" : "")">
@@ -93,7 +93,7 @@ else
                                         }
                                         @if (!string.IsNullOrWhiteSpace(mensagem.Texto))
                                         {
-                                            <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)">@mensagem.Texto</p>
+                                            <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)" style="font-size:@(tamanhoFonte)px;font-weight:@(fonteSemibold ? 600 : 400)">@mensagem.Texto</p>
                                         }
                                         <footer><time>@mensagem.EnviadaEm.ToString("HH:mm")</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
                                     </article>
@@ -103,19 +103,43 @@ else
                     </section>
 
                     <form class="message-composer" @onsubmit="EnviarAsync" @onsubmit:preventDefault="true">
-                        <div class="chatcat-actions" aria-label="Winks e ações visuais">
-                            <button type="button" title="Enviar wink" aria-label="Enviar wink" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "😺")'>😺</button>
-                            <button type="button" title="Enviar brilho" aria-label="Enviar brilho" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "✨")'>✨</button>
-                            <button type="button" title="Enviar festa" aria-label="Enviar festa" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", "🎉")'>🎉</button>
-                            <button type="button" title="Chamar atenção" aria-label="Chamar atenção" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("ATTENTION", "⚡")'>⚡</button>
+                        <div class="chatcat-actions" aria-label="Ações da conversa">
+                            <label class="chatcat-action" for="foto-conversa" title="Foto" aria-label="Foto"><span>＋</span></label>
+                            <InputFile id="foto-conversa" class="chatcat-file-input" accept="image/*" OnChange="SelecionarFotoAsync" disabled="@enviando" />
+                            <button type="button" title="Abrir figurinhas" aria-label="Abrir figurinhas" disabled="@enviando" @onclick="AlternarFigurinhas">▧</button>
+                            <button type="button" title="Fonte" aria-label="Fonte" disabled="@enviando" @onclick="AlternarFonte">Aa</button>
+                            <button type="button" class="attention-action" data-chatcat-attention title="Chamar atenção do contato" aria-label="Chamar atenção do contato" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("ATTENTION", "⚡")'>⚡</button>
+                            <button type="button" title="Abrir mais ações" aria-label="Abrir mais ações" disabled="@enviando" @onclick="AlternarMaisAcoes">⋯</button>
                         </div>
-                        <div class="chatcat-stickers" aria-label="Figurinhas rápidas">
-                            <button type="button" title="Enviar figurinha de gato" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😺")'>😺</button>
-                            <button type="button" title="Enviar figurinha de riso" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😂")'>😂</button>
-                            <button type="button" title="Enviar coração" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("❤️")'>❤️</button>
-                            <button type="button" title="Enviar figurinha de fogo" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("🔥")'>🔥</button>
-                        </div>
-                        <textarea @bind="texto" @bind:event="oninput" placeholder="Digite uma mensagem…" aria-label="Mensagem" rows="1" maxlength="4000" disabled="@enviando"></textarea>
+                        @if (fotoSelecionada is { Length: > 0 })
+                        {
+                            <div class="selected-photo-preview">
+                                <img src="@fotoPreview" alt="Foto selecionada para envio" />
+                                <span>@fotoNome</span>
+                                <button type="button" title="Remover foto" aria-label="Remover foto" @onclick="RemoverFoto">×</button>
+                            </div>
+                        }
+                        @if (mostrarFigurinhas)
+                        {
+                            <div class="chatcat-stickers" aria-label="Figurinhas">
+                                <strong>Figurinhas</strong>
+                                <button type="button" title="Gato" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😺")'>😺</button>
+                                <button type="button" title="Riso" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("😂")'>😂</button>
+                                <button type="button" title="Coração" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("❤️")'>❤️</button>
+                                <button type="button" title="Fogo" disabled="@enviando" @onclick='() => EnviarFigurinhaAsync("🔥")'>🔥</button>
+                            </div>
+                        }
+                        @if (mostrarMaisAcoes)
+                        {
+                            <div class="chatcat-stickers chatcat-winks" aria-label="Mais ações da conversa">
+                                <strong>Mais ações da conversa</strong>
+                                @foreach (var wink in winks)
+                                {
+                                    <button type="button" title="Enviar wink @wink" aria-label="Enviar wink @wink" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("WINK", wink)'>@wink</button>
+                                }
+                            </div>
+                        }
+                        <textarea @bind="texto" @bind:event="oninput" placeholder="Mensagem" aria-label="Mensagem" rows="1" maxlength="4000" disabled="@enviando"></textarea>
                         <button class="primary-button" type="submit" disabled="@(!PodeEnviar)">@(enviando ? "Enviando…" : "Enviar")</button>
                     </form>
                 }
@@ -142,6 +166,16 @@ else
     private bool rolarMensagens;
     private ElementReference painelMensagens;
     private long idMensagemLocal;
+    private const int TamanhoMaximoFoto = 8 * 1024 * 1024;
+    private static readonly string[] winks = ["✨", "💥", "🎉", "😺", "💫", "🚀"];
+    private byte[]? fotoSelecionada;
+    private string? fotoNome;
+    private string? fotoTipo;
+    private string? fotoPreview;
+    private bool mostrarFigurinhas;
+    private bool mostrarMaisAcoes;
+    private int tamanhoFonte = 13;
+    private bool fonteSemibold;
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -150,7 +184,68 @@ else
         .ThenBy(contato => contato.Nome);
 
     private ContatoConversa? ContatoAtual => ContatoId is null ? null : contatos.FirstOrDefault(contato => contato.Id == ContatoId.Value);
-    private bool PodeEnviar => !enviando && ContatoAtual is not null && !string.IsNullOrWhiteSpace(texto);
+    private bool PodeEnviar => !enviando && ContatoAtual is not null && (!string.IsNullOrWhiteSpace(texto) || fotoSelecionada is { Length: > 0 });
+
+    private async Task SelecionarFotoAsync(InputFileChangeEventArgs args)
+    {
+        mostrarFigurinhas = false;
+        mostrarMaisAcoes = false;
+        var arquivo = args.File;
+        if (arquivo.Size is <= 0 or > TamanhoMaximoFoto)
+        {
+            erro = "A foto deve ter no máximo 8 MB.";
+            return;
+        }
+
+        var tipo = arquivo.ContentType;
+        if (string.IsNullOrWhiteSpace(tipo) || !tipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            erro = "Escolha um arquivo de imagem. Vídeos não são aceitos pela API atual.";
+            return;
+        }
+
+        try
+        {
+            await using var origem = arquivo.OpenReadStream(TamanhoMaximoFoto);
+            using var destino = new MemoryStream((int)arquivo.Size);
+            await origem.CopyToAsync(destino);
+            fotoSelecionada = destino.ToArray();
+            fotoNome = arquivo.Name;
+            fotoTipo = tipo;
+            fotoPreview = $"data:{fotoTipo};base64,{Convert.ToBase64String(fotoSelecionada)}";
+            erro = null;
+        }
+        catch (IOException)
+        {
+            erro = "Não foi possível ler a foto. Escolha uma imagem de até 8 MB e tente novamente.";
+        }
+    }
+
+    private void RemoverFoto()
+    {
+        fotoSelecionada = null;
+        fotoNome = null;
+        fotoTipo = null;
+        fotoPreview = null;
+    }
+
+    private void AlternarFigurinhas()
+    {
+        mostrarFigurinhas = !mostrarFigurinhas;
+        mostrarMaisAcoes = false;
+    }
+
+    private void AlternarMaisAcoes()
+    {
+        mostrarMaisAcoes = !mostrarMaisAcoes;
+        mostrarFigurinhas = false;
+    }
+
+    private void AlternarFonte()
+    {
+        tamanhoFonte = tamanhoFonte == 13 ? 15 : tamanhoFonte == 15 ? 18 : tamanhoFonte == 18 ? 22 : 13;
+        fonteSemibold = !fonteSemibold;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -268,7 +363,7 @@ else
 
     private async Task AcompanharConversasAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(4));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
@@ -300,7 +395,12 @@ else
         if (!PodeEnviar || !ContatoId.HasValue)
             return;
 
+        mostrarFigurinhas = false;
+        mostrarMaisAcoes = false;
         var textoEnviado = texto.Trim();
+        var fotoEnviada = fotoSelecionada;
+        var nomeFotoEnviada = fotoNome;
+        var tipoFotoEnviada = fotoTipo;
         var idCliente = Guid.NewGuid();
         var mensagemLocal = new MensagemConversa
         {
@@ -310,18 +410,22 @@ else
             RemetenteNome = Portal.Sessao.Usuario,
             DestinatarioId = ContatoId.Value,
             Texto = textoEnviado,
+            Foto = fotoEnviada,
+            FotoNome = nomeFotoEnviada,
+            FotoTipo = tipoFotoEnviada,
             EnviadaEm = DateTime.Now,
             StatusEnvio = "Enviando…"
         };
         mensagens.Add(mensagemLocal);
         texto = "";
+        RemoverFoto();
         enviando = true;
         rolarMensagens = true;
         erro = null;
         await InvokeAsync(StateHasChanged);
         try
         {
-            var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente);
+            var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente, fotoEnviada, nomeFotoEnviada, tipoFotoEnviada);
             enviada.StatusEnvio = null;
             var indiceLocal = mensagens.IndexOf(mensagemLocal);
             if (indiceLocal >= 0)
@@ -333,6 +437,12 @@ else
         {
             mensagemLocal.StatusEnvio = "Falha no envio";
             texto = textoEnviado;
+            fotoSelecionada = fotoEnviada;
+            fotoNome = nomeFotoEnviada;
+            fotoTipo = tipoFotoEnviada;
+            fotoPreview = fotoSelecionada is { Length: > 0 } && !string.IsNullOrWhiteSpace(fotoTipo)
+                ? $"data:{fotoTipo};base64,{Convert.ToBase64String(fotoSelecionada)}"
+                : null;
             erro = ex.Message;
         }
         finally
@@ -346,13 +456,24 @@ else
         if (enviando || ContatoAtual is null)
             return;
 
+        mostrarFigurinhas = false;
+        mostrarMaisAcoes = false;
+        var contatoNome = ContatoAtual.Nome;
+        if (tipo == "ATTENTION")
+        {
+            acaoVisual = $"⚡ Você chamou {contatoNome}";
+            _ = LimparAcaoVisualAsync(acaoVisual);
+        }
         enviando = true;
         erro = null;
         try
         {
             await Portal.EnviarAcaoVisualAsync(ContatoAtual.Id, tipo, simbolo);
-            acaoVisual = tipo == "ATTENTION" ? $"⚡ Você chamou {ContatoAtual.Nome}" : $"{simbolo} Wink enviado";
-            _ = LimparAcaoVisualAsync(acaoVisual);
+            if (tipo != "ATTENTION")
+            {
+                acaoVisual = $"{simbolo} Wink enviado";
+                _ = LimparAcaoVisualAsync(acaoVisual);
+            }
         }
         catch (InvalidOperationException ex)
         {
@@ -368,6 +489,8 @@ else
     {
         if (enviando || ContatoAtual is null)
             return;
+        mostrarFigurinhas = false;
+        mostrarMaisAcoes = false;
         texto = emoji;
         await EnviarAsync();
     }
@@ -385,6 +508,8 @@ else
 
     private async Task SairAsync()
     {
+        try { await JS.InvokeVoidAsync("appCelular.clearSavedSession"); }
+        catch (JSException) { }
         try
         {
             await Portal.SairAsync();

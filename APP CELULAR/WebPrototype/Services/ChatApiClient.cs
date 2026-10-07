@@ -41,14 +41,17 @@ public sealed class ChatApiClient(HttpClient http)
             ContatoId = contatoId
         }, sessao.Token);
 
-    public Task<MensagemConversa> EnviarMensagemAsync(ChatSessao sessao, long contatoId, string texto, Guid clienteMensagemId) =>
+    public Task<MensagemConversa> EnviarMensagemAsync(ChatSessao sessao, long contatoId, string texto, Guid clienteMensagemId, byte[]? foto, string? fotoNome, string? fotoTipo) =>
         PostAsync<MensagemConversa>("api/conversas/enviar", new EnviarMensagemRequest
         {
             EmpresaId = sessao.EmpresaId,
             UsuarioId = sessao.UsuarioId,
             ContatoId = contatoId,
             ClienteMensagemId = clienteMensagemId,
-            Texto = texto
+            Texto = texto,
+            Foto = foto,
+            FotoNome = fotoNome,
+            FotoTipo = fotoTipo
         }, sessao.Token);
 
     public Task MarcarComoLidasAsync(ChatSessao sessao, long contatoId) =>
@@ -86,7 +89,7 @@ public sealed class ChatApiClient(HttpClient http)
         using var response = await EnviarAsync(request);
         var content = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-            throw CriarErro(response.StatusCode, content);
+            throw CriarErro(response.StatusCode, content, response.Headers.RetryAfter?.Delta);
 
         try
         {
@@ -106,7 +109,7 @@ public sealed class ChatApiClient(HttpClient http)
         if (!response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadAsStringAsync();
-            throw CriarErro(response.StatusCode, content);
+            throw CriarErro(response.StatusCode, content, response.Headers.RetryAfter?.Delta);
         }
     }
 
@@ -137,8 +140,16 @@ public sealed class ChatApiClient(HttpClient http)
         }
     }
 
-    private static InvalidOperationException CriarErro(System.Net.HttpStatusCode status, string content)
+    private static InvalidOperationException CriarErro(System.Net.HttpStatusCode status, string content, TimeSpan? retryAfter)
     {
+        if (status == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            var segundos = retryAfter is { TotalSeconds: > 0 } espera
+                ? Math.Clamp((int)Math.Ceiling(espera.TotalSeconds), 1, 3600)
+                : 30;
+            return new InvalidOperationException($"A API está limitando temporariamente os acessos. Aguarde {segundos} segundos antes de tentar novamente.");
+        }
+
         try
         {
             var error = JsonSerializer.Deserialize<ApiError>(content, JsonOptions);
@@ -164,6 +175,19 @@ public sealed class ChatPortalState(ChatApiClient api)
     public ChatSessao? Sessao { get; private set; }
     public bool Autenticado => Sessao is not null && Sessao.ExpiraEm > DateTimeOffset.UtcNow;
 
+    public bool RestaurarSessao(ChatSessao? sessao)
+    {
+        if (sessao is null || sessao.EmpresaId <= 0 || sessao.UsuarioId <= 0 ||
+            string.IsNullOrWhiteSpace(sessao.Token) || sessao.ExpiraEm <= DateTimeOffset.UtcNow)
+        {
+            Sessao = null;
+            return false;
+        }
+
+        Sessao = sessao;
+        return true;
+    }
+
     public async Task EntrarAsync(long empresaId, string usuario, string senha, Guid chaveInstalacao)
     {
         var login = await api.EntrarAsync(empresaId, usuario.Trim(), senha, chaveInstalacao);
@@ -183,8 +207,8 @@ public sealed class ChatPortalState(ChatApiClient api)
     public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId) =>
         api.ObterMensagensAsync(ObterSessao(), contatoId);
 
-    public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto, Guid clienteMensagemId) =>
-        api.EnviarMensagemAsync(ObterSessao(), contatoId, texto, clienteMensagemId);
+    public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto, Guid clienteMensagemId, byte[]? foto, string? fotoNome, string? fotoTipo) =>
+        api.EnviarMensagemAsync(ObterSessao(), contatoId, texto, clienteMensagemId, foto, fotoNome, fotoTipo);
 
     public Task MarcarComoLidasAsync(long contatoId) =>
         api.MarcarComoLidasAsync(ObterSessao(), contatoId);
@@ -256,6 +280,9 @@ public sealed class EnviarMensagemRequest : ConversaRequest
 {
     public Guid ClienteMensagemId { get; set; }
     public string Texto { get; set; } = "";
+    public byte[]? Foto { get; set; }
+    public string? FotoNome { get; set; }
+    public string? FotoTipo { get; set; }
 }
 
 public sealed class EnviarAcaoVisualRequest : ConversaRequest

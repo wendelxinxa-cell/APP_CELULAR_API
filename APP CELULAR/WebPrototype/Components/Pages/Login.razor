@@ -70,8 +70,28 @@
             Navigation.NavigateTo("/main", replace: true);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Portal.Autenticado)
+            return;
+
+        try
+        {
+            var sessao = await JS.InvokeAsync<ChatSessao?>("appCelular.getSavedSession");
+            if (Portal.RestaurarSessao(sessao))
+                Navigation.NavigateTo("/main", replace: true);
+        }
+        catch (JSException)
+        {
+            // Se o navegador bloquear armazenamento local, o login manual continua disponível.
+        }
+    }
+
     private async Task EntrarAsync()
     {
+        if (entrando)
+            return;
+
         erro = null;
         if (string.IsNullOrWhiteSpace(form.Usuario) || string.IsNullOrWhiteSpace(form.Senha))
         {
@@ -93,6 +113,8 @@
                 throw new InvalidOperationException("Não foi possível identificar este navegador. Recarregue a página e tente novamente.");
 
             await Portal.EntrarAsync(EmpresaId, form.Usuario, form.Senha, chaveInstalacao);
+            try { await JS.InvokeVoidAsync("appCelular.saveSession", Portal.Sessao); }
+            catch (JSException) { /* O acesso segue válido durante esta sessão se o armazenamento estiver bloqueado. */ }
             form.Senha = "";
             Navigation.NavigateTo("/main");
         }
