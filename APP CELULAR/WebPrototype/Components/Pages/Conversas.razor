@@ -176,6 +176,7 @@ else
     private bool mostrarMaisAcoes;
     private int tamanhoFonte = 13;
     private bool fonteSemibold;
+    private DateTimeOffset pausaApiAte;
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -299,6 +300,7 @@ else
         }
         catch (InvalidOperationException ex)
         {
+            AplicarPausaApi(ex);
             if (exibirErro) erro = ex.Message;
         }
         finally
@@ -353,6 +355,7 @@ else
         }
         catch (InvalidOperationException ex)
         {
+            AplicarPausaApi(ex);
             if (exibirErro) erro = ex.Message;
         }
         finally
@@ -370,11 +373,13 @@ else
             {
                 if (!Portal.Autenticado)
                     return;
+                if (DateTimeOffset.UtcNow < pausaApiAte)
+                    continue;
 
                 await InvokeAsync(async () =>
                 {
                     await CarregarContatosAsync(exibirErro: false);
-                    if (ContatoId.HasValue)
+                    if (ContatoId.HasValue && DateTimeOffset.UtcNow >= pausaApiAte)
                         await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true);
                     StateHasChanged();
                 });
@@ -435,6 +440,7 @@ else
         }
         catch (InvalidOperationException ex)
         {
+            AplicarPausaApi(ex);
             mensagemLocal.StatusEnvio = "Falha no envio";
             texto = textoEnviado;
             fotoSelecionada = fotoEnviada;
@@ -477,6 +483,7 @@ else
         }
         catch (InvalidOperationException ex)
         {
+            AplicarPausaApi(ex);
             erro = ex.Message;
         }
         finally
@@ -504,6 +511,12 @@ else
                 acaoVisual = null;
             StateHasChanged();
         });
+    }
+
+    private void AplicarPausaApi(Exception ex)
+    {
+        if (ex is ApiRateLimitException limite)
+            pausaApiAte = DateTimeOffset.UtcNow.Add(limite.RetryAfter);
     }
 
     private async Task SairAsync()

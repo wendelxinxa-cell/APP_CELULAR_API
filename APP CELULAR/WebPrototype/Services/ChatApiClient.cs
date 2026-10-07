@@ -147,7 +147,9 @@ public sealed class ChatApiClient(HttpClient http)
             var segundos = retryAfter is { TotalSeconds: > 0 } espera
                 ? Math.Clamp((int)Math.Ceiling(espera.TotalSeconds), 1, 3600)
                 : 30;
-            return new InvalidOperationException($"A API está limitando temporariamente os acessos. Aguarde {segundos} segundos antes de tentar novamente.");
+            return new ApiRateLimitException(
+                $"A API está limitando temporariamente os acessos. Aguarde {segundos} segundos antes de tentar novamente.",
+                TimeSpan.FromSeconds(segundos));
         }
 
         try
@@ -168,6 +170,11 @@ public sealed class ChatApiClient(HttpClient http)
     {
         public string? Mensagem { get; set; }
     }
+}
+
+public sealed class ApiRateLimitException(string message, TimeSpan retryAfter) : InvalidOperationException(message)
+{
+    public TimeSpan RetryAfter { get; } = retryAfter;
 }
 
 public sealed class ChatPortalState(ChatApiClient api)
