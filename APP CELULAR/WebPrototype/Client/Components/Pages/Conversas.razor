@@ -4,6 +4,7 @@
 @using WebPrototype.Services
 @using Microsoft.JSInterop
 @inject ChatPortalState Portal
+@inject ChatRealtimeClient Realtime
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -51,7 +52,7 @@ else
                         }
                     }
                 </div>
-                <p class="chat-sync-note">Mensagens sincronizadas automaticamente</p>
+                <p class="chat-sync-note">Usuários carregados no início da sessão · mensagens em tempo real</p>
             </aside>
 
             <main class="conversation-panel @(ContatoId.HasValue ? "chat-on-mobile" : "")">
@@ -87,9 +88,21 @@ else
                                 var minha = mensagem.RemetenteId == Portal.Sessao!.UsuarioId;
                                 <div class="message-row @(minha ? "message-own" : "message-incoming")">
                                     <article class="message-bubble">
-                                        @if (mensagem.Foto is { Length: > 0 } foto && !string.IsNullOrWhiteSpace(mensagem.FotoTipo) && mensagem.FotoTipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                                        @if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl) && (mensagem.MidiaTipo ?? mensagem.FotoTipo ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <video class="message-image" src="@mensagem.FotoUrl" controls playsinline preload="metadata"></video>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl))
+                                        {
+                                            <img class="message-image" src="@mensagem.FotoUrl" alt="Imagem enviada na conversa" />
+                                        }
+                                        else if (mensagem.Foto is { Length: > 0 } foto && !string.IsNullOrWhiteSpace(mensagem.FotoTipo) && mensagem.FotoTipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <img class="message-image" src="@($"data:{mensagem.FotoTipo};base64,{Convert.ToBase64String(foto)}")" alt="Imagem enviada na conversa" />
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(mensagem.MidiaChave))
+                                        {
+                                            <button type="button" class="message-media-load" @onclick="() => CarregarMidiaAsync(mensagem)">Carregar mídia</button>
                                         }
                                         @if (!string.IsNullOrWhiteSpace(mensagem.Texto))
                                         {
@@ -102,19 +115,28 @@ else
                         }
                     </section>
 
+                    @if (!Portal.EhZeus)
+                    {
                     <form class="message-composer" @onsubmit="EnviarAsync" @onsubmit:preventDefault="true">
                         <div class="chatcat-actions" aria-label="Ações da conversa">
                             <label class="chatcat-action" for="foto-conversa" title="Foto" aria-label="Foto"><span>＋</span></label>
-                            <InputFile id="foto-conversa" class="chatcat-file-input" accept="image/*" OnChange="SelecionarFotoAsync" disabled="@enviando" />
+                            <InputFile id="foto-conversa" class="chatcat-file-input" accept="image/*,video/*" OnChange="SelecionarFotoAsync" disabled="@enviando" />
                             <button type="button" title="Abrir figurinhas" aria-label="Abrir figurinhas" disabled="@enviando" @onclick="AlternarFigurinhas">▧</button>
                             <button type="button" title="Fonte" aria-label="Fonte" disabled="@enviando" @onclick="AlternarFonte">Aa</button>
                             <button type="button" class="attention-action" data-chatcat-attention title="Chamar atenção do contato" aria-label="Chamar atenção do contato" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("ATTENTION", "⚡")'>⚡</button>
                             <button type="button" title="Abrir mais ações" aria-label="Abrir mais ações" disabled="@enviando" @onclick="AlternarMaisAcoes">⋯</button>
                         </div>
-                        @if (fotoSelecionada is { Length: > 0 })
+                        @if (!string.IsNullOrWhiteSpace(fotoChave))
                         {
                             <div class="selected-photo-preview">
-                                <img src="@fotoPreview" alt="Foto selecionada para envio" />
+                                @if ((fotoTipo ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <video src="@fotoPreview" controls playsinline></video>
+                                }
+                                else
+                                {
+                                    <img src="@fotoPreview" alt="Foto selecionada para envio" />
+                                }
                                 <span>@fotoNome</span>
                                 <button type="button" title="Remover foto" aria-label="Remover foto" @onclick="RemoverFoto">×</button>
                             </div>
@@ -142,6 +164,11 @@ else
                         <textarea @bind="texto" @bind:event="oninput" placeholder="Mensagem" aria-label="Mensagem" rows="1" maxlength="4000" disabled="@enviando"></textarea>
                         <button class="primary-button" type="submit" disabled="@(!PodeEnviar)">@(enviando ? "Enviando…" : "Enviar")</button>
                     </form>
+                    }
+                    else
+                    {
+                        <p class="muted" role="status">Zeus master está em modo de leitura global.</p>
+                    }
                 }
             </main>
         </div>
@@ -167,16 +194,19 @@ else
     private ElementReference painelMensagens;
     private long idMensagemLocal;
     private const int TamanhoMaximoFoto = 8 * 1024 * 1024;
+    private const long TamanhoMaximoVideo = 100 * 1024 * 1024;
     private static readonly string[] winks = ["✨", "💥", "🎉", "😺", "💫", "🚀"];
-    private byte[]? fotoSelecionada;
+    private string? fotoChave;
     private string? fotoNome;
     private string? fotoTipo;
+    private long fotoTamanho;
+    private Guid idMensagemMidia;
     private string? fotoPreview;
     private bool mostrarFigurinhas;
     private bool mostrarMaisAcoes;
     private int tamanhoFonte = 13;
     private bool fonteSemibold;
-    private DateTimeOffset pausaApiAte;
+    private DateTimeOffset proximaTentativaRealtime;
     private int ciclosPolling;
     private static readonly TimeZoneInfo FusoBrasilia = ObterFusoBrasilia();
 
@@ -187,7 +217,7 @@ else
         .ThenBy(contato => contato.Nome);
 
     private ContatoConversa? ContatoAtual => ContatoId is null ? null : contatos.FirstOrDefault(contato => contato.Id == ContatoId.Value);
-    private bool PodeEnviar => !enviando && ContatoAtual is not null && (!string.IsNullOrWhiteSpace(texto) || fotoSelecionada is { Length: > 0 });
+    private bool PodeEnviar => !enviando && ContatoAtual is not null && (!string.IsNullOrWhiteSpace(texto) || !string.IsNullOrWhiteSpace(fotoChave));
 
     private static string HoraBrasilia(DateTime data)
     {
@@ -211,41 +241,43 @@ else
         mostrarFigurinhas = false;
         mostrarMaisAcoes = false;
         var arquivo = args.File;
-        if (arquivo.Size is <= 0 or > TamanhoMaximoFoto)
+        var tipo = arquivo.ContentType ?? "";
+        if (!(tipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase) || tipo.StartsWith("video/", StringComparison.OrdinalIgnoreCase)))
         {
-            erro = "A foto deve ter no máximo 8 MB.";
+            erro = "Escolha uma foto ou vídeo compatível.";
             return;
         }
-
-        var tipo = arquivo.ContentType;
-        if (string.IsNullOrWhiteSpace(tipo) || !tipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        var limite = tipo.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ? TamanhoMaximoVideo : TamanhoMaximoFoto;
+        if (arquivo.Size <= 0 || arquivo.Size > limite)
         {
-            erro = "Escolha um arquivo de imagem. Vídeos não são aceitos pela API atual.";
+            erro = tipo.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ? "O vídeo deve ter no máximo 100 MB." : "A foto deve ter no máximo 8 MB.";
             return;
         }
 
         try
         {
-            await using var origem = arquivo.OpenReadStream(TamanhoMaximoFoto);
-            using var destino = new MemoryStream((int)arquivo.Size);
-            await origem.CopyToAsync(destino);
-            fotoSelecionada = destino.ToArray();
+            idMensagemMidia = Guid.NewGuid();
+            fotoChave = $"pendente:{idMensagemMidia:N}";
+            fotoPreview = await JS.InvokeAsync<string>("appCelular.previewInputFile", "foto-conversa");
             fotoNome = arquivo.Name;
             fotoTipo = tipo;
-            fotoPreview = $"data:{fotoTipo};base64,{Convert.ToBase64String(fotoSelecionada)}";
+            fotoTamanho = arquivo.Size;
+            await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", fotoChave);
             erro = null;
         }
-        catch (IOException)
+        catch (Exception ex)
         {
-            erro = "Não foi possível ler a foto. Escolha uma imagem de até 8 MB e tente novamente.";
+            erro = $"Não foi possível preparar a mídia: {ex.Message}";
         }
     }
 
     private void RemoverFoto()
     {
-        fotoSelecionada = null;
+        fotoChave = null;
         fotoNome = null;
         fotoTipo = null;
+        fotoTamanho = 0;
+        idMensagemMidia = Guid.Empty;
         fotoPreview = null;
     }
 
@@ -267,17 +299,10 @@ else
         fonteSemibold = !fonteSemibold;
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         if (!Portal.Autenticado)
-        {
             Navigation.NavigateTo("/login", replace: true);
-            return;
-        }
-
-        inicializado = true;
-        await CarregarContatosAsync(exibirErro: true);
-        _ = AcompanharConversasAsync(polling.Token);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -295,6 +320,7 @@ else
                 if (locais.Count > 0)
                 {
                     mensagens.AddRange(locais.OrderBy(m => m.EnviadaEm).ThenBy(m => m.Id));
+                    await PrepararMidiasAsync(mensagens);
                     rolarMensagens = true;
                     await InvokeAsync(StateHasChanged);
                 }
@@ -310,6 +336,19 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && Portal.Autenticado)
+        {
+            inicializado = true;
+            await CarregarContatosAsync(exibirErro: true);
+            Realtime.MensagemRecebida += AoReceberMensagemAsync;
+            Realtime.Reconectado += AoReconectarAsync;
+            try { await Realtime.ConectarAsync(Portal.Sessao!); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Supabase Realtime indisponível; será usada sincronização incremental: {ex.Message}"); }
+            await OnParametersSetAsync();
+            _ = AcompanharConversasAsync(polling.Token);
+            StateHasChanged();
+        }
+
         if (!rolarMensagens)
             return;
 
@@ -333,7 +372,6 @@ else
         }
         catch (InvalidOperationException ex)
         {
-            AplicarPausaApi(ex);
             if (exibirErro) erro = ex.Message;
         }
         finally
@@ -352,6 +390,7 @@ else
         {
             var cursor = mensagens.Where(m => m.Id > 0).Select(m => m.Id).DefaultIfEmpty(0).Max();
             var recebidas = await Portal.ObterMensagensAsync(ContatoId.Value, cursor);
+            await PrepararMidiasAsync(recebidas);
             bool novaRecebida = recebidas.Any(m => m.RemetenteId != Portal.Sessao!.UsuarioId &&
                 !mensagens.Any(atual => atual.Id == m.Id ||
                     (m.ClienteMensagemId != Guid.Empty && atual.ClienteMensagemId == m.ClienteMensagemId)));
@@ -397,22 +436,11 @@ else
                     contatoLido.NaoLidas = 0;
             }
             if (buscarAcoes)
-            {
-                var acoes = await Portal.ObterAcoesVisuaisAsync(ContatoId.Value);
-                if (acoes.Count > 0)
-                {
-                    var acao = acoes[^1];
-                    acaoVisual = acao.Tipo == "ATTENTION"
-                        ? $"⚡ {acao.Simbolo} chamou sua atenção"
-                        : $"{acao.Simbolo} recebeu um wink";
-                    _ = LimparAcaoVisualAsync(acaoVisual);
-                }
-            }
+                await CarregarAcoesVisuaisAsync();
             erro = null;
         }
         catch (InvalidOperationException ex)
         {
-            AplicarPausaApi(ex);
             if (exibirErro) erro = ex.Message;
         }
         finally
@@ -421,28 +449,141 @@ else
         }
     }
 
+    private async Task CarregarAcoesVisuaisAsync()
+    {
+        if (!ContatoId.HasValue || !Portal.Autenticado)
+            return;
+
+        var acoes = await Portal.ObterAcoesVisuaisAsync(ContatoId.Value);
+        if (acoes.Count == 0)
+            return;
+
+        var acao = acoes[^1];
+        acaoVisual = acao.Tipo == "ATTENTION"
+            ? $"⚡ {acao.Simbolo} chamou sua atenção"
+            : $"{acao.Simbolo} recebeu um wink";
+        _ = LimparAcaoVisualAsync(acaoVisual);
+    }
+
+    private Task AoReconectarAsync() => InvokeAsync(async () =>
+    {
+        if (ContatoId.HasValue && Portal.Autenticado)
+            await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true, buscarAcoes: false);
+        StateHasChanged();
+    });
+
+    private Task AoReceberMensagemAsync(MensagemConversa mensagem) => InvokeAsync(async () =>
+    {
+        if (!Portal.Autenticado || Portal.Sessao is not { } sessao)
+            return;
+
+        var contatoId = mensagem.RemetenteId == sessao.UsuarioId
+            ? mensagem.DestinatarioId
+            : mensagem.RemetenteId;
+        var contato = contatos.FirstOrDefault(item => item.Id == contatoId);
+        if (contato is null)
+            return;
+
+        contato.UltimaMensagem = string.IsNullOrWhiteSpace(mensagem.Texto) ? "[Mídia]" : mensagem.Texto;
+        contato.DataUltimaMensagem = mensagem.EnviadaEm;
+        var minha = mensagem.RemetenteId == sessao.UsuarioId;
+        var conversaAberta = ContatoId == contatoId;
+        if (!minha && !conversaAberta)
+            contato.NaoLidas++;
+
+        if (conversaAberta)
+        {
+            var indice = mensagens.FindIndex(atual =>
+                (mensagem.Id > 0 && atual.Id == mensagem.Id) ||
+                (mensagem.ClienteMensagemId != Guid.Empty && atual.ClienteMensagemId == mensagem.ClienteMensagemId));
+            if (indice >= 0)
+            {
+                mensagens[indice] = mensagem;
+                mensagem.StatusEnvio = null;
+            }
+            else
+            {
+                mensagens.Add(mensagem);
+            }
+
+            await PrepararMidiasAsync([mensagem]);
+            mensagens.Sort((a, b) => a.EnviadaEm != b.EnviadaEm
+                ? a.EnviadaEm.CompareTo(b.EnviadaEm)
+                : a.Id.CompareTo(b.Id));
+            try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(contatoId), new[] { mensagem }); }
+            catch (JSException) { }
+            rolarMensagens = true;
+
+            if (!minha)
+            {
+                await Portal.MarcarComoLidasAsync(contatoId);
+                contato.NaoLidas = 0;
+            }
+        }
+
+        StateHasChanged();
+    });
+
+    private async Task PrepararMidiasAsync(IEnumerable<MensagemConversa> itens)
+    {
+        foreach (var mensagem in itens.Where(m => !string.IsNullOrWhiteSpace(m.MidiaChave) && string.IsNullOrWhiteSpace(m.FotoUrl)))
+        {
+            try
+            {
+                var urlLocal = await JS.InvokeAsync<string?>("appCelular.loadChatMedia", ChaveCacheConversa(ContatoId!.Value), mensagem.MidiaChave, null);
+                if (string.IsNullOrWhiteSpace(urlLocal) && mensagem.Id > 0)
+                {
+                    var link = await Portal.CriarUrlLeituraAsync(mensagem.MidiaChave!);
+                    urlLocal = await JS.InvokeAsync<string?>("appCelular.loadChatMedia", ChaveCacheConversa(ContatoId.Value), mensagem.MidiaChave, link.Url);
+                }
+                mensagem.FotoUrl = urlLocal;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Mídia {mensagem.Id} ficará disponível ao tocar para carregar: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task CarregarMidiaAsync(MensagemConversa mensagem)
+    {
+        if (ContatoId is null || string.IsNullOrWhiteSpace(mensagem.MidiaChave)) return;
+        try
+        {
+            var link = await Portal.CriarUrlLeituraAsync(mensagem.MidiaChave);
+            mensagem.FotoUrl = await JS.InvokeAsync<string>("appCelular.loadChatMedia", ChaveCacheConversa(ContatoId.Value), mensagem.MidiaChave, link.Url);
+        }
+        catch (Exception ex)
+        {
+            erro = $"Não foi possível abrir a mídia: {ex.Message}";
+        }
+    }
+
     private async Task AcompanharConversasAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(6));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 if (!Portal.Autenticado)
                     return;
-                if (DateTimeOffset.UtcNow < pausaApiAte)
-                    continue;
-
                 ciclosPolling++;
-                bool atualizarContatos = ciclosPolling % 5 == 0;
                 bool buscarAcoes = ciclosPolling % 3 == 0;
 
                 await InvokeAsync(async () =>
                 {
-                    if (atualizarContatos)
-                        await CarregarContatosAsync(exibirErro: false);
-                    if (ContatoId.HasValue && DateTimeOffset.UtcNow >= pausaApiAte)
+                    if (!Realtime.Conectado && DateTimeOffset.UtcNow >= proximaTentativaRealtime)
+                    {
+                        proximaTentativaRealtime = DateTimeOffset.UtcNow.AddSeconds(30);
+                        try { await Realtime.ConectarAsync(Portal.Sessao!); }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"SignalR ainda indisponível: {ex.Message}"); }
+                    }
+
+                    if (ContatoId.HasValue)
+                    {
                         await CarregarMensagensAsync(exibirErro: false, marcarComoLidas: true, buscarAcoes: buscarAcoes);
+                    }
                     StateHasChanged();
                 });
             }
@@ -465,10 +606,12 @@ else
         mostrarFigurinhas = false;
         mostrarMaisAcoes = false;
         var textoEnviado = texto.Trim();
-        var fotoEnviada = fotoSelecionada;
+        var chaveFotoEnviada = fotoChave;
         var nomeFotoEnviada = fotoNome;
         var tipoFotoEnviada = fotoTipo;
-        var idCliente = Guid.NewGuid();
+        var tamanhoFotoEnviada = fotoTamanho;
+        var previewFotoEnviada = fotoPreview;
+        var idCliente = idMensagemMidia != Guid.Empty ? idMensagemMidia : Guid.NewGuid();
         var mensagemLocal = new MensagemConversa
         {
             Id = --idMensagemLocal,
@@ -477,7 +620,11 @@ else
             RemetenteNome = Portal.Sessao.Usuario,
             DestinatarioId = ContatoId.Value,
             Texto = textoEnviado,
-            Foto = fotoEnviada,
+            MidiaChave = chaveFotoEnviada,
+            MidiaNome = nomeFotoEnviada,
+            MidiaTipo = tipoFotoEnviada,
+            MidiaTamanhoBytes = tamanhoFotoEnviada,
+            FotoUrl = previewFotoEnviada,
             FotoNome = nomeFotoEnviada,
             FotoTipo = tipoFotoEnviada,
             EnviadaEm = DateTime.UtcNow,
@@ -494,7 +641,14 @@ else
         await InvokeAsync(StateHasChanged);
         try
         {
-            var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente, fotoEnviada, nomeFotoEnviada, tipoFotoEnviada);
+            if (!string.IsNullOrWhiteSpace(chaveFotoEnviada) && chaveFotoEnviada.StartsWith("pendente:", StringComparison.Ordinal))
+            {
+                chaveFotoEnviada = await Portal.UploadMidiaAsync(ContatoId.Value, idCliente, "foto-conversa", nomeFotoEnviada ?? "midia", tipoFotoEnviada ?? "application/octet-stream");
+                mensagemLocal.MidiaChave = chaveFotoEnviada;
+                await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", chaveFotoEnviada);
+            }
+            var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente, chaveFotoEnviada, nomeFotoEnviada, tipoFotoEnviada, tamanhoFotoEnviada > 0 ? tamanhoFotoEnviada : null);
+            enviada.FotoUrl = previewFotoEnviada;
             enviada.StatusEnvio = null;
             var indiceLocal = mensagens.IndexOf(mensagemLocal);
             if (indiceLocal >= 0)
@@ -505,17 +659,16 @@ else
         }
         catch (InvalidOperationException ex)
         {
-            AplicarPausaApi(ex);
             mensagemLocal.StatusEnvio = "Falha no envio";
             try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), new[] { mensagemLocal }); }
             catch (JSException) { }
             texto = textoEnviado;
-            fotoSelecionada = fotoEnviada;
+            fotoChave = chaveFotoEnviada;
             fotoNome = nomeFotoEnviada;
             fotoTipo = tipoFotoEnviada;
-            fotoPreview = fotoSelecionada is { Length: > 0 } && !string.IsNullOrWhiteSpace(fotoTipo)
-                ? $"data:{fotoTipo};base64,{Convert.ToBase64String(fotoSelecionada)}"
-                : null;
+            fotoTamanho = tamanhoFotoEnviada;
+            fotoPreview = previewFotoEnviada;
+            idMensagemMidia = idCliente;
             erro = ex.Message;
         }
         finally
@@ -550,7 +703,6 @@ else
         }
         catch (InvalidOperationException ex)
         {
-            AplicarPausaApi(ex);
             erro = ex.Message;
         }
         finally
@@ -578,12 +730,6 @@ else
                 acaoVisual = null;
             StateHasChanged();
         });
-    }
-
-    private void AplicarPausaApi(Exception ex)
-    {
-        if (ex is ApiRateLimitException limite)
-            pausaApiAte = DateTimeOffset.UtcNow.Add(limite.RetryAfter);
     }
 
     private async Task SairAsync()
@@ -614,6 +760,8 @@ else
     {
         polling.Cancel();
         polling.Dispose();
-        return ValueTask.CompletedTask;
+        Realtime.MensagemRecebida -= AoReceberMensagemAsync;
+        Realtime.Reconectado -= AoReconectarAsync;
+        return Realtime.DisposeAsync();
     }
 }

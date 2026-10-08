@@ -1,0 +1,11 @@
+.login-register{margin:18px 0 0;text-align:center;color:#6d5378;font-size:13px}
+.login-register a{text-decoration:underline;text-underline-offset:3px}
+.access-request{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,240px) auto;align-items:center;gap:18px;margin:14px 0;padding:18px;background:#fff;border:1px solid #eee8f0;border-radius:14px}
+.access-request strong,.access-request small{display:block}
+.access-request small{margin-top:5px;color:#84798a;font-size:12px}
+.request-user-id{display:grid;gap:7px;color:#514357;font-size:12px;font-weight:700}
+.request-user-id input{height:42px;border:1px solid #e7e2e9;border-radius:9px;padding:0 11px}
+.request-actions{display:flex;gap:8px}
+.request-actions button{height:40px;padding:0 12px}
+.notice.error,.notice.success{margin:14px 0}
+@media(max-width:760px){.login-page{display:flex;min-height:100vh}.login-card{padding:34px 0}.login-side{display:none}.access-request{grid-template-columns:1fr;gap:12px}.request-actions{justify-content:flex-end}}

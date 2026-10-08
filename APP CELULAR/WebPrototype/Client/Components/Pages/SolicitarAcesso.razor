@@ -1,0 +1,65 @@
+@page "/solicitar-acesso"
+@using Microsoft.JSInterop
+@using WebPrototype.Services
+@inject ChatPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Solicitar acesso · APP CELULAR</PageTitle>
+
+<main class="login-page">
+    <section class="login-card">
+        <div class="brand-mark" aria-hidden="true">😺</div>
+        <p class="eyebrow">CHATCAT · APP CELULAR</p>
+        <h1>Solicitar acesso</h1>
+        <p class="muted login-intro">Crie sua conta. Zeus receberá a solicitação e liberará o acesso após conferir seu cadastro.</p>
+
+        @if (enviado)
+        {
+            <div class="notice success" role="status">Solicitação enviada. Confirme seu e-mail, se o Supabase pedir, e aguarde a aprovação de Zeus.</div>
+            <a class="primary-button login-submit" href="/login">Voltar ao login</a>
+        }
+        else
+        {
+            <EditForm Model="form" OnValidSubmit="EnviarAsync">
+                <div class="field"><label for="request-name">Nome</label><input id="request-name" @bind="form.Nome" autocomplete="name" maxlength="120" required /></div>
+                <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
+                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
+                @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
+                <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
+            </EditForm>
+            <p class="login-register"><a href="/login">Já tenho acesso</a></p>
+        }
+    </section>
+</main>
+
+@code {
+    private readonly RequestForm form = new();
+    private bool enviando;
+    private bool enviado;
+    private string? erro;
+
+    private async Task EnviarAsync()
+    {
+        if (enviando) return;
+        enviando = true;
+        erro = null;
+        try
+        {
+            await Portal.SolicitarAcessoAsync(form.Email, form.Senha, form.Nome);
+            enviado = true;
+            form.Senha = "";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            erro = ex.Message;
+        }
+        finally { enviando = false; }
+    }
+
+    private sealed class RequestForm
+    {
+        public string Nome { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Senha { get; set; } = "";
+    }
+}

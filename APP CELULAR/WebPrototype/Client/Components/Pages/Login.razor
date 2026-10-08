@@ -5,7 +5,6 @@
 @using WebPrototype.Services
 @inject ChatPortalState Portal
 @inject NavigationManager Navigation
-@inject IConfiguration Configuration
 @inject IJSRuntime JS
 
 <PageTitle>Entrar · ChatCat</PageTitle>
@@ -19,8 +18,8 @@
 
         <EditForm Model="form" OnValidSubmit="EntrarAsync">
             <div class="field">
-                <label for="username">Usuário</label>
-                <input id="username" @bind="form.Usuario" autocomplete="username" placeholder="Digite seu usuário" />
+                <label for="username">E-mail da conta Supabase</label>
+                <input id="username" type="email" @bind="form.Email" autocomplete="username" placeholder="voce@exemplo.com" />
             </div>
             <div class="field">
                 <label for="password">Senha</label>
@@ -42,9 +41,10 @@
 
         <div class="demo-hint">
             <span class="hint-icon">i</span>
-            <div><strong>Conta do APP CELULAR</strong><br />Empresa configurada: @EmpresaId<br />Se este navegador for novo, o administrador pode precisar aprová-lo.</div>
+            <div><strong>Acesso Supabase</strong><br />Empresa definida na configuração do serviço.<br />Use uma conta criada e vinculada pelo administrador.</div>
         </div>
-        <p class="prototype-label">Mensagens e contatos carregados do serviço usado pelo aplicativo.</p>
+        <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase.</p>
+        <p class="login-register"><a href="/solicitar-acesso">Solicitar acesso</a></p>
     </section>
     <aside class="login-side">
         <div class="side-content">
@@ -62,8 +62,6 @@
     private bool mostrarSenha;
     private bool entrando;
     private string? erro;
-    private long EmpresaId => Configuration.GetValue<long>("Api:EmpresaId", 1);
-
     protected override void OnInitialized()
     {
         if (Portal.Autenticado)
@@ -77,13 +75,13 @@
 
         try
         {
-            var sessao = await JS.InvokeAsync<ChatSessao?>("appCelular.getSavedSession");
-            if (Portal.RestaurarSessao(sessao))
+            if (await Portal.RestaurarSessaoAsync())
                 Navigation.NavigateTo("/main", replace: true);
         }
-        catch (JSException)
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
         {
-            // Se o navegador bloquear armazenamento local, o login manual continua disponível.
+            erro = ex.Message;
+            StateHasChanged();
         }
     }
 
@@ -93,28 +91,17 @@
             return;
 
         erro = null;
-        if (string.IsNullOrWhiteSpace(form.Usuario) || string.IsNullOrWhiteSpace(form.Senha))
+        if (string.IsNullOrWhiteSpace(form.Email) || string.IsNullOrWhiteSpace(form.Senha))
         {
-            erro = "Informe seu usuário e sua senha.";
+            erro = "Informe seu e-mail e sua senha.";
             return;
         }
 
-        if (EmpresaId <= 0)
-        {
-            erro = "A empresa do serviço não está configurada.";
-            return;
-        }
 
         entrando = true;
         try
         {
-            var chaveTexto = await JS.InvokeAsync<string>("appCelular.getOrCreateInstallationId");
-            if (!Guid.TryParse(chaveTexto, out var chaveInstalacao) || chaveInstalacao == Guid.Empty)
-                throw new InvalidOperationException("Não foi possível identificar este navegador. Recarregue a página e tente novamente.");
-
-            await Portal.EntrarAsync(EmpresaId, form.Usuario, form.Senha, chaveInstalacao);
-            try { await JS.InvokeVoidAsync("appCelular.saveSession", Portal.Sessao); }
-            catch (JSException) { /* O acesso segue válido durante esta sessão se o armazenamento estiver bloqueado. */ }
+            await Portal.EntrarAsync(form.Email, form.Senha);
             form.Senha = "";
             Navigation.NavigateTo("/main");
         }
@@ -134,7 +121,9 @@
 
     private sealed class LoginForm
     {
-        public string Usuario { get; set; } = "";
+        public string Email { get; set; } = "";
         public string Senha { get; set; } = "";
     }
 }
+
+

@@ -1,0 +1,91 @@
+@page "/aprovacoes"
+@using Microsoft.JSInterop
+@using WebPrototype.Services
+@inject ChatPortalState Portal
+@inject NavigationManager Navigation
+
+<PageTitle>Solicitações de acesso · APP CELULAR</PageTitle>
+
+@if (carregando)
+{
+    <div class="page-loading">Carregando solicitações…</div>
+}
+else if (Portal.Autenticado && Portal.EhZeus)
+{
+    <main class="home-shell">
+        <header class="home-topbar"><a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> APP CELULAR</a><a href="/main">Voltar</a></header>
+        <section class="home-content">
+            <p class="eyebrow">ADMINISTRAÇÃO</p>
+            <h1>Solicitações de acesso</h1>
+            <p class="home-intro">Confira o cadastro, informe o ID correspondente do usuário APP CELULAR e aprove.</p>
+            @if (!string.IsNullOrWhiteSpace(aviso)) { <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div> }
+            @if (solicitacoes.Count == 0)
+            {
+                <div class="home-unavailable"><strong>Nenhuma solicitação pendente</strong><p>Novos pedidos enviados aparecerão aqui.</p></div>
+            }
+            else
+            {
+                @foreach (var item in solicitacoes)
+                {
+                    <article class="access-request" @key="item.AuthUid">
+                        <div><strong>@item.Nome</strong><small>@item.Email</small><small>Enviada em @item.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
+                        <label class="request-user-id">ID do usuário APP CELULAR<input type="number" min="1" @bind="userIds[item.AuthUid]" /></label>
+                        <div class="request-actions"><button class="primary-button" @onclick="() => AprovarAsync(item)" disabled="@processando">Aprovar</button><button class="danger-button" @onclick="() => RecusarAsync(item)" disabled="@processando">Recusar</button></div>
+                    </article>
+                }
+            }
+        </section>
+    </main>
+}
+
+@code {
+    private List<SolicitacaoAcesso> solicitacoes = [];
+    private readonly Dictionary<string, long> userIds = [];
+    private bool carregando = true;
+    private bool processando;
+    private bool falha;
+    private string? aviso;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (!Portal.Autenticado) await Portal.RestaurarSessaoAsync();
+            if (!Portal.Autenticado) { Navigation.NavigateTo("/login", replace: true); return; }
+            if (!Portal.EhZeus) { Navigation.NavigateTo("/main", replace: true); return; }
+            await AtualizarAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            falha = true;
+            aviso = ex.Message;
+        }
+        finally { carregando = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task AtualizarAsync()
+    {
+        solicitacoes = await Portal.ListarSolicitacoesAsync();
+        foreach (var item in solicitacoes) userIds.TryAdd(item.AuthUid, 0);
+    }
+
+    private async Task AprovarAsync(SolicitacaoAcesso item)
+    {
+        if (!userIds.TryGetValue(item.AuthUid, out var userId) || userId <= 0)
+        {
+            falha = true; aviso = "Informe o ID válido do usuário APP CELULAR antes de aprovar."; return;
+        }
+        await ProcessarAsync(async () => await Portal.AprovarSolicitacaoAsync(item.AuthUid, userId), "Acesso aprovado.");
+    }
+
+    private Task RecusarAsync(SolicitacaoAcesso item) => ProcessarAsync(() => Portal.RecusarSolicitacaoAsync(item.AuthUid), "Solicitação recusada.");
+
+    private async Task ProcessarAsync(Func<Task> acao, string sucesso)
+    {
+        processando = true; aviso = null; falha = false;
+        try { await acao(); aviso = sucesso; await AtualizarAsync(); }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
+        finally { processando = false; }
+    }
+}

@@ -22,9 +22,17 @@ else
             <p class="home-intro">Acesse rapidamente as funções do sistema.</p>
             <a class="home-module" href="/conversas">
                 <span class="home-module-icon">💬</span>
-                <span><strong>Conversas</strong><small>Mensagens sincronizadas com o APP CELULAR</small></span>
+                <span><strong>Conversas</strong><small>Mensagens sincronizadas diretamente com Supabase</small></span>
                 <span class="home-module-arrow">›</span>
             </a>
+            @if (Portal.EhZeus)
+            {
+                <a class="home-module" href="/aprovacoes">
+                    <span class="home-module-icon">✓</span>
+                    <span><strong>Solicitações de acesso</strong><small>Aprovar ou recusar cadastros pelo Supabase</small></span>
+                    <span class="home-module-arrow">›</span>
+                </a>
+            }
             <div class="home-unavailable"><strong>Outros módulos do aplicativo</strong><p>Clientes, produtos, vendas e configurações ainda não estão disponíveis nesta versão web.</p></div>
         </section>
     </main>

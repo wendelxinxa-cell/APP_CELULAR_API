@@ -1,6 +1,5 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,26 +14,20 @@
     <link rel="icon" type="image/svg+xml" href="app-icon.svg" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="WebPrototype.styles.css" />
-    <link rel="stylesheet" href="chatcat-theme.css?v=attention-rounded" />
+    <link rel="stylesheet" href="WebPrototype.Client.styles.css" />
+    <link rel="stylesheet" href="chatcat-theme.css?v=supabase-wasm" />
     <link rel="stylesheet" href="main.css" />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <link rel="stylesheet" href="supabase-access.css" />
+    <HeadOutlet @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
 </head>
-
 <body>
-    <Routes @rendermode="InteractiveServer" />
-    <div id="components-reconnect-modal" role="status" aria-live="polite">
-        <section class="reconnect-card">
-            <div class="reconnect-cat" aria-hidden="true">😺</div>
-            <p class="reconnect-retrying">Reconectando ao ChatCat…</p>
-            <p class="reconnect-paused">A conexão foi pausada. Voltando ao ChatCat…</p>
-            <p class="reconnect-failed">Não foi possível reconectar agora.</p>
-            <p class="reconnect-rejected">O serviço reiniciou. Sua sessão será recuperada se ainda estiver válida.</p>
-            <button class="primary-button reconnect-reload" type="button" onclick="location.reload()">Reabrir ChatCat</button>
-        </section>
+    <div id="app">
+        <WebPrototype.Client.Components.Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
     </div>
-    <script src="device-id.js"></script>
     <script src="chat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@supabase/supabase-js@@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-direct.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
-
 </html>
