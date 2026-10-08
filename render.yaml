@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "26"
+        value: "27"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_26.apk"
+        value: "CHATCAT_0.0.001_build_27.apk"
       - key: AppUpdate__Sha256
-        value: "9CFC1BED904E3F01391D0CD21AFABD6E331FC911DA181F433C83910CA8F2F22C"
+        value: "F7472FB646AC3EDF671EC8F591DC4879464322F69315D37864B2CEDAA346EB2B"
       - key: AppUpdate__Notes
-        value: "ChatCat build 26: sincronização incremental do chat; mantém mensagens e mídias antigas no aparelho e baixa somente novas mensagens."
+        value: "ChatCat build 27: atualização para teste da distribuição pela API."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
