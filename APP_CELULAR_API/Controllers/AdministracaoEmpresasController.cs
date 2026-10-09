@@ -41,9 +41,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     [HttpPost("master/login")]
     public async Task<IActionResult> LoginMaster([FromBody] LoginMasterRequest request, IHttpClientFactory httpClientFactory)
     {
-        string? supabaseUrl = _configuration["SupabaseAuth:Url"];
-        string? supabaseKey = _configuration["SupabaseAuth:PublishableKey"];
-        string? masterEmail = _configuration["SupabaseAuth:MasterEmail"];
+        // A chave publishable é pública por definição (também entregue ao cliente Blazor).
+        // Os valores do Render podem sobrescrever estes padrões, sem exigir uma chave service_role.
+        string? supabaseUrl = _configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co";
+        string? supabaseKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        string? masterEmail = _configuration["SupabaseAuth:MasterEmail"] ?? "wendelfrank.dev@gmail.com";
         if (!string.IsNullOrWhiteSpace(supabaseUrl) &&
             !string.IsNullOrWhiteSpace(supabaseKey) &&
             MailAddress.TryCreate(masterEmail, out var masterAddress))
