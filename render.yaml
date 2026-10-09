@@ -36,6 +36,12 @@ services:
         sync: false
       - key: MasterAdmin__Email
         sync: false
+      - key: SupabaseAuth__Url
+        value: https://zuqwlupzxfjqswfseuat.supabase.co
+      - key: SupabaseAuth__PublishableKey
+        value: sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-
+      - key: SupabaseAuth__MasterEmail
+        value: wendelfrank.dev@gmail.com
       - key: Email__SmtpHost
         sync: false
       - key: Email__SmtpPort

@@ -39,8 +39,69 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     }
 
     [HttpPost("master/login")]
-    public IActionResult LoginMaster([FromBody] LoginMasterRequest request)
+    public async Task<IActionResult> LoginMaster([FromBody] LoginMasterRequest request, IHttpClientFactory httpClientFactory)
     {
+        string? supabaseUrl = _configuration["SupabaseAuth:Url"];
+        string? supabaseKey = _configuration["SupabaseAuth:PublishableKey"];
+        string? masterEmail = _configuration["SupabaseAuth:MasterEmail"];
+        if (!string.IsNullOrWhiteSpace(supabaseUrl) &&
+            !string.IsNullOrWhiteSpace(supabaseKey) &&
+            MailAddress.TryCreate(masterEmail, out var masterAddress))
+        {
+            bool usuarioMasterValido = string.Equals(request.Usuario?.Trim(), "Zeus", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Usuario?.Trim(), masterAddress!.Address, StringComparison.OrdinalIgnoreCase);
+            if (!usuarioMasterValido)
+                return Unauthorized(new { mensagem = "Credenciais de Administrador Master inválidas." });
+
+            try
+            {
+                using var client = httpClientFactory.CreateClient();
+                using var authRequest = new HttpRequestMessage(HttpMethod.Post,
+                    $"{supabaseUrl.TrimEnd('/')}/auth/v1/token?grant_type=password")
+                {
+                    Content = JsonContent.Create(new { email = masterAddress!.Address, password = request.Senha ?? "" })
+                };
+                authRequest.Headers.Add("apikey", supabaseKey);
+                using var authResponse = await client.SendAsync(authRequest);
+                if (!authResponse.IsSuccessStatusCode) return Unauthorized(new { mensagem = "Credenciais de Administrador Master inválidas." });
+
+                using var authJson = await System.Text.Json.JsonDocument.ParseAsync(await authResponse.Content.ReadAsStreamAsync());
+                if (!authJson.RootElement.TryGetProperty("access_token", out var accessTokenElement))
+                    return Unauthorized(new { mensagem = "Credenciais de Administrador Master inválidas." });
+                string accessToken = accessTokenElement.GetString() ?? "";
+                if (string.IsNullOrWhiteSpace(accessToken))
+                    return Unauthorized(new { mensagem = "Credenciais de Administrador Master inválidas." });
+
+                using var roleRequest = new HttpRequestMessage(HttpMethod.Post,
+                    $"{supabaseUrl.TrimEnd('/')}/rest/v1/rpc/eh_zeus")
+                {
+                    Content = JsonContent.Create(new { })
+                };
+                roleRequest.Headers.Add("apikey", supabaseKey);
+                roleRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                roleRequest.Headers.Add("Content-Profile", "chat");
+                using var roleResponse = await client.SendAsync(roleRequest);
+                if (!roleResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Não foi possível verificar o vínculo Master no Supabase (HTTP {StatusCode}).", (int)roleResponse.StatusCode);
+                    return StatusCode(503, new { mensagem = "Não foi possível validar a permissão Master no Supabase." });
+                }
+                string roleResult = await roleResponse.Content.ReadAsStringAsync();
+                if (!string.Equals(roleResult.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+                    return Unauthorized(new { mensagem = "Esta conta não possui acesso Zeus ativo." });
+
+                var (supabaseToken, supabaseExpiresAt) = _sessions.Criar();
+                return Ok(new { token = supabaseToken, expiraEm = supabaseExpiresAt });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao validar login Master no Supabase.");
+                return StatusCode(503, new { mensagem = "Não foi possível validar o acesso Master no Supabase." });
+            }
+        }
+
+        // Compatibilidade temporária com a configuração antiga enquanto o Render não recebe
+        // SupabaseAuth:Url, SupabaseAuth:PublishableKey e SupabaseAuth:MasterEmail.
         string? configuredUser = _configuration["MasterAdmin:Username"];
         string? configuredHash = _configuration["MasterAdmin:PasswordHash"];
         if (string.IsNullOrWhiteSpace(configuredUser) || string.IsNullOrWhiteSpace(configuredHash))
