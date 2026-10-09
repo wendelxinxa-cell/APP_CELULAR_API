@@ -125,6 +125,12 @@
     private string? mensagemRecuperacao;
     private readonly NovaSenhaForm novaSenhaForm = new();
 
+    protected override void OnInitialized()
+    {
+        modoSolicitarRecuperacao = Navigation.ToAbsoluteUri(Navigation.Uri).Query
+            .Contains("recovery=1", StringComparison.OrdinalIgnoreCase);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
