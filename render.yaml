@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "31"
+        value: "32"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_31.apk"
+        value: "CATCHAT_0.0.001_build_32.apk"
       - key: AppUpdate__Sha256
-        value: "7CBA5F4059A8CF90C696ACCEB9FA36B3D561DEC90D6EA46169E2B78846605520"
+        value: "2991BAA9BF868F79D942FBC326B053A78E7A5D4AFC4CD57760215CFC7DDA6624"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 31: login Master Zeus via Supabase Auth com nome Zeus ou e-mail."
+        value: "CATCHAT build 32: recuperação de senha acessível pelo login; lista de aprovações de usuários e aparelhos pendentes."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
