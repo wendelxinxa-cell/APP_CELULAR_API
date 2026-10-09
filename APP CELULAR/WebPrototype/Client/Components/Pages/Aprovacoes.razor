@@ -4,7 +4,7 @@
 @inject ChatPortalState Portal
 @inject NavigationManager Navigation
 
-<PageTitle>Solicitações de acesso · APP CELULAR</PageTitle>
+<PageTitle>Solicitações de acesso · CATCHAT</PageTitle>
 
 @if (carregando)
 {
@@ -13,11 +13,11 @@
 else if (Portal.Autenticado && Portal.EhZeus)
 {
     <main class="home-shell">
-        <header class="home-topbar"><a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> APP CELULAR</a><a href="/main">Voltar</a></header>
+        <header class="home-topbar"><a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a><a href="/main">Voltar</a></header>
         <section class="home-content">
             <p class="eyebrow">ADMINISTRAÇÃO</p>
             <h1>Solicitações de acesso</h1>
-            <p class="home-intro">Confira o cadastro, informe o ID correspondente do usuário APP CELULAR e aprove.</p>
+            <p class="home-intro">Confira o cadastro, informe o ID correspondente do usuário CATCHAT e aprove.</p>
             @if (!string.IsNullOrWhiteSpace(aviso)) { <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div> }
             @if (solicitacoes.Count == 0)
             {

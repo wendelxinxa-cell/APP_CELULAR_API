@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "ChatCat · APP CELULAR",
-  "short_name": "ChatCat",
-  "description": "Conversas do APP CELULAR no navegador.",
+  "name": "CATCHAT",
+  "short_name": "CATCHAT",
+  "description": "Conversas do CATCHAT no navegador.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

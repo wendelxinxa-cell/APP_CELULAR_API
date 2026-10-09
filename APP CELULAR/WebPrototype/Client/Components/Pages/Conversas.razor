@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<PageTitle>Conversas · ChatCat</PageTitle>
+<PageTitle>Conversas · CATCHAT</PageTitle>
 
 @if (!Portal.Autenticado)
 {
@@ -18,7 +18,7 @@ else
 {
     <div class="messaging-shell">
         <header class="messaging-topbar">
-            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CHATCAT <small>APP CELULAR</small></a>
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a>
             <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario · Empresa @Portal.Sessao.EmpresaId</span><button class="logout-button" @onclick="SairAsync">Sair <span aria-hidden="true">↗</span></button></div>
         </header>
 
@@ -29,7 +29,7 @@ else
 
         <div class="messaging-layout">
             <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
-                <div class="sidebar-title"><div><p class="eyebrow">CHATCAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span></div>
+                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span></div>
                 <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
                 <div class="contact-list">
                     @if (carregandoContatos && contatos.Count == 0)

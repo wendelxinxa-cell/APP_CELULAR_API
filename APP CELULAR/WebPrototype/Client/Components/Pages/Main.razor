@@ -3,7 +3,7 @@
 @inject ChatPortalState Portal
 @inject NavigationManager Navigation
 
-<PageTitle>Painel principal · APP CELULAR</PageTitle>
+<PageTitle>Painel principal · CATCHAT</PageTitle>
 
 @if (!Portal.Autenticado)
 {
@@ -13,7 +13,7 @@ else
 {
     <main class="home-shell">
         <header class="home-topbar">
-            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> APP CELULAR</a>
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a>
             <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario</span><button class="logout-button" @onclick="SairAsync">Sair</button></div>
         </header>
         <section class="home-content">
