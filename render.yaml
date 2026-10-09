@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "29"
+        value: "30"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_29.apk"
+        value: "CATCHAT_0.0.001_build_30.apk"
       - key: AppUpdate__Sha256
-        value: "C3073E26838A90A541398F6FA22E59718D237726B82CD7838831C852C752E1FB"
+        value: "DAF328EB8AC097C164C4FD4140188E9B724BD145F26443629EA11AB95DA4E0F0"
       - key: AppUpdate__Notes
-        value: "ChatCat build 29: mensagens em tempo real via SignalR com atualização de fallback."
+        value: "CATCHAT build 30: correção para manter todas as mensagens enviando na conversa."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
