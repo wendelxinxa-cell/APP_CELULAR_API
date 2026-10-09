@@ -14,6 +14,7 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 // ============================================================
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 builder.Services.AddOpenApi();
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<
     IEmpresaDatabaseResolver,
     EmpresaDatabaseResolver>();
 builder.Services.AddSingleton<TenantSessionStore>();
+builder.Services.AddSingleton<APP_CELULAR_API.Controllers.ConversaRealtimeConnections>();
 builder.Services.AddSingleton<MasterSessionStore>();
 builder.Services.AddSingleton<CatalogoCriptografia>();
 builder.Services.AddSingleton<EmailNotificacaoService>();
@@ -47,5 +49,6 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { online = true }));
 
 app.MapControllers();
+app.MapHub<APP_CELULAR_API.Controllers.ConversaRealtimeHub>("/hubs/conversas");
 
 app.Run();

@@ -17,12 +17,14 @@ public class ConversasController : ControllerBase
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _sessions;
     private readonly IConfiguration _configuration;
+    private readonly ConversaRealtimeConnections _realtime;
 
-    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions, IConfiguration configuration)
+    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions, IConfiguration configuration, ConversaRealtimeConnections realtime)
     {
         _resolver = resolver;
         _sessions = sessions;
         _configuration = configuration;
+        _realtime = realtime;
     }
 
     [HttpPost("contatos")]
@@ -295,9 +297,16 @@ public class ConversasController : ControllerBase
         cmd.Parameters.Add(new NpgsqlParameter("foto", NpgsqlDbType.Bytea) { Value = (object?)request.Foto ?? DBNull.Value });
         cmd.Parameters.AddWithValue("fotoNome", (object?)request.FotoNome ?? DBNull.Value);
         cmd.Parameters.AddWithValue("fotoTipo", (object?)request.FotoTipo ?? DBNull.Value);
-        await using var reader = await cmd.ExecuteReaderAsync();
-        await reader.ReadAsync();
-        return Ok(new { id = reader.GetInt64(0), clienteMensagemId = request.ClienteMensagemId, remetenteId = request.UsuarioId, remetenteNome = "", destinatarioId = request.ContatoId, texto, foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm = reader.GetDateTime(1), lidaEm = (DateTime?)null });
+        long mensagemId;
+        DateTime enviadaEm;
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            await reader.ReadAsync();
+            mensagemId = reader.GetInt64(0);
+            enviadaEm = reader.GetDateTime(1);
+        }
+        await _realtime.NotificarNovaMensagemAsync(request.EmpresaId, request.ContatoId, request.UsuarioId);
+        return Ok(new { id = mensagemId, clienteMensagemId = request.ClienteMensagemId, remetenteId = request.UsuarioId, remetenteNome = "", destinatarioId = request.ContatoId, texto, foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm, lidaEm = (DateTime?)null });
     }
 
     [HttpPost("marcar-lidas")]
@@ -578,6 +587,7 @@ public class ConversasController : ControllerBase
         }
 
         await transaction.CommitAsync();
+        await _realtime.NotificarNovaMensagemAsync(request.EmpresaId, request.ContatoId, request.UsuarioId);
         return Ok(new { id = mensagemId, clienteMensagemId = request.ClienteMensagemId, remetenteId = request.UsuarioId, remetenteNome, destinatarioId = request.ContatoId, texto = request.Texto?.Trim() ?? "", foto = request.Foto, fotoNome = request.FotoNome, fotoTipo = request.FotoTipo, enviadaEm, lidaEm = (DateTime?)null });
     }
 

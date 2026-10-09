@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "28"
+        value: "29"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_28.apk"
+        value: "CHATCAT_0.0.001_build_29.apk"
       - key: AppUpdate__Sha256
-        value: "EE15AB499EADDF6A86253C540A6F9CC815C16FC2660DEC332548475820DC8919"
+        value: "C3073E26838A90A541398F6FA22E59718D237726B82CD7838831C852C752E1FB"
       - key: AppUpdate__Notes
-        value: "ChatCat build 28: migração para o novo endereço da API."
+        value: "ChatCat build 29: mensagens em tempo real via SignalR com atualização de fallback."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
