@@ -25,7 +25,7 @@ services:
       - key: AppUpdate__FileName
         value: "CHATCAT_0.0.001_build_27.apk"
       - key: AppUpdate__Sha256
-        value: "F7472FB646AC3EDF671EC8F591DC4879464322F69315D37864B2CEDAA346EB2B"
+        value: "1F242A49F8868801806F82F1DDEDCDCAF41F0EF35212CC158ABB8736705F416E"
       - key: AppUpdate__Notes
         value: "ChatCat build 27: atualização para teste da distribuição pela API."
       - key: MasterAdmin__Username

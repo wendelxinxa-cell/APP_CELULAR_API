@@ -20,7 +20,7 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
             versao,
             build,
             codigoVersao,
-            url = $"https://app-celular-api.onrender.com/api/app/atualizacao/arquivo",
+            url = $"https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo",
             sha256 = hashEsperado,
             notas = configuration["AppUpdate:Notes"] ?? "Atualização do aplicativo."
         });
