@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "27"
+        value: "28"
       - key: AppUpdate__FileName
-        value: "CHATCAT_0.0.001_build_27.apk"
+        value: "CHATCAT_0.0.001_build_28.apk"
       - key: AppUpdate__Sha256
-        value: "1F242A49F8868801806F82F1DDEDCDCAF41F0EF35212CC158ABB8736705F416E"
+        value: "EE15AB499EADDF6A86253C540A6F9CC815C16FC2660DEC332548475820DC8919"
       - key: AppUpdate__Notes
-        value: "ChatCat build 27: atualização para teste da distribuição pela API."
+        value: "ChatCat build 28: migração para o novo endereço da API."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
