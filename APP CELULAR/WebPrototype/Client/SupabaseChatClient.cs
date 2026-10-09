@@ -22,6 +22,24 @@ public sealed class SupabaseChatClient(IJSRuntime js)
         return await InvokeAsync<ChatSessao>("appCelular.supabase.signIn", email.Trim(), senha);
     }
 
+    public async Task<bool> EstaEmRecuperacaoSenhaAsync()
+    {
+        await InicializarAsync();
+        return await InvokeAsync<bool>("appCelular.supabase.isPasswordRecovery");
+    }
+
+    public async Task SolicitarRedefinicaoSenhaAsync(string email)
+    {
+        await InicializarAsync();
+        await InvokeVoidAsync("appCelular.supabase.requestPasswordRecovery", email.Trim());
+    }
+
+    public async Task AtualizarSenhaAsync(string senha)
+    {
+        await InicializarAsync();
+        await InvokeVoidAsync("appCelular.supabase.updatePassword", senha);
+    }
+
     public async Task SolicitarAcessoAsync(string email, string senha, string nome)
     {
         await InicializarAsync();
@@ -98,6 +116,10 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
         Sessao = await supabase.EntrarAsync(email, senha);
         EhZeus = await supabase.EhZeusAsync();
     }
+
+    public Task<bool> EstaEmRecuperacaoSenhaAsync() => supabase.EstaEmRecuperacaoSenhaAsync();
+    public Task SolicitarRedefinicaoSenhaAsync(string email) => supabase.SolicitarRedefinicaoSenhaAsync(email);
+    public Task AtualizarSenhaAsync(string senha) => supabase.AtualizarSenhaAsync(senha);
 
     public async Task<List<ContatoConversa>> ObterContatosAsync()
     {

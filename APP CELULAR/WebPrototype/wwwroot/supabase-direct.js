@@ -1,5 +1,5 @@
 (() => {
-    const state = { client: null, empresaId: 0, bucket: "chat-media", channel: null };
+    const state = { client: null, empresaId: 0, bucket: "chat-media", channel: null, passwordRecovery: false };
     const api = {};
     const fail = (error) => { if (error) throw new Error(error.message || String(error)); };
     const row = (data) => Array.isArray(data) ? data[0] : data;
@@ -57,15 +57,22 @@
         if (!url || !publishableKey || !empresaId) throw new Error("Configuração Supabase incompleta.");
         state.empresaId = Number(empresaId);
         state.bucket = bucket || "chat-media";
-        state.client ??= window.supabase.createClient(url, publishableKey, {
-            auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storageKey: "chatcat-supabase-auth" }
-        });
+        if (!state.client) {
+            state.passwordRecovery = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
+            state.client = window.supabase.createClient(url, publishableKey, {
+                auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storageKey: "chatcat-supabase-auth" }
+            });
+            state.client.auth.onAuthStateChange(event => {
+                if (event === "PASSWORD_RECOVERY") state.passwordRecovery = true;
+            });
+        }
     };
 
     api.restoreSession = async () => {
         const client = getClient();
         const { data, error } = await client.auth.getSession();
         fail(error);
+        if (state.passwordRecovery) return null;
         if (!data.session) return null;
         try { return toSession(data.session, await getIdentity()); }
         catch (error) { await client.auth.signOut({ scope: "local" }); throw error; }
@@ -77,6 +84,27 @@
         fail(error);
         try { return toSession(data.session, await getIdentity()); }
         catch (error) { await client.auth.signOut({ scope: "local" }); throw error; }
+    };
+
+    api.isPasswordRecovery = async () => {
+        const { data, error } = await getClient().auth.getSession();
+        fail(error);
+        return state.passwordRecovery && !!data.session;
+    };
+
+    api.requestPasswordRecovery = async email => {
+        const { error } = await getClient().auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: `${window.location.origin}/redefinir-senha`
+        });
+        fail(error);
+    };
+
+    api.updatePassword = async password => {
+        const client = getClient();
+        const { error } = await client.auth.updateUser({ password });
+        fail(error);
+        state.passwordRecovery = false;
+        await client.auth.signOut({ scope: "local" });
     };
 
     api.signUp = async (email, password, name) => {

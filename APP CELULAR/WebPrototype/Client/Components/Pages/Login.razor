@@ -1,5 +1,6 @@
 @page "/"
 @page "/login"
+@page "/redefinir-senha"
 @using System.Globalization
 @using Microsoft.JSInterop
 @using WebPrototype.Services
@@ -13,6 +14,59 @@
     <section class="login-card">
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
+        @if (senhaAtualizada)
+        {
+            <h1>Senha atualizada</h1>
+            <p class="muted login-intro">Sua senha foi redefinida. Entre novamente com a nova senha.</p>
+            <a class="primary-button login-submit" href="/login">Voltar ao login <span aria-hidden="true">→</span></a>
+        }
+        else if (modoRecuperacao)
+        {
+            <h1>Crie uma nova senha</h1>
+            <p class="muted login-intro">Escolha uma senha para sua conta CATCHAT.</p>
+            <EditForm Model="novaSenhaForm" OnValidSubmit="SalvarNovaSenhaAsync">
+                <div class="field">
+                    <label for="new-password">Nova senha</label>
+                    <input id="new-password" type="password" @bind="novaSenhaForm.Senha" autocomplete="new-password" minlength="8" required />
+                </div>
+                <div class="field">
+                    <label for="confirm-password">Confirme a nova senha</label>
+                    <input id="confirm-password" type="password" @bind="novaSenhaForm.Confirmacao" autocomplete="new-password" minlength="8" required />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(erro))
+                {
+                    <div class="notice error" role="alert">@erro</div>
+                }
+                <button class="primary-button login-submit" type="submit" disabled="@salvandoSenha">
+                    @(salvandoSenha ? "Salvando…" : "Salvar nova senha") <span aria-hidden="true">→</span>
+                </button>
+            </EditForm>
+        }
+        else if (modoSolicitarRecuperacao)
+        {
+            <h1>Recuperar senha</h1>
+            <p class="muted login-intro">Informe o e-mail da conta. Enviaremos um link para criar uma nova senha.</p>
+            <EditForm Model="form" OnValidSubmit="SolicitarRecuperacaoAsync">
+                <div class="field">
+                    <label for="recovery-email">E-mail da conta Supabase</label>
+                    <input id="recovery-email" type="email" @bind="form.Email" autocomplete="email" placeholder="voce@exemplo.com" required />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(erro))
+                {
+                    <div class="notice error" role="alert">@erro</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(mensagemRecuperacao))
+                {
+                    <div class="notice success" role="status">@mensagemRecuperacao</div>
+                }
+                <button class="primary-button login-submit" type="submit" disabled="@solicitandoRecuperacao">
+                    @(solicitandoRecuperacao ? "Enviando…" : "Enviar link") <span aria-hidden="true">→</span>
+                </button>
+            </EditForm>
+            <p class="login-register"><button class="text-button" type="button" @onclick="VoltarAoLogin">Voltar ao login</button></p>
+        }
+        else
+        {
         <h1>Acesso ao sistema</h1>
         <p class="muted login-intro">Entre com sua conta do aplicativo para acessar suas conversas.</p>
 
@@ -44,7 +98,8 @@
             <div><strong>Acesso Supabase</strong><br />Empresa definida na configuração do serviço.<br />Use uma conta criada e vinculada pelo administrador.</div>
         </div>
         <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase.</p>
-        <p class="login-register"><a href="/solicitar-acesso">Solicitar acesso</a></p>
+        <p class="login-register"><button class="text-button" type="button" @onclick="AbrirRecuperacao">Esqueci minha senha</button> · <a href="/solicitar-acesso">Solicitar acesso</a></p>
+        }
     </section>
     <aside class="login-side">
         <div class="side-content">
@@ -61,20 +116,33 @@
     private readonly LoginForm form = new();
     private bool mostrarSenha;
     private bool entrando;
+    private bool modoRecuperacao;
+    private bool modoSolicitarRecuperacao;
+    private bool solicitandoRecuperacao;
+    private bool salvandoSenha;
+    private bool senhaAtualizada;
     private string? erro;
-    protected override void OnInitialized()
-    {
-        if (Portal.Autenticado)
-            Navigation.NavigateTo("/main", replace: true);
-    }
+    private string? mensagemRecuperacao;
+    private readonly NovaSenhaForm novaSenhaForm = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || Portal.Autenticado)
+        if (!firstRender)
             return;
 
         try
         {
+            modoRecuperacao = await Portal.EstaEmRecuperacaoSenhaAsync();
+            if (modoRecuperacao)
+            {
+                StateHasChanged();
+                return;
+            }
+            if (Portal.Autenticado)
+            {
+                Navigation.NavigateTo("/main", replace: true);
+                return;
+            }
             if (await Portal.RestaurarSessaoAsync())
                 Navigation.NavigateTo("/main", replace: true);
         }
@@ -82,6 +150,73 @@
         {
             erro = ex.Message;
             StateHasChanged();
+        }
+    }
+
+    private void AbrirRecuperacao()
+    {
+        erro = null;
+        mensagemRecuperacao = null;
+        modoSolicitarRecuperacao = true;
+    }
+
+    private void VoltarAoLogin()
+    {
+        erro = null;
+        mensagemRecuperacao = null;
+        modoSolicitarRecuperacao = false;
+    }
+
+    private async Task SolicitarRecuperacaoAsync()
+    {
+        erro = null;
+        mensagemRecuperacao = null;
+        solicitandoRecuperacao = true;
+        try
+        {
+            await Portal.SolicitarRedefinicaoSenhaAsync(form.Email);
+            mensagemRecuperacao = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            erro = ex.Message;
+        }
+        finally
+        {
+            solicitandoRecuperacao = false;
+        }
+    }
+
+    private async Task SalvarNovaSenhaAsync()
+    {
+        erro = null;
+        if (novaSenhaForm.Senha.Length < 8)
+        {
+            erro = "A nova senha deve ter pelo menos 8 caracteres.";
+            return;
+        }
+        if (!string.Equals(novaSenhaForm.Senha, novaSenhaForm.Confirmacao, StringComparison.Ordinal))
+        {
+            erro = "As senhas não coincidem.";
+            return;
+        }
+
+        salvandoSenha = true;
+        try
+        {
+            await Portal.AtualizarSenhaAsync(novaSenhaForm.Senha);
+            novaSenhaForm.Senha = "";
+            novaSenhaForm.Confirmacao = "";
+            modoRecuperacao = false;
+            senhaAtualizada = true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            erro = ex.Message;
+        }
+        finally
+        {
+            salvandoSenha = false;
         }
     }
 
@@ -123,6 +258,12 @@
     {
         public string Email { get; set; } = "";
         public string Senha { get; set; } = "";
+    }
+
+    private sealed class NovaSenhaForm
+    {
+        public string Senha { get; set; } = "";
+        public string Confirmacao { get; set; } = "";
     }
 }
 

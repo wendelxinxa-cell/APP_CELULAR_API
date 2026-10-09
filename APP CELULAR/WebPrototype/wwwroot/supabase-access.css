@@ -1,5 +1,6 @@
 .login-register{margin:18px 0 0;text-align:center;color:#6d5378;font-size:13px}
 .login-register a{text-decoration:underline;text-underline-offset:3px}
+.text-button{border:0;padding:0;background:transparent;color:#6d5378;font-size:inherit;text-decoration:underline;text-underline-offset:3px}
 .access-request{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,240px) auto;align-items:center;gap:18px;margin:14px 0;padding:18px;background:#fff;border:1px solid #eee8f0;border-radius:14px}
 .access-request strong,.access-request small{display:block}
 .access-request small{margin-top:5px;color:#84798a;font-size:12px}
