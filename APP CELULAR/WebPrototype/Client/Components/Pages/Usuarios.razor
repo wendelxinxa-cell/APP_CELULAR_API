@@ -1,0 +1,207 @@
+@page "/usuarios"
+@using Microsoft.JSInterop
+@using WebPrototype.Services
+@inject ChatPortalState Portal
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Usuários · CATCHAT</PageTitle>
+
+@if (carregando)
+{
+    <div class="page-loading">Carregando usuários…</div>
+}
+else if (Portal.Autenticado && Portal.EhZeus)
+{
+    <main class="home-shell">
+        <header class="home-topbar">
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a>
+            <a href="/main">Voltar</a>
+        </header>
+        <section class="home-content users-admin">
+            <p class="eyebrow">ADMINISTRAÇÃO</p>
+            <h1>Usuários</h1>
+            <p class="home-intro">Convide pessoas, vincule a conta Supabase ao usuário existente do CATCHAT e controle o acesso.</p>
+
+            @if (!string.IsNullOrWhiteSpace(aviso))
+            {
+                <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div>
+            }
+
+            <section class="user-invite-card">
+                <h2>Convidar usuário</h2>
+                <p>O Supabase envia o convite para o e-mail informado. A pessoa define a própria senha pelo link.</p>
+                <EditForm Model="form" OnValidSubmit="ConvidarAsync">
+                    <div class="user-invite-grid">
+                        <label>Nome<input @bind="form.Nome" maxlength="120" autocomplete="name" required /></label>
+                        <label>E-mail<input @bind="form.Email" type="email" maxlength="254" autocomplete="email" required /></label>
+                        @if (!form.Master)
+                        {
+                            <label>ID do usuário existente no CATCHAT<input @bind="form.UsuarioId" type="number" min="1" required /></label>
+                        }
+                    </div>
+                    <label class="user-master-choice">
+                        <input @bind="form.Master" type="checkbox" />
+                        <span><strong>Conta Zeus master global</strong><small>Concede controle administrativo das funções já migradas para este projeto Supabase.</small></span>
+                    </label>
+                    @if (form.Master)
+                    {
+                        <p class="user-admin-note">A função master inclui as funções de chat e solicitações migradas. Módulos ainda mantidos na API, como clientes, produtos e vendas, não são adicionados por esta tela.</p>
+                    }
+                    <button class="primary-button" type="submit" disabled="@processando">@(processando ? "Enviando convite…" : "Convidar e vincular")</button>
+                </EditForm>
+            </section>
+
+            <section class="managed-users">
+                <div class="managed-users-heading"><h2>Contas no Supabase</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
+                @if (usuarios.Count == 0)
+                {
+                    <div class="home-unavailable"><strong>Nenhuma conta vinculada</strong><p>Convites e cadastros aprovados aparecerão nesta lista.</p></div>
+                }
+                else
+                {
+                    @foreach (var usuario in usuarios)
+                    {
+                        <article class="managed-user" @key="usuario.AuthUid">
+                            <div class="managed-user-copy">
+                                <strong>@usuario.Nome</strong>
+                                <small>@usuario.Email</small>
+                                <small>@EstadoUsuario(usuario)</small>
+                            </div>
+                            <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? $"USUÁRIO · ID {usuario.UsuarioId}" : "SEM VÍNCULO")</span>
+                            @if (!usuario.Master && usuario.UsuarioId.HasValue)
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
+                                <button class="@(usuario.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(usuario, !usuario.Ativo)" disabled="@processando">@(usuario.Ativo ? "Bloquear" : "Ativar")</button>
+                            }
+                            else if (!usuario.Master)
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
+                            }
+                            else if (usuario.AuthUid != Portal.Sessao!.SupabaseUserId)
+                            {
+                                <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(usuario, false)" disabled="@processando">Remover master</button>
+                            }
+                        </article>
+                    }
+                }
+            </section>
+        </section>
+    </main>
+}
+
+@code {
+    private readonly ConviteForm form = new();
+    private List<UsuarioAuthGerenciavel> usuarios = [];
+    private bool carregando = true;
+    private bool processando;
+    private bool falha;
+    private string? aviso;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (!Portal.Autenticado) await Portal.RestaurarSessaoAsync();
+            if (!Portal.Autenticado) { Navigation.NavigateTo("/login", replace: true); return; }
+            if (!Portal.EhZeus) { Navigation.NavigateTo("/main", replace: true); return; }
+            await AtualizarAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            falha = true;
+            aviso = ex.Message;
+        }
+        finally { carregando = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task AtualizarAsync()
+    {
+        try
+        {
+            usuarios = await Portal.ListarUsuariosGerenciaveisAsync();
+            aviso = null;
+            falha = false;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            aviso = ex.Message;
+            falha = true;
+        }
+    }
+
+    private async Task ConvidarAsync()
+    {
+        if (processando) return;
+        var email = form.Email.Trim();
+        var nome = form.Nome.Trim();
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome) || (!form.Master && form.UsuarioId <= 0))
+        {
+            falha = true;
+            aviso = form.Master ? "Informe nome e e-mail válidos." : "Informe nome, e-mail e o ID do usuário CATCHAT.";
+            return;
+        }
+        var descricaoAcesso = form.Master
+            ? $"Enviar convite para {email} e conceder a função Zeus master global no Supabase?"
+            : $"Enviar convite para {email} e vinculá-lo ao usuário CATCHAT ID {form.UsuarioId}?";
+        if (!await JS.InvokeAsync<bool>("confirm", descricaoAcesso)) return;
+
+        processando = true;
+        aviso = null;
+        falha = false;
+        try
+        {
+            await Portal.ConvidarUsuarioAsync(email, nome, form.Master, Portal.Sessao!.EmpresaId, form.Master ? null : form.UsuarioId);
+            aviso = form.Master
+                ? $"Convite enviado para {email}; a função master global foi ativada. A pessoa deverá definir a própria senha pelo e-mail."
+                : $"Convite enviado para {email} e vinculado ao usuário CATCHAT ID {form.UsuarioId}. A pessoa deverá definir a própria senha pelo e-mail.";
+            form.Nome = "";
+            form.Email = "";
+            form.UsuarioId = 0;
+            form.Master = false;
+            usuarios = await Portal.ListarUsuariosGerenciaveisAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            falha = true;
+            aviso = ex.Message;
+        }
+        finally { processando = false; }
+    }
+
+    private async Task AlterarMasterAsync(UsuarioAuthGerenciavel usuario, bool ativo)
+    {
+        var acao = ativo ? "conceder acesso Zeus master" : "remover o acesso Zeus master";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} para {usuario.Email}?")) return;
+        await ProcessarAsync(async () => await Portal.DefinirUsuarioMasterAsync(usuario.AuthUid, ativo), "Acesso master atualizado.");
+    }
+
+    private async Task AlterarAtivoAsync(UsuarioAuthGerenciavel usuario, bool ativo)
+    {
+        var acao = ativo ? "reativar" : "bloquear";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} a conta de {usuario.Email}?")) return;
+        await ProcessarAsync(async () => await Portal.DefinirUsuarioAtivoAsync(usuario.AuthUid, ativo), "Acesso do usuário atualizado.");
+    }
+
+    private async Task ProcessarAsync(Func<Task> acao, string sucesso)
+    {
+        processando = true;
+        aviso = null;
+        falha = false;
+        try { await acao(); aviso = sucesso; await AtualizarAsync(); }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
+        finally { processando = false; }
+    }
+
+    private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
+        usuario.Ativo ? $"Ativo · empresa {usuario.EmpresaId ?? 0}" : "Acesso desativado";
+
+    private sealed class ConviteForm
+    {
+        public string Nome { get; set; } = "";
+        public string Email { get; set; } = "";
+        public long UsuarioId { get; set; }
+        public bool Master { get; set; }
+    }
+}

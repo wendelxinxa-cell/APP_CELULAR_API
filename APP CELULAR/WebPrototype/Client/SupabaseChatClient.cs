@@ -50,6 +50,14 @@ public sealed class SupabaseChatClient(IJSRuntime js)
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => InvokeAsync<List<SolicitacaoAcesso>>("appCelular.supabase.listAccessRequests");
     public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => InvokeVoidAsync("appCelular.supabase.rejectAccessRequest", authUid);
+    public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() =>
+        InvokeAsync<List<UsuarioAuthGerenciavel>>("appCelular.supabase.listManagedUsers");
+    public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) =>
+        InvokeVoidAsync("appCelular.supabase.setManagedUserMaster", authUid, ativo);
+    public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) =>
+        InvokeVoidAsync("appCelular.supabase.setManagedUserActive", authUid, ativo);
+    public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
+        InvokeAsync<ConviteUsuarioResponse>("appCelular.supabase.inviteManagedUser", email, nome, master, empresaId, usuarioId);
 
     public Task SairAsync() => InvokeVoidAsync("appCelular.supabase.signOut");
 
@@ -142,6 +150,11 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => supabase.ListarSolicitacoesAsync();
     public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => supabase.AprovarSolicitacaoAsync(authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => supabase.RecusarSolicitacaoAsync(authUid);
+    public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() => supabase.ListarUsuariosGerenciaveisAsync();
+    public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) => supabase.DefinirUsuarioMasterAsync(authUid, ativo);
+    public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) => supabase.DefinirUsuarioAtivoAsync(authUid, ativo);
+    public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
+        supabase.ConvidarUsuarioAsync(email, nome, master, empresaId, usuarioId);
 
     public async Task SairAsync()
     {
@@ -174,6 +187,25 @@ public sealed class SolicitacaoAcesso
     public string Nome { get; set; } = "";
     public string Status { get; set; } = "PENDENTE";
     public DateTimeOffset CriadaEm { get; set; }
+}
+
+public sealed class UsuarioAuthGerenciavel
+{
+    public string AuthUid { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public long? EmpresaId { get; set; }
+    public long? UsuarioId { get; set; }
+    public bool Ativo { get; set; }
+    public bool Master { get; set; }
+    public DateTimeOffset CriadoEm { get; set; }
+}
+
+public sealed class ConviteUsuarioResponse
+{
+    public string Email { get; set; } = "";
+    public string AuthUid { get; set; } = "";
+    public bool Master { get; set; }
 }
 
 public sealed class UrlMidiaResponse { public string Url { get; set; } = ""; }

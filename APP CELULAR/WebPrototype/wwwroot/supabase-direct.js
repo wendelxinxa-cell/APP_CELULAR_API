@@ -146,6 +146,38 @@
         fail(error);
     };
 
+    api.listManagedUsers = async () => {
+        const { data, error } = await getClient().schema("chat").rpc("listar_usuarios_gerenciaveis");
+        fail(error);
+        return (data || []).map(item => ({
+            authUid: item.auth_uid, email: item.email, nome: item.nome,
+            empresaId: item.empresa_id, usuarioId: item.usuario_id,
+            ativo: item.ativo, master: item.master, criadoEm: item.criado_em
+        }));
+    };
+
+    api.setManagedUserMaster = async (authUid, active) => {
+        const { error } = await getClient().schema("chat").rpc("definir_usuario_master", {
+            p_auth_uid: authUid, p_ativo: active
+        });
+        fail(error);
+    };
+
+    api.setManagedUserActive = async (authUid, active) => {
+        const { error } = await getClient().schema("chat").rpc("definir_usuario_ativo", {
+            p_auth_uid: authUid, p_ativo: active
+        });
+        fail(error);
+    };
+
+    api.inviteManagedUser = async (email, name, isMaster, empresaId, usuarioId) => {
+        const { data, error } = await getClient().functions.invoke("master-user-invite", {
+            body: { email, nome: name, master: isMaster, empresaId, usuarioId }
+        });
+        fail(error);
+        return data;
+    };
+
     api.signOut = async () => {
         try {
             const { error } = await getClient().auth.signOut({ scope: "local" });
