@@ -29,6 +29,17 @@ window.appCelular.getChatMessages = async (key) => {
     });
 };
 
+window.appCelular.getHiddenChatMessages = (key) => {
+    try {
+        const value = localStorage.getItem(`chatcat-hidden-messages:${key}`);
+        return value ? JSON.parse(value) : [];
+    } catch { return []; }
+};
+
+window.appCelular.saveHiddenChatMessages = (key, messageKeys) => {
+    localStorage.setItem(`chatcat-hidden-messages:${key}`, JSON.stringify(messageKeys ?? []));
+};
+
 window.appCelular.previewInputFile = (inputId) => {
     const file = document.getElementById(inputId)?.files?.[0];
     if (!file) throw new Error("Selecione novamente o arquivo para enviar.");
