@@ -49,15 +49,15 @@
     api.configureFromPage = () => {
         const config = window.chatcatSupabaseConfig;
         if (!config) throw new Error("O serviço ainda não publicou a configuração pública do Supabase.");
-        api.configure(config.url, config.publishableKey, config.bucket, config.empresaId);
+        api.configure(config.url, config.publishableKey, config.bucket, config.empresaId, config.apiBaseUrl);
     };
 
-    api.configure = (url, publishableKey, bucket, empresaId) => {
+    api.configure = (url, publishableKey, bucket, empresaId, apiBaseUrl) => {
         if (!window.supabase?.createClient) throw new Error("A biblioteca Supabase não carregou. Recarregue a página.");
         if (!url || !publishableKey || !empresaId) throw new Error("Configuração Supabase incompleta.");
         state.empresaId = Number(empresaId);
         state.bucket = bucket || "chat-media";
-        state.apiBaseUrl = (config.apiBaseUrl || "https://app-celular-api-test.onrender.com").replace(/\/$/, "");
+        state.apiBaseUrl = (apiBaseUrl || "https://app-celular-api-test.onrender.com").replace(/\/$/, "");
         if (!state.client) {
             state.passwordRecovery = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
             state.client = window.supabase.createClient(url, publishableKey, {
