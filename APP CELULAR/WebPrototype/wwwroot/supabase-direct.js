@@ -205,6 +205,9 @@
 
     api.listManagedUsers = async () => {
         const { data, error } = await getClient().schema("chat").rpc("listar_usuarios_gerenciaveis");
+        if (error?.code === "PGRST202" || /Could not find the function chat\.listar_usuarios_gerenciaveis/i.test(error?.message || "")) {
+            throw new Error("A gestão de usuários ainda não foi habilitada neste Supabase. Aplique a migração database/032_master_user_management.sql e tente novamente.");
+        }
         fail(error);
         return (data || []).map(item => ({
             authUid: item.auth_uid, email: item.email, nome: item.nome,
