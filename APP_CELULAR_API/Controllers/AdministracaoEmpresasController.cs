@@ -134,6 +134,41 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         return Ok(new { token, expiraEm = expiresAt });
     }
 
+    [HttpPost("master/sessao-supabase")]
+    public async Task<IActionResult> CriarSessaoMasterSupabase(IHttpClientFactory httpClientFactory)
+    {
+        string? accessToken = Request.Headers.Authorization.ToString();
+        if (!accessToken.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(new { mensagem = "Sessão Zeus do Supabase ausente." });
+
+        string? supabaseUrl = _configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co";
+        string? supabaseKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        try
+        {
+            using var client = httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl.TrimEnd('/')}/rest/v1/rpc/eh_zeus")
+            {
+                Content = JsonContent.Create(new { })
+            };
+            request.Headers.Add("apikey", supabaseKey);
+            request.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(accessToken);
+            request.Headers.Add("Content-Profile", "chat");
+            using var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode) return Unauthorized(new { mensagem = "A sessão Supabase expirou ou não é válida." });
+            string role = await response.Content.ReadAsStringAsync();
+            if (!string.Equals(role.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+                return Unauthorized(new { mensagem = "Esta conta não possui acesso Zeus ativo." });
+
+            var (token, expiresAt) = _sessions.Criar();
+            return Ok(new { token, expiraEm = expiresAt });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao trocar a sessão Supabase Zeus pela sessão administrativa da API.");
+            return StatusCode(503, new { mensagem = "Não foi possível validar a sessão Zeus com a API." });
+        }
+    }
+
     private static async Task<string> LerCodigoErroSupabase(HttpResponseMessage response)
     {
         try

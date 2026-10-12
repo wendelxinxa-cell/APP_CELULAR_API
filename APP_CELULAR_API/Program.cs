@@ -16,6 +16,9 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
+builder.Services.AddCors(options => options.AddPolicy("catchat-razor", policy =>
+    policy.WithOrigins("https://catchat-razor-test.onrender.com", "http://localhost:5252", "https://localhost:5252")
+        .AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddOpenApi();
 
@@ -44,6 +47,7 @@ if (app.Environment.IsDevelopment())
 }
 
 
+app.UseCors("catchat-razor");
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { online = true }));
