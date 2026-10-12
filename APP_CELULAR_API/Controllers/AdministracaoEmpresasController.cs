@@ -308,6 +308,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 etapa = "consulta de aparelhos (migração 004)";
                 const string dispositivosSql = """
                     SELECT d.id,
+                           COALESCE(d.usuario_id_solicitado, d.usuario_id),
                            concat_ws(' · ', NULLIF(trim(d.nome_dispositivo), ''),
                                CASE WHEN d.chave_instalacao IS NOT NULL
                                     THEN 'ID ' || upper(right(replace(d.chave_instalacao::text, '-', ''), 8)) END),
@@ -324,7 +325,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 {
                     cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                     await using var reader = await cmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync()) dispositivos.Add(new { id = reader.GetInt64(0), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(1), criadoEm = reader.IsDBNull(2) ? (DateTime?)null : reader.GetDateTime(2), usuario = reader.GetString(3), descricao = reader.GetString(4) });
+                    while (await reader.ReadAsync()) dispositivos.Add(new { id = reader.GetInt64(0), usuarioId = reader.IsDBNull(1) ? (long?)null : reader.GetInt64(1), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(2), criadoEm = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3), usuario = reader.GetString(4), descricao = reader.GetString(5) });
                 }
             }
             return Ok(new { usuarios, dispositivos });
