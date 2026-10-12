@@ -1,5 +1,5 @@
 (() => {
-    const state = { client: null, empresaId: 0, bucket: "chat-media", channel: null, passwordRecovery: false };
+    const state = { client: null, empresaId: 0, bucket: "chat-media", apiBaseUrl: "", masterApiToken: null, masterApiTokenExpiresAt: 0, channel: null, passwordRecovery: false };
     const api = {};
     const fail = (error) => { if (error) throw new Error(error.message || String(error)); };
     const row = (data) => Array.isArray(data) ? data[0] : data;
@@ -57,6 +57,7 @@
         if (!url || !publishableKey || !empresaId) throw new Error("Configuração Supabase incompleta.");
         state.empresaId = Number(empresaId);
         state.bucket = bucket || "chat-media";
+        state.apiBaseUrl = (config.apiBaseUrl || "https://app-celular-api-test.onrender.com").replace(/\/$/, "");
         if (!state.client) {
             state.passwordRecovery = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
             state.client = window.supabase.createClient(url, publishableKey, {
@@ -132,6 +133,62 @@
             authUid: item.auth_uid, email: item.email, nome: item.nome,
             criadaEm: item.criada_em, status: item.status
         }));
+    };
+
+    const getMasterApiToken = async () => {
+        if (state.masterApiToken && Date.now() < state.masterApiTokenExpiresAt - 60000) return state.masterApiToken;
+        const { data, error } = await getClient().auth.getSession();
+        fail(error);
+        const supabaseToken = data.session?.access_token;
+        if (!supabaseToken) throw new Error("Entre novamente como Zeus para carregar as aprovações.");
+        const response = await fetch(`${state.apiBaseUrl}/api/administracao/master/sessao-supabase`, {
+            method: "POST", headers: { Authorization: `Bearer ${supabaseToken}` }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || "Não foi possível validar o acesso Zeus na API.");
+        state.masterApiToken = result.token;
+        state.masterApiTokenExpiresAt = result.expiraEm ? new Date(result.expiraEm).getTime() : Date.now() + 3600000;
+        return state.masterApiToken;
+    };
+
+    const masterApiFetch = async (path, method = "GET") => {
+        const token = await getMasterApiToken();
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
+        return result;
+    };
+
+    api.listPendingUserDevices = async () => {
+        const data = await masterApiFetch("/api/administracao/acessos/pendentes");
+        const pendingUsers = new Map((data.usuarios || []).map(user => [`${user.empresaId}:${user.id}`, user]));
+        const rows = (data.dispositivos || []).filter(device => device.usuarioId != null).map(device => {
+            const user = pendingUsers.get(`${device.empresaId}:${device.usuarioId}`);
+            return {
+                empresaId: device.empresaId, empresa: device.empresa, dispositivoId: device.id,
+                usuarioId: device.usuarioId, usuarioPendenteId: user?.id ?? null,
+                usuario: device.usuario, dispositivo: device.nome,
+                tipo: device.descricao === "Novo aparelho" ? "Novo vínculo pendente" : "Troca de aparelho pendente",
+                criadoEm: device.criadoEm
+            };
+        });
+        const pairedUsers = new Set(rows.filter(row => row.usuarioPendenteId != null).map(row => `${row.empresaId}:${row.usuarioPendenteId}`));
+        for (const user of (data.usuarios || [])) {
+            if (pairedUsers.has(`${user.empresaId}:${user.id}`)) continue;
+            rows.push({ empresaId: user.empresaId, empresa: user.empresa, usuarioPendenteId: user.id,
+                usuarioId: user.id, usuario: user.nome, dispositivo: "Aparelho ainda não solicitado",
+                tipo: "Usuário pendente · aguardando aparelho", criadoEm: user.criadoEm, semDispositivo: true });
+        }
+        return rows.sort((a, b) => new Date(a.criadoEm || 0) - new Date(b.criadoEm || 0));
+    };
+
+    api.approvePendingUserDevice = async request => {
+        if (request.usuarioPendenteId != null) {
+            await masterApiFetch(`/api/administracao/acessos/empresas/${request.empresaId}/usuarios/${request.usuarioPendenteId}/aprovar`, "POST");
+        }
+        if (request.dispositivoId != null) {
+            await masterApiFetch(`/api/administracao/acessos/empresas/${request.empresaId}/dispositivos/${request.dispositivoId}/aprovar`, "POST");
+        }
     };
 
     api.approveAccessRequest = async (authUid, userId) => {
