@@ -65,7 +65,19 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 };
                 authRequest.Headers.Add("apikey", supabaseKey);
                 using var authResponse = await client.SendAsync(authRequest);
-                if (!authResponse.IsSuccessStatusCode) return Unauthorized(new { mensagem = "Credenciais de Administrador Master inválidas." });
+                if (!authResponse.IsSuccessStatusCode)
+                {
+                    string authErrorCode = await LerCodigoErroSupabase(authResponse);
+                    _logger.LogWarning("Login Master recusado pelo Supabase (HTTP {StatusCode}, código {ErrorCode}).",
+                        (int)authResponse.StatusCode, authErrorCode);
+                    string mensagem = authErrorCode switch
+                    {
+                        "email_not_confirmed" => "Confirme o e-mail da conta Zeus antes de entrar.",
+                        "user_not_found" or "invalid_credentials" => "O Supabase não aceitou o e-mail e a senha desta conta. Confira a senha ou use 'Esqueci a senha' para definir uma nova.",
+                        _ => "Não foi possível autenticar a conta Zeus no Supabase. Confira o acesso e tente novamente."
+                    };
+                    return Unauthorized(new { mensagem });
+                }
 
                 using var authJson = await System.Text.Json.JsonDocument.ParseAsync(await authResponse.Content.ReadAsStreamAsync());
                 if (!authJson.RootElement.TryGetProperty("access_token", out var accessTokenElement))
@@ -120,6 +132,23 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
         var (token, expiresAt) = _sessions.Criar();
         return Ok(new { token, expiraEm = expiresAt });
+    }
+
+    private static async Task<string> LerCodigoErroSupabase(HttpResponseMessage response)
+    {
+        try
+        {
+            using var json = await System.Text.Json.JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+            if (json.RootElement.TryGetProperty("error_code", out var code))
+                return code.GetString() ?? "";
+            if (json.RootElement.TryGetProperty("code", out code))
+                return code.GetString() ?? "";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // A resposta do provedor pode não conter JSON; não registrar o corpo.
+        }
+        return "";
     }
 
     [HttpGet("empresas")]

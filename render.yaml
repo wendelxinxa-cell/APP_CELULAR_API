@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "33"
+        value: "34"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_33.apk"
+        value: "CATCHAT_0.0.001_build_34.apk"
       - key: AppUpdate__Sha256
-        value: "5C7D1EB599A820BFEBA23215B7344815F07F23A9A3C10B9AE9EABD4F333DC148"
+        value: "149348B324B4207FD54F3D96DF8CA2525B7F9EEA6E47D9C53FAA451ACC9FC67B"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 33: aprovações mostram o vínculo pendente de usuário e aparelho em um único cartão."
+        value: "CATCHAT build 34: opção para mostrar ou ocultar a senha no login."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
