@@ -119,6 +119,27 @@
         await client.auth.signOut({ scope: "local" });
     };
 
+    api.signUp = async (email, password, username) => {
+        const deviceKey = crypto.randomUUID();
+        const { data, error } = await getClient().auth.signUp({
+            email: email.trim(), password,
+            options: {
+                data: {
+                    username: username.trim(),
+                    nome: username.trim(),
+                    empresa_id: state.empresaId,
+                    chave_instalacao: deviceKey,
+                    nome_dispositivo: /Android|iPhone|iPad/i.test(navigator.userAgent) ? "Dispositivo móvel" : "Navegador web"
+                },
+                emailRedirectTo: window.location.origin
+            }
+        });
+        fail(error);
+        if (data.user?.identities?.length === 0) throw new Error("Não foi possível solicitar acesso com estes dados. Confira o e-mail ou tente entrar.");
+        if (data.session) await getClient().auth.signOut({ scope: "local" });
+        return !data.session;
+    };
+
     const invokeMasterInvite = async body => {
         const { data, error } = await getClient().functions.invoke("master-user-invite", { body });
         if (error) {
@@ -154,8 +175,9 @@
         const { data, error } = await getClient().schema("chat").rpc("listar_solicitacoes_acesso");
         fail(error);
         return (data || []).map(item => ({
-            authUid: item.auth_uid, email: item.email, nome: item.nome,
-            criadaEm: item.criada_em, status: item.status
+            authUid: item.auth_uid, email: item.email, username: item.username,
+            nome: item.nome, empresaId: item.empresa_id, dispositivoId: item.dispositivo_id,
+            nomeDispositivo: item.nome_dispositivo, criadaEm: item.criada_em, status: item.status
         }));
     };
 
@@ -221,9 +243,9 @@
         }
     };
 
-    api.approveAccessRequest = async (authUid, userId) => {
+    api.approveAccessRequest = async (authUid, empresaId, tipoNegocio) => {
         const { error } = await getClient().schema("chat").rpc("aprovar_solicitacao_acesso", {
-            p_auth_uid: authUid, p_usuario_id: userId
+            p_auth_uid: authUid, p_empresa_id: empresaId, p_tipo_negocio: tipoNegocio
         });
         fail(error);
     };

@@ -1,8 +1,8 @@
 @page "/solicitar-acesso"
 @using Microsoft.JSInterop
 @using WebPrototype.Services
-@inject ChatPortalState Portal
 @inject NavigationManager Navigation
+@inject ChatPortalState Portal
 
 <PageTitle>Solicitar acesso · CATCHAT</PageTitle>
 
@@ -11,18 +11,26 @@
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
         <h1>Solicitar acesso</h1>
-        <p class="muted login-intro">Informe seu apelido e e-mail. A empresa será identificada automaticamente pelo CATCHAT; primeiro confirme seu e-mail e depois Zeus analisará seu pedido em Pendências.</p>
+        <p class="muted login-intro">Crie sua conta. Zeus receberá a solicitação e liberará o acesso após conferir seu cadastro.</p>
 
         @if (enviado)
         {
-            <div class="notice success" role="status">Solicitação registrada. Confira sua caixa de entrada e confirme o e-mail. Após a confirmação, Zeus verá seu pedido em Pendências. Se não encontrar, confira o spam.</div>
+            @if (confirmacaoNecessaria)
+            {
+                <div class="notice success" role="status">Solicitação enviada. Confirme seu e-mail pelo link recebido e aguarde Zeus aprovar seu usuário e este aparelho.</div>
+            }
+            else
+            {
+                <div class="notice success" role="status">Solicitação enviada. Aguarde Zeus aprovar seu usuário e este aparelho.</div>
+            }
             <a class="primary-button login-submit" href="/login">Voltar ao login</a>
         }
         else
         {
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
-                <div class="field"><label for="request-name">Apelido para entrar</label><input id="request-name" @bind="form.Nome" autocomplete="nickname" maxlength="120" required /></div>
+                <div class="field"><label for="request-username">Username</label><input id="request-username" @bind="form.Username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]{3,40}" title="Use de 3 a 40 letras, números, ponto, hífen ou sublinhado." required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
+                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -35,6 +43,7 @@
     private readonly RequestForm form = new();
     private bool enviando;
     private bool enviado;
+    private bool confirmacaoNecessaria;
     private string? erro;
 
     private async Task EnviarAsync()
@@ -44,8 +53,9 @@
         erro = null;
         try
         {
-            await Portal.SolicitarAcessoAsync(form.Email, form.Nome);
+            confirmacaoNecessaria = await Portal.SolicitarAcessoAsync(form.Email, form.Senha, form.Username);
             enviado = true;
+            form.Senha = "";
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
@@ -56,7 +66,9 @@
 
     private sealed class RequestForm
     {
-        public string Nome { get; set; } = "";
+        public string Username { get; set; } = "";
         public string Email { get; set; } = "";
+        public string Senha { get; set; } = "";
     }
+
 }

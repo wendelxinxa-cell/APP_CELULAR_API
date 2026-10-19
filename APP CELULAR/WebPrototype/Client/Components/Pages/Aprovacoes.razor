@@ -21,6 +21,37 @@ else if (Portal.Autenticado && Portal.EhZeus)
             <p class="home-intro">Cada pedido mostra o usuário e o aparelho juntos. Ao aprovar, o usuário pendente é liberado e o aparelho fica vinculado a ele.</p>
             @if (!string.IsNullOrWhiteSpace(aviso)) { <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div> }
             <section class="managed-users">
+                <h2>Novos cadastros pelo Supabase</h2>
+                @if (solicitacoesSupabase.Count == 0)
+                {
+                    <div class="home-unavailable"><strong>Nenhum cadastro novo pendente</strong><p>Novos cadastros com e-mail e aparelho vinculados aparecerão aqui.</p></div>
+                }
+                else
+                {
+                    @foreach (var item in solicitacoesSupabase)
+                    {
+                        <article class="access-request" @key="item.AuthUid">
+                            <div><strong>@item.Username</strong><small>@item.Email</small><small>@NomeEmpresa(item.EmpresaId) · Aparelho: @item.NomeDispositivo</small><small>Pedido em @item.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
+                            <div class="request-actions">
+                                <select aria-label="Tipo de acesso" @bind="tiposNegocio[item.AuthUid]" disabled="@processando">
+                                    <option value="comercial">Comercial</option>
+                                    <option value="chat">Chat</option>
+                                </select>
+                                @if (item.DispositivoId is null)
+                                {
+                                    <span class="managed-user-role">Aparelho não vinculado</span>
+                                }
+                                else
+                                {
+                                    <button class="primary-button" @onclick="() => AprovarCadastroSupabaseAsync(item)" disabled="@processando">Aprovar usuário e aparelho</button>
+                                }
+                                <button class="secondary-button" @onclick="() => RecusarCadastroSupabaseAsync(item)" disabled="@processando">Recusar</button>
+                            </div>
+                        </article>
+                    }
+                }
+            </section>
+            <section class="managed-users">
                 <h2>Cadastros aguardando aprovação</h2>
                 @if (cadastros.Count == 0)
                 {
@@ -76,7 +107,9 @@ else if (Portal.Autenticado && Portal.EhZeus)
 @code {
     private List<AprovacaoUsuarioAparelho> solicitacoes = [];
     private List<CadastroPendente> cadastros = [];
+    private List<SolicitacaoAcesso> solicitacoesSupabase = [];
     private List<UsuarioEmpresaDisponivel> usuariosEmpresa = [];
+    private readonly Dictionary<string, string> tiposNegocio = [];
     private bool carregando = true;
     private bool processando;
     private bool falha;
@@ -107,6 +140,8 @@ else if (Portal.Autenticado && Portal.EhZeus)
             solicitacoes = await Portal.ListarUsuariosAparelhosPendentesAsync();
             cadastros = await Portal.ListarCadastrosPendentesAsync();
             usuariosEmpresa = await Portal.ListarUsuariosEmpresaAsync();
+            solicitacoesSupabase = await Portal.ListarSolicitacoesAsync();
+            foreach (var item in solicitacoesSupabase) tiposNegocio.TryAdd(item.AuthUid, "comercial");
             aviso = null;
             falha = false;
         }
@@ -155,6 +190,49 @@ else if (Portal.Autenticado && Portal.EhZeus)
         {
             await Portal.AprovarUsuarioAparelhoAsync(item);
             aviso = "Vínculo aprovado.";
+            await AtualizarAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            falha = true;
+            aviso = ex.Message;
+        }
+        finally { processando = false; }
+    }
+
+    private Task AprovarCadastroSupabaseAsync(SolicitacaoAcesso item) => ProcessarCadastroSupabaseAsync(item, aprovar: true);
+
+    private Task RecusarCadastroSupabaseAsync(SolicitacaoAcesso item) => ProcessarCadastroSupabaseAsync(item, aprovar: false);
+
+    private async Task ProcessarCadastroSupabaseAsync(SolicitacaoAcesso item, bool aprovar)
+    {
+        if (aprovar && item.DispositivoId is null)
+        {
+            falha = true;
+            aviso = "Este pedido não contém um aparelho vinculado e não pode ser aprovado.";
+            return;
+        }
+        if (aprovar && (!tiposNegocio.TryGetValue(item.AuthUid, out var tipo) || tipo is not ("chat" or "comercial")))
+        {
+            falha = true;
+            aviso = "Selecione Chat ou Comercial para aprovar.";
+            return;
+        }
+        processando = true;
+        aviso = null;
+        falha = false;
+        try
+        {
+            if (aprovar)
+            {
+                await Portal.AprovarSolicitacaoAsync(item.AuthUid, item.EmpresaId, tiposNegocio[item.AuthUid]);
+                aviso = "Usuário e aparelho aprovados.";
+            }
+            else
+            {
+                await Portal.RecusarSolicitacaoAsync(item.AuthUid);
+                aviso = "Solicitação Supabase recusada.";
+            }
             await AtualizarAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
