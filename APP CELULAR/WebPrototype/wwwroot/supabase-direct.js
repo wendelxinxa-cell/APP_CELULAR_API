@@ -197,9 +197,11 @@
         return state.masterApiToken;
     };
 
-    const masterApiFetch = async (path, method = "GET") => {
+    const masterApiFetch = async (path, method = "GET", body = null) => {
         const token = await getMasterApiToken();
-        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const headers = { Authorization: `Bearer ${token}` };
+        if (body !== null) headers["Content-Type"] = "application/json";
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers, body: body === null ? undefined : JSON.stringify(body) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
         return result;
@@ -230,8 +232,18 @@
 
     api.listCompanyUsers = async () => {
         const users = await masterApiFetch("/api/administracao/acessos/usuarios");
-        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "sucata" }))
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, username: user.username || "", funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "comercial" }))
             .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
+    };
+
+    api.updateCompanyUser = async user => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/identidade`, "PUT", {
+            username: user.username, email: user.email, nome: user.nome, tipoNegocio: user.tipoNegocio
+        });
+    };
+
+    api.setCompanyUserActive = async (user, active) => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/bloqueio`, "POST", { bloqueado: !active });
     };
 
     api.approvePendingUserDevice = async request => {
