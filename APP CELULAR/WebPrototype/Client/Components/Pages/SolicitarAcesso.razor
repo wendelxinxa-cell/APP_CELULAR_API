@@ -11,7 +11,7 @@
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
         <h1>Solicitar acesso</h1>
-        <p class="muted login-intro">Crie sua conta. Zeus receberá a solicitação e liberará o acesso após conferir seu cadastro.</p>
+        <p class="muted login-intro">Informe seu apelido e e-mail. A empresa será identificada automaticamente pelo CATCHAT; primeiro confirme seu e-mail e depois Zeus analisará seu pedido em Pendências.</p>
 
         @if (enviado)
         {
@@ -30,7 +30,6 @@
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
                 <div class="field"><label for="request-username">Username</label><input id="request-username" @bind="form.Username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]{3,40}" title="Use de 3 a 40 letras, números, ponto, hífen ou sublinhado." required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
-                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -55,7 +54,6 @@
         {
             confirmacaoNecessaria = await Portal.SolicitarAcessoAsync(form.Email, form.Senha, form.Username);
             enviado = true;
-            form.Senha = "";
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
@@ -68,7 +66,6 @@
     {
         public string Username { get; set; } = "";
         public string Email { get; set; } = "";
-        public string Senha { get; set; } = "";
     }
 
 }
