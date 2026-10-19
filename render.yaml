@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "39"
+        value: "40"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_39.apk"
+        value: "CATCHAT_0.0.001_build_40.apk"
       - key: AppUpdate__Sha256
-        value: "210ECDC9637B4E84592D3609625BA5CC120F2A8B3E07DFE64C785CA14D27AF63"
+        value: "55B0BBFD0A4F1E3CE17448B2C2CF997BB9773C4416857A5E2469BE7AF9E661E1"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 39: e-mail associado exibido na lista de usuários."
+        value: "CATCHAT build 40: login por username ou e-mail; versão exibida na tela."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
@@ -54,6 +54,7 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+
 
 
 
