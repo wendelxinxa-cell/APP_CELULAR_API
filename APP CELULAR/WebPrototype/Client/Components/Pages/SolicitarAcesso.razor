@@ -30,6 +30,7 @@
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
                 <div class="field"><label for="request-username">Username</label><input id="request-username" @bind="form.Username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]{3,40}" title="Use de 3 a 40 letras, números, ponto, hífen ou sublinhado." required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
+                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -66,6 +67,7 @@
     {
         public string Username { get; set; } = "";
         public string Email { get; set; } = "";
+        public string Senha { get; set; } = "";
     }
 
 }
