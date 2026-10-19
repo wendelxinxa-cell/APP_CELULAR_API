@@ -74,6 +74,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
                             <div class="managed-user-copy">
                                 <strong>@usuario.Nome</strong>
                                 <small>@usuario.Funcao · @(usuario.TipoNegocio == "chat" ? "Chat" : "Comercial")</small>
+                                <small>@(string.IsNullOrWhiteSpace(usuario.Empresa) ? $"Empresa · código {usuario.EmpresaId}" : $"Empresa: {usuario.Empresa} · código {usuario.EmpresaId}")</small>
                                 @if (!string.IsNullOrWhiteSpace(usuario.Email))
                                 {
                                     <small>@usuario.Email</small>
