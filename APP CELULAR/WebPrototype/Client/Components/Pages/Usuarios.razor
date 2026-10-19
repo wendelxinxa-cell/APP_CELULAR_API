@@ -145,6 +145,8 @@ else if (Portal.Autenticado && Portal.EhZeus)
     private bool processando;
     private bool falha;
     private string? aviso;
+    private long? editandoId;
+    private UsuarioEmpresaEdicao edicao = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
