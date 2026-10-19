@@ -16,12 +16,15 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
                 new { mensagem = "Atualização não configurada ou arquivo publicado inválido." });
 
         Response.Headers.CacheControl = "no-store";
+        var baseUrl = configuration["AppUpdate:PublicBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            baseUrl = $"https://{Request.Host.Value}";
         return Ok(new
         {
             versao,
             build,
             codigoVersao,
-            url = $"https://app-celular-api.onrender.com/api/app/atualizacao/arquivo",
+            url = $"{baseUrl.TrimEnd('/')}/api/app/atualizacao/arquivo",
             sha256 = hashEsperado,
             notas = configuration["AppUpdate:Notes"] ?? "Atualização do aplicativo."
         });
