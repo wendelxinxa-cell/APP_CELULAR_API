@@ -119,6 +119,27 @@
         await client.auth.signOut({ scope: "local" });
     };
 
+    api.signUp = async (email, password, username) => {
+        const deviceKey = crypto.randomUUID();
+        const { data, error } = await getClient().auth.signUp({
+            email: email.trim(), password,
+            options: {
+                data: {
+                    username: username.trim(),
+                    nome: username.trim(),
+                    empresa_id: state.empresaId,
+                    chave_instalacao: deviceKey,
+                    nome_dispositivo: /Android|iPhone|iPad/i.test(navigator.userAgent) ? "Dispositivo móvel" : "Navegador web"
+                },
+                emailRedirectTo: window.location.origin
+            }
+        });
+        fail(error);
+        if (data.user?.identities?.length === 0) throw new Error("Não foi possível solicitar acesso com estes dados. Confira o e-mail ou tente entrar.");
+        if (data.session) await getClient().auth.signOut({ scope: "local" });
+        return !data.session;
+    };
+
     const invokeMasterInvite = async body => {
         const { data, error } = await getClient().functions.invoke("master-user-invite", { body });
         if (error) {
@@ -130,7 +151,7 @@
         return data;
     };
 
-    api.requestSignup = async (email, name, password) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, senha: password, empresaId: state.empresaId });
+    api.requestSignup = async (email, name) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: state.empresaId });
     api.confirmSignupEmail = async () => {
         const client = getClient();
         const { data, error } = await client.auth.getSession();
@@ -154,8 +175,9 @@
         const { data, error } = await getClient().schema("chat").rpc("listar_solicitacoes_acesso");
         fail(error);
         return (data || []).map(item => ({
-            authUid: item.auth_uid, email: item.email, nome: item.nome,
-            criadaEm: item.criada_em, status: item.status
+            authUid: item.auth_uid, email: item.email, username: item.username,
+            nome: item.nome, empresaId: item.empresa_id, dispositivoId: item.dispositivo_id,
+            nomeDispositivo: item.nome_dispositivo, criadaEm: item.criada_em, status: item.status
         }));
     };
 
@@ -175,9 +197,11 @@
         return state.masterApiToken;
     };
 
-    const masterApiFetch = async (path, method = "GET") => {
+    const masterApiFetch = async (path, method = "GET", body = null) => {
         const token = await getMasterApiToken();
-        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const headers = { Authorization: `Bearer ${token}` };
+        if (body !== null) headers["Content-Type"] = "application/json";
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers, body: body === null ? undefined : JSON.stringify(body) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
         return result;
@@ -208,8 +232,18 @@
 
     api.listCompanyUsers = async () => {
         const users = await masterApiFetch("/api/administracao/acessos/usuarios");
-        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao }))
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, username: user.username || "", funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "comercial" }))
             .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
+    };
+
+    api.updateCompanyUser = async user => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/identidade`, "PUT", {
+            username: user.username, email: user.email, nome: user.nome, tipoNegocio: user.tipoNegocio
+        });
+    };
+
+    api.setCompanyUserActive = async (user, active) => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/bloqueio`, "POST", { bloqueado: !active });
     };
 
     api.approvePendingUserDevice = async request => {
@@ -221,9 +255,9 @@
         }
     };
 
-    api.approveAccessRequest = async (authUid, userId) => {
+    api.approveAccessRequest = async (authUid, empresaId, tipoNegocio) => {
         const { error } = await getClient().schema("chat").rpc("aprovar_solicitacao_acesso", {
-            p_auth_uid: authUid, p_usuario_id: userId
+            p_auth_uid: authUid, p_empresa_id: empresaId, p_tipo_negocio: tipoNegocio
         });
         fail(error);
     };

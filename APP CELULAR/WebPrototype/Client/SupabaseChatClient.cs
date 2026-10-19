@@ -64,6 +64,10 @@ public sealed class SupabaseChatClient(IJSRuntime js)
     public Task AprovarCadastroAsync(long requestId, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveSignupRequest", requestId, usuarioId);
     public Task RecusarCadastroAsync(long requestId) => InvokeVoidAsync("appCelular.supabase.rejectSignupRequest", requestId);
     public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => InvokeAsync<List<UsuarioEmpresaDisponivel>>("appCelular.supabase.listCompanyUsers");
+    public Task EditarUsuarioEmpresaAsync(long empresaId, long usuarioId, string username, string email, string nome, string tipoNegocio) =>
+        InvokeVoidAsync("appCelular.supabase.updateCompanyUser", new { empresaId, id = usuarioId, username, email, nome, tipoNegocio });
+    public Task DefinirUsuarioEmpresaAtivoAsync(long empresaId, long usuarioId, bool ativo) =>
+        InvokeVoidAsync("appCelular.supabase.setCompanyUserActive", new { empresaId, id = usuarioId }, ativo);
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) =>
         InvokeVoidAsync("appCelular.supabase.setManagedUserMaster", authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) =>
@@ -170,6 +174,8 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task AprovarCadastroAsync(long requestId, long usuarioId) => supabase.AprovarCadastroAsync(requestId, usuarioId);
     public Task RecusarCadastroAsync(long requestId) => supabase.RecusarCadastroAsync(requestId);
     public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => supabase.ListarUsuariosEmpresaAsync();
+    public Task EditarUsuarioEmpresaAsync(long empresaId, long usuarioId, string username, string email, string nome, string tipoNegocio) => supabase.EditarUsuarioEmpresaAsync(empresaId, usuarioId, username, email, nome, tipoNegocio);
+    public Task DefinirUsuarioEmpresaAtivoAsync(long empresaId, long usuarioId, bool ativo) => supabase.DefinirUsuarioEmpresaAtivoAsync(empresaId, usuarioId, ativo);
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) => supabase.DefinirUsuarioMasterAsync(authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) => supabase.DefinirUsuarioAtivoAsync(authUid, ativo);
     public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
@@ -224,7 +230,13 @@ public sealed class UsuarioEmpresaDisponivel
     public long EmpresaId { get; set; }
     public string Empresa { get; set; } = "";
     public string Nome { get; set; } = "";
+    public string Username { get; set; } = "";
     public string Funcao { get; set; } = "";
+    public string Email { get; set; } = "";
+    public bool Aprovado { get; set; }
+    public bool Bloqueado { get; set; }
+    public bool AparelhoPendente { get; set; }
+    public string TipoNegocio { get; set; } = "comercial";
 }
 
 public sealed class AprovacaoUsuarioAparelho

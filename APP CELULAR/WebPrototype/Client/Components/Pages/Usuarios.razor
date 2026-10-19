@@ -94,6 +94,45 @@ else if (Portal.Autenticado && Portal.EhZeus)
                     }
                 }
             </section>
+            <section class="managed-users">
+                <div class="managed-users-heading"><h2>Usuários cadastrados nas empresas</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
+                @if (usuariosEmpresa.Count == 0)
+                {
+                    <div class="home-unavailable"><strong>Nenhum usuário cadastrado</strong><p>Os usuários das empresas aparecerão nesta lista.</p></div>
+                }
+                else
+                {
+                    @foreach (var usuario in usuariosEmpresa)
+                    {
+                        <article class="managed-user" @key="usuario.Id">
+                            <div class="managed-user-copy">
+                                <strong>@usuario.Nome</strong>
+                                @if (!string.IsNullOrWhiteSpace(usuario.Username)) { <small>Username: @usuario.Username</small> }
+                                <small>@usuario.Funcao · @(usuario.TipoNegocio == "chat" ? "Chat" : "Comercial")</small>
+                                <small>@(string.IsNullOrWhiteSpace(usuario.Empresa) ? $"Empresa · código {usuario.EmpresaId}" : $"Empresa: {usuario.Empresa} · código {usuario.EmpresaId}")</small>
+                                @if (!string.IsNullOrWhiteSpace(usuario.Email)) { <small>@usuario.Email</small> }
+                                <small>@EstadoUsuario(usuario)</small>
+                            </div>
+                            <span class="managed-user-role">@(usuario.Bloqueado ? "BLOQUEADO" : usuario.Aprovado ? "LIBERADO" : "PENDENTE")</span>
+                            <button class="secondary-button" type="button" @onclick="() => IniciarEdicao(usuario)" disabled="@processando">Editar</button>
+                            <button class="@(usuario.Bloqueado ? "primary-button" : "danger-button")" type="button" @onclick="() => AlterarUsuarioEmpresaAtivoAsync(usuario, !usuario.Bloqueado)" disabled="@processando">@(usuario.Bloqueado ? "Ativar" : "Desativar")</button>
+                            @if (editandoId == usuario.Id)
+                            {
+                                <EditForm Model="edicao" OnValidSubmit="SalvarEdicaoAsync" @key="usuario.Id">
+                                    <div class="user-invite-grid">
+                                        <label>Username<input @bind="edicao.Username" minlength="3" maxlength="40" required /></label>
+                                        <label>E-mail<input @bind="edicao.Email" type="email" maxlength="254" required /></label>
+                                        <label>Nome de exibição<input @bind="edicao.Nome" maxlength="120" required /></label>
+                                        <label>Tipo de acesso<select @bind="edicao.TipoNegocio"><option value="chat">Chat</option><option value="comercial">Comercial</option></select></label>
+                                    </div>
+                                    <button class="primary-button" type="submit" disabled="@processando">Salvar alterações</button>
+                                    <button class="secondary-button" type="button" @onclick="CancelarEdicao">Cancelar</button>
+                                </EditForm>
+                            }
+                        </article>
+                    }
+                }
+            </section>
         </section>
     </main>
 }
@@ -209,6 +248,50 @@ else if (Portal.Autenticado && Portal.EhZeus)
 
     private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
         usuario.Ativo ? "Ativo" : "Acesso desativado";
+
+    private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) =>
+        usuario.Bloqueado ? "Acesso desativado" : usuario.Aprovado ? "Ativo" : usuario.AparelhoPendente ? "Aguardando aprovação do aparelho" : "Pendente";
+
+    private void IniciarEdicao(UsuarioEmpresaDisponivel usuario)
+    {
+        editandoId = usuario.Id;
+        edicao = new UsuarioEmpresaEdicao { Id = usuario.Id, EmpresaId = usuario.EmpresaId, Username = usuario.Username, Email = usuario.Email, Nome = usuario.Nome, TipoNegocio = usuario.TipoNegocio };
+        aviso = null;
+    }
+
+    private void CancelarEdicao() => editandoId = null;
+
+    private async Task SalvarEdicaoAsync()
+    {
+        var username = edicao.Username.Trim();
+        var email = edicao.Email.Trim();
+        var nome = edicao.Nome.Trim();
+        if (username.Length is < 3 or > 40 || username.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-')
+            || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome))
+        {
+            falha = true; aviso = "Username, e-mail e nome são obrigatórios; username aceita letras, números, ponto, hífen e sublinhado."; return;
+        }
+        if (!await JS.InvokeAsync<bool>("confirm", $"Salvar username {username} e e-mail {email} para este usuário?")) return;
+        await ProcessarAsync(async () => await Portal.EditarUsuarioEmpresaAsync(edicao.EmpresaId, edicao.Id, username, email, nome, edicao.TipoNegocio), "Dados do usuário atualizados no banco.");
+        if (!falha) editandoId = null;
+    }
+
+    private async Task AlterarUsuarioEmpresaAtivoAsync(UsuarioEmpresaDisponivel usuario, bool ativo)
+    {
+        var acao = ativo ? "ativar" : "desativar";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} o usuário {usuario.Nome}?")) return;
+        await ProcessarAsync(async () => await Portal.DefinirUsuarioEmpresaAtivoAsync(usuario.EmpresaId, usuario.Id, ativo), ativo ? "Usuário ativado." : "Usuário desativado.");
+    }
+
+    private sealed class UsuarioEmpresaEdicao
+    {
+        public long Id { get; set; }
+        public long EmpresaId { get; set; }
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Nome { get; set; } = "";
+        public string TipoNegocio { get; set; } = "comercial";
+    }
 
     private sealed class ConviteForm
     {
