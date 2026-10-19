@@ -425,21 +425,26 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                            COALESCE(u.tipo_negocio,'sucata'),
                            EXISTS (SELECT 1 FROM app.dispositivo d WHERE d.empresa_id=u.empresa_id
                                AND (d.usuario_id=u.id OR d.usuario_id_solicitado=u.id)
-                               AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL)),
-                           COALESCE(vinculo.email,'')
+                               AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL))
                     FROM app.usuario u
-                    LEFT JOIN LATERAL (
-                        SELECT string_agg(DISTINCT au.email, ', ' ORDER BY au.email) AS email
-                        FROM chat.usuario_auth cua
-                        JOIN auth.users au ON au.id=cua.auth_uid
-                        WHERE cua.empresa_id=u.empresa_id AND cua.usuario_id=u.id AND cua.ativo=TRUE
-                    ) vinculo ON TRUE
                     WHERE u.empresa_id=@empresaId AND COALESCE(u.eh_master,FALSE)=FALSE ORDER BY u.nome;
                     """;
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync()) usuarios.Add(new { id = reader.GetInt64(0), idLocal = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1), empresaId = empresa.Id, empresa = empresa.Nome, nome = reader.GetString(2), funcao = reader.GetString(3), aprovado = reader.GetBoolean(4), bloqueado = reader.GetBoolean(5), tipoNegocio = reader.GetString(6), aparelhoPendente = reader.GetBoolean(7), email = reader.GetString(8) });
+                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, bool AparelhoPendente)>();
+                while (await reader.ReadAsync())
+                    linhas.Add((reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt32(1),
+                        reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? "" : reader.GetString(3),
+                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetBoolean(7)));
+                await reader.CloseAsync();
+
+                var emails = await ObterEmailsVinculados(empresa.Id, linhas.Select(x => x.Id).ToArray());
+                foreach (var linha in linhas)
+                    usuarios.Add(new { id = linha.Id, idLocal = linha.IdLocal, empresaId = empresa.Id, empresa = empresa.Nome,
+                        nome = linha.Nome, funcao = linha.Funcao, aprovado = linha.Aprovado, bloqueado = linha.Bloqueado,
+                        tipoNegocio = linha.TipoNegocio, aparelhoPendente = linha.AparelhoPendente,
+                        email = emails.GetValueOrDefault(linha.Id, "") });
             }
             return Ok(usuarios);
         }
@@ -449,6 +454,37 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             string local = empresaEmConsulta.HasValue ? $"na empresa código {empresaEmConsulta.Value}" : "no catálogo central";
             return StatusCode(503, new { mensagem = $"Falha {local} durante {etapa}. Execute a migração 003 no banco único da Empresa 1 e confira a configuração do Render." });
         }
+    }
+
+    private async Task<Dictionary<long, string>> ObterEmailsVinculados(long empresaId, long[] usuarioIds)
+    {
+        var emails = new Dictionary<long, string>();
+        if (usuarioIds.Length == 0) return emails;
+        string? raw = _configuration.GetConnectionString("CadastroCentral");
+        if (string.IsNullOrWhiteSpace(raw)) return emails;
+        try
+        {
+            await using var db = new NpgsqlConnection(EmpresaDatabaseResolver.NormalizarConnectionString(raw));
+            await db.OpenAsync();
+            const string sql = """
+                SELECT cua.usuario_id, string_agg(DISTINCT au.email, ', ' ORDER BY au.email)
+                FROM chat.usuario_auth cua
+                JOIN auth.users au ON au.id=cua.auth_uid
+                WHERE cua.empresa_id=@empresaId AND cua.usuario_id=ANY(@usuarioIds) AND cua.ativo=TRUE
+                GROUP BY cua.usuario_id;
+                """;
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("empresaId", empresaId);
+            cmd.Parameters.AddWithValue("usuarioIds", usuarioIds);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                emails[reader.GetInt64(0)] = reader.IsDBNull(1) ? "" : reader.GetString(1);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não foi possível carregar os e-mails vinculados para a empresa {EmpresaId}.", empresaId);
+        }
+        return emails;
     }
 
     [HttpGet("chat/contatos")]
