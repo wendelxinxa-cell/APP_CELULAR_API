@@ -31,7 +31,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
                     @foreach (var cadastro in cadastros)
                     {
                         <article class="access-request" @key="cadastro.Id">
-                            <div><strong>@cadastro.Nome</strong><small>@cadastro.Email</small><small>Empresa @cadastro.EmpresaId · Pedido em @cadastro.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
+                            <div><strong>@cadastro.Nome</strong><small>@cadastro.Email</small><small>@NomeEmpresa(cadastro.EmpresaId) · Pedido em @cadastro.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
                             <div class="request-actions">
                                 <select aria-label="Usuário CATCHAT para vincular" @bind="cadastro.UsuarioIdSelecionado" disabled="@processando">
                                     <option value="0">Selecione o usuário CATCHAT</option>
@@ -58,7 +58,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
                     @foreach (var item in solicitacoes)
                     {
                         <article class="access-request" @key="item.DispositivoId ?? item.UsuarioPendenteId">
-                            <div><strong>@item.Usuario</strong><small>@item.Dispositivo</small><small>@item.Tipo · Empresa @item.EmpresaId @(string.IsNullOrWhiteSpace(item.Empresa) ? "" : $"· {item.Empresa}")</small>
+                            <div><strong>@item.Usuario</strong><small>@item.Dispositivo</small><small>@item.Tipo · @NomeEmpresa(item.EmpresaId, item.Empresa)</small>
                                 @if (item.CriadoEm.HasValue) { <small>Pedido em @item.CriadoEm.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small> }
                             </div>
                             <div class="request-actions">
@@ -121,11 +121,18 @@ else if (Portal.Autenticado && Portal.EhZeus)
     {
         var user = usuariosEmpresa.FirstOrDefault(user => user.Id == item.UsuarioIdSelecionado && user.EmpresaId == item.EmpresaId);
         if (user is null) { falha = true; aviso = "Selecione um usuário CATCHAT da mesma empresa do pedido."; return; }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Aprovar {item.Nome} ({item.Email}) e vincular a {user.Nome}, empresa {item.EmpresaId}? O link para criar a senha será enviado por e-mail.")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Aprovar {item.Nome} ({item.Email}) e vincular a {user.Nome}, empresa {user.Empresa}? O link para criar a senha será enviado por e-mail.")) return;
         processando = true; aviso = null; falha = false;
         try { await Portal.AprovarCadastroAsync(item.Id, user.Id); aviso = $"Cadastro aprovado e link para criar a senha enviado para {item.Email}."; await AtualizarAsync(); }
         catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
         finally { processando = false; }
+    }
+
+    private string NomeEmpresa(long empresaId, string? nomeInformado = null)
+    {
+        if (!string.IsNullOrWhiteSpace(nomeInformado)) return nomeInformado;
+        var user = usuariosEmpresa.FirstOrDefault(item => item.EmpresaId == empresaId);
+        return string.IsNullOrWhiteSpace(user?.Empresa) ? "Empresa vinculada" : user.Empresa;
     }
 
     private async Task RecusarCadastroAsync(CadastroPendente item)
@@ -139,7 +146,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
 
     private async Task AprovarAsync(AprovacaoUsuarioAparelho item)
     {
-        var resumo = $"Usuário: {item.Usuario}\nAparelho: {item.Dispositivo}\nEmpresa: {item.EmpresaId}";
+        var resumo = $"Usuário: {item.Usuario}\nAparelho: {item.Dispositivo}\nEmpresa: {NomeEmpresa(item.EmpresaId, item.Empresa)}";
         if (!await JS.InvokeAsync<bool>("confirm", $"Aprovar este vínculo?\n\n{resumo}\n\nO aparelho anterior do usuário poderá ser desativado.")) return;
         processando = true;
         aviso = null;

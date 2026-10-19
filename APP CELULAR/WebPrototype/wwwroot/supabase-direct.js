@@ -130,7 +130,7 @@
         return data;
     };
 
-    api.requestSignup = async (email, name, companyId) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: companyId });
+    api.requestSignup = async (email, name) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: state.empresaId });
     api.confirmSignupEmail = async () => {
         const client = getClient();
         const { data, error } = await client.auth.getSession();

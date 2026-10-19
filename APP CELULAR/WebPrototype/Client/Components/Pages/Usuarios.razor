@@ -76,7 +76,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
                                 <small>@usuario.Email</small>
                                 <small>@EstadoUsuario(usuario)</small>
                             </div>
-                            <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? $"USUÁRIO · ID {usuario.UsuarioId}" : "SEM VÍNCULO")</span>
+                            <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
                             @if (!usuario.Master && usuario.UsuarioId.HasValue)
                             {
                                 <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
@@ -208,7 +208,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
     }
 
     private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Ativo ? $"Ativo · empresa {usuario.EmpresaId ?? 0}" : "Acesso desativado";
+        usuario.Ativo ? "Ativo" : "Acesso desativado";
 
     private sealed class ConviteForm
     {
