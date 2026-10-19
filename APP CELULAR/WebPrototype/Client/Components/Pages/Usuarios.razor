@@ -61,39 +61,60 @@ else if (Portal.Autenticado && Portal.EhZeus)
             </section>
 
             <section class="managed-users">
-                <div class="managed-users-heading"><h2>Contas no Supabase</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
-                @if (usuarios.Count == 0)
+                <div class="managed-users-heading"><h2>Usuários cadastrados</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
+                @if (usuariosEmpresa.Count == 0)
                 {
-                    <div class="home-unavailable"><strong>Nenhuma conta vinculada</strong><p>Convites e cadastros aprovados aparecerão nesta lista.</p></div>
+                    <div class="home-unavailable"><strong>Nenhum usuário cadastrado</strong><p>Os usuários da empresa aparecerão nesta lista.</p></div>
                 }
                 else
                 {
-                    @foreach (var usuario in usuarios)
+                    @foreach (var usuario in usuariosEmpresa.Where(user => user.EmpresaId == Portal.Sessao!.EmpresaId))
                     {
-                        <article class="managed-user" @key="usuario.AuthUid">
+                        <article class="managed-user" @key="usuario.Id">
                             <div class="managed-user-copy">
                                 <strong>@usuario.Nome</strong>
-                                <small>@usuario.Email</small>
+                                <small>@usuario.Funcao · @(usuario.TipoNegocio == "chat" ? "Chat" : "Comercial")</small>
+                                @if (!string.IsNullOrWhiteSpace(usuario.Email))
+                                {
+                                    <small>@usuario.Email</small>
+                                }
                                 <small>@EstadoUsuario(usuario)</small>
                             </div>
-                            <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
-                            @if (!usuario.Master && usuario.UsuarioId.HasValue)
-                            {
-                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
-                                <button class="@(usuario.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(usuario, !usuario.Ativo)" disabled="@processando">@(usuario.Ativo ? "Bloquear" : "Ativar")</button>
-                            }
-                            else if (!usuario.Master)
-                            {
-                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
-                            }
-                            else if (usuario.AuthUid != Portal.Sessao!.SupabaseUserId)
-                            {
-                                <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(usuario, false)" disabled="@processando">Remover master</button>
-                            }
+                            <span class="managed-user-role">@(usuario.Bloqueado ? "BLOQUEADO" : usuario.Aprovado ? "LIBERADO" : "PENDENTE")</span>
                         </article>
                     }
                 }
             </section>
+
+            <details class="managed-users managed-auth-accounts">
+                <summary>Contas vinculadas do Supabase</summary>
+                @if (usuarios.Count == 0)
+                {
+                    <div class="home-unavailable"><strong>Nenhuma conta vinculada</strong><p>Convites e cadastros aprovados aparecerão aqui.</p></div>
+                }
+                else
+                {
+                    @foreach (var conta in usuarios)
+                    {
+                        <article class="managed-user" @key="conta.AuthUid">
+                            <div class="managed-user-copy"><strong>@conta.Nome</strong><small>@conta.Email</small><small>@(conta.Ativo ? "Ativo" : "Acesso desativado")</small></div>
+                            <span class="managed-user-role">@(conta.Master ? "ZEUS MASTER" : conta.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
+                            @if (!conta.Master)
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(conta, true)" disabled="@processando">Tornar master</button>
+                                @if (conta.UsuarioId.HasValue)
+                                {
+                                    <button class="@(conta.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(conta, !conta.Ativo)" disabled="@processando">@(conta.Ativo ? "Bloquear" : "Ativar")</button>
+                                }
+                            }
+                            else if (conta.AuthUid != Portal.Sessao!.SupabaseUserId)
+                            {
+                                <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(conta, false)" disabled="@processando">Remover master</button>
+                            }
+                        </article>
+                    }
+                }
+            </details>
         </section>
     </main>
 }
@@ -207,8 +228,12 @@ else if (Portal.Autenticado && Portal.EhZeus)
         finally { processando = false; }
     }
 
-    private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Ativo ? "Ativo" : "Acesso desativado";
+    private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) => usuario.Bloqueado
+        ? "Acesso bloqueado"
+        : !usuario.Aprovado && usuario.AparelhoPendente ? "Pendente: usuário e aparelho"
+        : !usuario.Aprovado ? "Pendente: usuário"
+        : usuario.AparelhoPendente ? "Pendente: aparelho"
+        : "Liberado";
 
     private sealed class ConviteForm
     {

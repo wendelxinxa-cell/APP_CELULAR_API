@@ -225,6 +225,11 @@ public sealed class UsuarioEmpresaDisponivel
     public string Empresa { get; set; } = "";
     public string Nome { get; set; } = "";
     public string Funcao { get; set; } = "";
+    public string Email { get; set; } = "";
+    public bool Aprovado { get; set; }
+    public bool Bloqueado { get; set; }
+    public bool AparelhoPendente { get; set; }
+    public string TipoNegocio { get; set; } = "sucata";
 }
 
 public sealed class AprovacaoUsuarioAparelho

@@ -208,7 +208,7 @@
 
     api.listCompanyUsers = async () => {
         const users = await masterApiFetch("/api/administracao/acessos/usuarios");
-        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao }))
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "sucata" }))
             .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
     };
 
