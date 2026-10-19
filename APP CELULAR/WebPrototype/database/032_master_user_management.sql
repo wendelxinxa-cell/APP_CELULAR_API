@@ -17,14 +17,14 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
     IF NOT chat.eh_zeus() THEN RAISE EXCEPTION 'Acesso restrito ao usuário Zeus'; END IF;
     RETURN QUERY
-    SELECT au.id,
-           COALESCE(au.email, ''),
-           COALESCE(NULLIF(ua.nome, ''), NULLIF(um.nome, ''), NULLIF(au.raw_user_meta_data->>'nome', ''), 'Usuário'),
-           COALESCE(ua.empresa_id, sa.empresa_id),
-           ua.usuario_id,
-           CASE WHEN um.ativo THEN TRUE ELSE COALESCE(ua.ativo, sa.status = 'PENDENTE', FALSE) END,
-           COALESCE(um.ativo, FALSE),
-           au.created_at
+    SELECT au.id::UUID,
+           COALESCE(au.email, '')::TEXT,
+           COALESCE(NULLIF(ua.nome, ''), NULLIF(um.nome, ''), NULLIF(au.raw_user_meta_data->>'nome', ''), 'Usuário')::TEXT,
+           COALESCE(ua.empresa_id::BIGINT, sa.empresa_id::BIGINT)::BIGINT,
+           ua.usuario_id::BIGINT,
+           (CASE WHEN um.ativo THEN TRUE ELSE COALESCE(ua.ativo, sa.status = 'PENDENTE', FALSE) END)::BOOLEAN,
+           COALESCE(um.ativo, FALSE)::BOOLEAN,
+           au.created_at::TIMESTAMPTZ
     FROM auth.users au
     LEFT JOIN chat.usuario_auth ua ON ua.auth_uid = au.id
     LEFT JOIN chat.usuario_master um ON um.auth_uid = au.id
@@ -79,3 +79,5 @@ REVOKE ALL ON FUNCTION chat.listar_usuarios_gerenciaveis(),
 GRANT EXECUTE ON FUNCTION chat.listar_usuarios_gerenciaveis(),
   chat.definir_usuario_master(UUID, BOOLEAN), chat.definir_usuario_ativo(UUID, BOOLEAN)
   TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

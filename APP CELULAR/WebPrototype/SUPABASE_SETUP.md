@@ -34,6 +34,8 @@ As migrações `020_supabase_access_requests.sql` e `030_supabase_master_account
 
 A confirmação da migração 030 validou a estrutura, mas encontrou uma incompatibilidade no tipo de retorno da função `listar_solicitacoes_acesso`; a versão local foi corrigida para remover a função anterior antes de recriá-la. A aplicação final da versão corrigida retornou sucesso.
 
+Em 12/10/2026, a migração `database/032_master_user_management.sql` foi aplicada ao mesmo projeto. A primeira validação detectou divergência entre tipos numéricos/textuais legados e o contrato da RPC; os retornos foram convertidos explicitamente para os tipos declarados. A tela `/usuarios` confirmou a listagem de Zeus e das contas vinculadas.
+
 O teste de estado após a migração confirmou Zeus ativo, nenhum vínculo normal para a conta master e **0 solicitações pendentes**. Os dois usuários já existentes foram vinculados antes da instalação do fluxo de cadastro; portanto, eles não geraram pedidos pendentes retroativamente. Para testar a fila, cadastre contas de teste pelo formulário, que serão inseridas como `PENDENTE`. Senhas antigas não são importadas.
 
 A migração `031_master_chat_readonly.sql` foi aplicada em 08/10/2026. Zeus consegue listar contatos com conversas existentes e ler o histórico da empresa configurada em `Supabase__EmpresaId` (homologação: `1`); a interface apresenta o chat master em modo somente leitura. Não dê escrita direta nas tabelas ao navegador.

@@ -22,7 +22,8 @@ app.MapGet("/supabase-config.js", (IConfiguration config) =>
         url = config["Supabase:Url"],
         publishableKey = config["Supabase:PublishableKey"],
         bucket = config["Supabase:Bucket"] ?? "chat-media",
-        empresaId = config["Supabase:EmpresaId"]
+        empresaId = config["Supabase:EmpresaId"],
+        apiBaseUrl = config["Api:BaseUrl"] ?? "https://app-celular-api-test.onrender.com"
     };
     var json = JsonSerializer.Serialize(publicConfig);
     return Results.Content($"window.chatcatSupabaseConfig = {json};", "application/javascript");

@@ -65,7 +65,19 @@ else
                     <header class="active-contact">
                         <a class="mobile-back" href="/conversas" aria-label="Voltar às conversas">‹</a>
                         <span class="contact-avatar large">@PrimeiraLetra(ContatoAtual.Nome)</span>
-                        <div><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
+                        <div class="active-contact-copy"><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
+                        <div class="message-history-tools" aria-label="Privacidade das mensagens">
+                            @if (historicoProcessando)
+                            {
+                                <span class="history-progress" role="status"><i></i>@historicoStatus</span>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(historicoStatus))
+                            {
+                                <span class="history-status" role="status">@historicoStatus</span>
+                            }
+                            <button type="button" title="Ocultar todas as mensagens já carregadas" aria-label="Ocultar todas as mensagens já carregadas" disabled="@historicoProcessando" @onclick="OcultarMensagensAsync">🔒</button>
+                            <button type="button" title="Exibir mensagens ocultas" aria-label="Exibir mensagens ocultas" disabled="@historicoProcessando" @onclick="ExibirMensagensAsync">🔓</button>
+                        </div>
                     </header>
 
                     <section class="messages-body" aria-label="Mensagens da conversa" @ref="painelMensagens">
@@ -86,9 +98,14 @@ else
                             @foreach (var mensagem in mensagens)
                             {
                                 var minha = mensagem.RemetenteId == Portal.Sessao!.UsuarioId;
+                                var oculta = mensagensOcultas.Contains(ChaveMensagem(mensagem));
                                 <div class="message-row @(minha ? "message-own" : "message-incoming")">
                                     <article class="message-bubble">
-                                        @if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl) && (mensagem.MidiaTipo ?? mensagem.FotoTipo ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                                        @if (oculta)
+                                        {
+                                            <p class="hidden-message-content">🔒 Mensagem oculta neste aparelho</p>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl) && (mensagem.MidiaTipo ?? mensagem.FotoTipo ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <video class="message-image" src="@mensagem.FotoUrl" controls playsinline preload="metadata"></video>
                                         }
@@ -108,7 +125,7 @@ else
                                         {
                                             <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)" style="font-size:@(tamanhoFonte)px;font-weight:@(fonteSemibold ? 600 : 400)">@mensagem.Texto</p>
                                         }
-                                        <footer><time>@HoraBrasilia(mensagem.EnviadaEm)</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
+                                        <footer><time>@HoraBrasilia(mensagem.EnviadaEm)</time>@if (oculta) { <span>Oculta</span> } else if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
                                     </article>
                                 </div>
                             }
@@ -189,6 +206,9 @@ else
     private bool carregandoContatos;
     private bool carregandoMensagens;
     private bool enviando;
+    private bool historicoProcessando;
+    private string? historicoStatus;
+    private readonly HashSet<string> mensagensOcultas = new(StringComparer.Ordinal);
     private bool inicializado;
     private bool rolarMensagens;
     private ElementReference painelMensagens;
@@ -312,8 +332,16 @@ else
 
         contatoCarregado = ContatoId;
         mensagens.Clear();
+        mensagensOcultas.Clear();
+        historicoStatus = null;
         if (ContatoId.HasValue && ContatoAtual is not null)
         {
+            try
+            {
+                var ocultas = await JS.InvokeAsync<List<string>>("appCelular.getHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value));
+                mensagensOcultas.UnionWith(ocultas);
+            }
+            catch (JSException) { }
             try
             {
                 var locais = await JS.InvokeAsync<List<MensagemConversa>>("appCelular.getChatMessages", ChaveCacheConversa(ContatoId.Value));
@@ -730,6 +758,85 @@ else
                 acaoVisual = null;
             StateHasChanged();
         });
+    }
+
+    private string ChaveEstadoMensagens(long contatoId) => $"ocultas:{ChaveCacheConversa(contatoId)}";
+
+    private static string ChaveMensagem(MensagemConversa mensagem) => mensagem.Id > 0
+        ? $"id:{mensagem.Id}"
+        : $"cliente:{mensagem.ClienteMensagemId:N}";
+
+    private async Task OcultarMensagensAsync()
+    {
+        if (historicoProcessando || !ContatoId.HasValue) return;
+        var mensagensPersistidas = mensagens.Where(x => x.Id > 0).ToList();
+        var chavesVisiveis = mensagensPersistidas
+            .Select(ChaveMensagem)
+            .Where(chave => !mensagensOcultas.Contains(chave))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (chavesVisiveis.Count == 0)
+        {
+            historicoStatus = mensagensPersistidas.Count > 0
+                ? "As mensagens desta conversa já estão ocultas neste aparelho."
+                : "Não há mensagens carregadas nesta conversa para ocultar.";
+            return;
+        }
+        if (!await JS.InvokeAsync<bool>("confirm", $"Ocultar todas as {chavesVisiveis.Count} mensagens já carregadas nesta conversa neste aparelho? O conteúdo continuará no servidor.")) return;
+
+        historicoProcessando = true;
+        historicoStatus = "Ocultando mensagens desta conversa…";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            var novasOcultas = new HashSet<string>(mensagensOcultas, StringComparer.Ordinal);
+            novasOcultas.UnionWith(chavesVisiveis);
+            await JS.InvokeVoidAsync("appCelular.saveHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value), novasOcultas.ToArray());
+            mensagensOcultas.Clear();
+            mensagensOcultas.UnionWith(novasOcultas);
+            historicoStatus = $"{chavesVisiveis.Count} mensagens ocultadas neste aparelho.";
+        }
+        catch (JSException ex)
+        {
+            historicoStatus = $"Não foi possível salvar a ocultação: {ex.Message}";
+        }
+        finally
+        {
+            historicoProcessando = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ExibirMensagensAsync()
+    {
+        if (historicoProcessando || !ContatoId.HasValue) return;
+        if (mensagensOcultas.Count == 0)
+        {
+            historicoStatus = "Não há mensagens ocultas nesta conversa neste aparelho.";
+            return;
+        }
+        if (!await JS.InvokeAsync<bool>("confirm", $"Exibir as {mensagensOcultas.Count} mensagens ocultas nesta conversa?")) return;
+
+        historicoProcessando = true;
+        historicoStatus = "Exibindo mensagens desta conversa…";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        try
+        {
+            await JS.InvokeVoidAsync("appCelular.saveHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value), Array.Empty<string>());
+            mensagensOcultas.Clear();
+            historicoStatus = "Mensagens exibidas nesta conversa.";
+        }
+        catch (JSException ex)
+        {
+            historicoStatus = $"Não foi possível exibir as mensagens: {ex.Message}";
+        }
+        finally
+        {
+            historicoProcessando = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task SairAsync()

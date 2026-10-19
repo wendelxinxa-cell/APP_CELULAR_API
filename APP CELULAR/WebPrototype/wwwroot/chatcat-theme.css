@@ -92,6 +92,9 @@ body{background:var(--cat-bg);color:var(--cat-text)}
 .message-image{max-height:min(42vh,360px);border-radius:14px}
 .message-composer{margin:10px 13px 13px;padding:12px;border:1px solid var(--cat-border);border-radius:21px;background:linear-gradient(145deg,#222,#191919);box-shadow:0 9px 27px #0004}
 .message-composer textarea{min-height:48px;padding:13px 15px;border-radius:15px;background:#111;line-height:1.45}
+.message-composer textarea{min-height:54px;padding:14px 18px;border:1px solid #544a2d;border-radius:19px;background:linear-gradient(155deg,#151515,#101010);box-shadow:inset 0 1px 3px #0008;color:var(--cat-text);line-height:1.5;transition:border-color .18s ease,box-shadow .18s ease}
+.message-composer textarea:focus{border-color:#d7b51c;box-shadow:0 0 0 3px #f4c40020,inset 0 1px 3px #0008}
+.message-composer textarea::placeholder{color:#b8ad82;opacity:1}
 .message-composer>.primary-button{height:48px;min-width:86px;border-radius:15px}
 .chatcat-actions{gap:7px}
 .chatcat-actions button,.chatcat-stickers button,.chatcat-actions .chatcat-action{width:42px;height:42px;border-radius:13px;background:linear-gradient(150deg,#292929,#171717);box-shadow:inset 0 1px #ffffff0d}
