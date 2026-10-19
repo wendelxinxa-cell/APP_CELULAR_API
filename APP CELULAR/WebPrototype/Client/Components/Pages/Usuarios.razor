@@ -208,7 +208,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
     }
 
     private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Ativo ? $"Ativo · empresa {usuario.EmpresaId ?? 0}" : "Acesso desativado";
+        usuario.Ativo ? "Ativo" : "Acesso desativado";
 
     private sealed class ConviteForm
     {

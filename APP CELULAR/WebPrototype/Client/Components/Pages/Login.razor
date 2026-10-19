@@ -14,7 +14,25 @@
     <section class="login-card">
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
-        @if (senhaAtualizada)
+        @if (modoConfirmarEmail)
+        {
+            <h1>@(emailCadastroConfirmado ? "E-mail confirmado" : "Confirmando seu e-mail")</h1>
+            @if (emailCadastroConfirmado)
+            {
+                <p class="muted login-intro">Pronto. Seu pedido foi encaminhado para Pendências. Zeus poderá liberar seu acesso; se aprovado, você receberá outro e-mail para criar sua senha.</p>
+                <a class="primary-button login-submit" href="/login">Voltar ao login</a>
+            }
+            else if (!string.IsNullOrWhiteSpace(erro))
+            {
+                <div class="notice error" role="alert">@erro</div>
+                <a class="primary-button login-submit" href="/solicitar-acesso">Solicitar novo link</a>
+            }
+            else
+            {
+                <p class="muted login-intro">Estamos confirmando seu endereço de e-mail…</p>
+            }
+        }
+        else if (senhaAtualizada)
         {
             <h1>Senha atualizada</h1>
             <p class="muted login-intro">Sua senha foi redefinida. Entre novamente com a nova senha.</p>
@@ -72,8 +90,8 @@
 
         <EditForm Model="form" OnValidSubmit="EntrarAsync">
             <div class="field">
-                <label for="username">E-mail da conta Supabase</label>
-                <input id="username" type="email" @bind="form.Email" autocomplete="username" placeholder="voce@exemplo.com" />
+                <label for="username">E-mail ou apelido</label>
+                <input id="username" type="text" @bind="form.Email" autocomplete="username" placeholder="E-mail ou apelido cadastrado" />
             </div>
             <div class="field">
                 <label for="password">Senha</label>
@@ -95,7 +113,7 @@
 
         <div class="demo-hint">
             <span class="hint-icon">i</span>
-            <div><strong>Acesso Supabase</strong><br />Empresa definida na configuração do serviço.<br />Use uma conta criada e vinculada pelo administrador.</div>
+            <div><strong>Acesso CATCHAT</strong><br />Entre com e-mail ou apelido aprovado por Zeus.<br />Use a senha criada pelo convite recebido por e-mail.</div>
         </div>
         <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase.</p>
         <p class="login-register"><button class="text-button" type="button" @onclick="AbrirRecuperacao">Esqueci minha senha</button> · <a href="/solicitar-acesso">Solicitar acesso</a></p>
@@ -121,14 +139,17 @@
     private bool solicitandoRecuperacao;
     private bool salvandoSenha;
     private bool senhaAtualizada;
+    private bool modoConfirmarEmail;
+    private bool emailCadastroConfirmado;
     private string? erro;
     private string? mensagemRecuperacao;
     private readonly NovaSenhaForm novaSenhaForm = new();
 
     protected override void OnInitialized()
     {
-        modoSolicitarRecuperacao = Navigation.ToAbsoluteUri(Navigation.Uri).Query
-            .Contains("recovery=1", StringComparison.OrdinalIgnoreCase);
+        var currentUri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        modoSolicitarRecuperacao = currentUri.Query.Contains("recovery=1", StringComparison.OrdinalIgnoreCase);
+        modoConfirmarEmail = currentUri.Query.Contains("confirmarEmail=1", StringComparison.OrdinalIgnoreCase);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -138,6 +159,13 @@
 
         try
         {
+            if (modoConfirmarEmail)
+            {
+                await Portal.ConfirmarEmailCadastroAsync();
+                emailCadastroConfirmado = true;
+                StateHasChanged();
+                return;
+            }
             modoRecuperacao = await Portal.EstaEmRecuperacaoSenhaAsync();
             if (modoRecuperacao)
             {
