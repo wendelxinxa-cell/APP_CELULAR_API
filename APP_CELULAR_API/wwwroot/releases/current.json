@@ -1,7 +1,7 @@
 {
   "version": "0.0.001",
-  "build": 38,
-  "fileName": "CATCHAT_0.0.001_build_38.apk",
-  "sha256": "CD79617D83E986E93E163BE145A182E8BD524B7E64813B83BAD31A1E286B0BCB",
-  "notes": "Ajustes de login e acesso por Supabase."
+  "build": 41,
+  "fileName": "CATCHAT_0.0.001_build_41.apk",
+  "sha256": "C114D120FCD51F3C1CAF59F4F275BD0E0F9190034B91DBACAA742B5E811FD199",
+  "notes": "CATCHAT build 41: cadastro padronizado com username e e-mail; Zeus pode editar e reativar usuários."
 }

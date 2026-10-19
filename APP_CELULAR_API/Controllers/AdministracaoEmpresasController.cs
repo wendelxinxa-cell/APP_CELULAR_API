@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
-using System.Text;
 using System.Net.Mail;
+using System.Text;
 using APP_CELULAR_API.Models;
 using APP_CELULAR_API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -418,11 +418,13 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresa.Id));
                 await db.OpenAsync();
                 await GarantirColunaTipoNegocio(db);
+                await GarantirColunasIdentidadeUsuario(db);
                 etapa = "consulta de usuário e aparelho";
                 const string sql = """
                     SELECT u.id,u.id_local,u.nome,u.funcao,COALESCE(u.aprovado,FALSE),
                            (COALESCE(u.excluido,FALSE) OR COALESCE(u.bloqueado_por_master,FALSE)),
-                           COALESCE(u.tipo_negocio,'sucata'),
+                           CASE WHEN COALESCE(u.tipo_negocio,'comercial')='sucata' THEN 'comercial' ELSE COALESCE(u.tipo_negocio,'comercial') END,
+                           COALESCE(u.username,''),COALESCE(u.email,''),
                            EXISTS (SELECT 1 FROM app.dispositivo d WHERE d.empresa_id=u.empresa_id
                                AND (d.usuario_id=u.id OR d.usuario_id_solicitado=u.id)
                                AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL))
@@ -432,19 +434,19 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, bool AparelhoPendente)>();
+                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, string Username, string Email, bool AparelhoPendente)>();
                 while (await reader.ReadAsync())
                     linhas.Add((reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt32(1),
                         reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetBoolean(7)));
+                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetBoolean(9)));
                 await reader.CloseAsync();
 
                 var emails = await ObterEmailsVinculados(empresa.Id, linhas.Select(x => x.Id).ToArray());
                 foreach (var linha in linhas)
                     usuarios.Add(new { id = linha.Id, idLocal = linha.IdLocal, empresaId = empresa.Id, empresa = empresa.Nome,
                         nome = linha.Nome, funcao = linha.Funcao, aprovado = linha.Aprovado, bloqueado = linha.Bloqueado,
-                        tipoNegocio = linha.TipoNegocio, aparelhoPendente = linha.AparelhoPendente,
-                        email = emails.GetValueOrDefault(linha.Id, "") });
+                        tipoNegocio = linha.TipoNegocio, username = linha.Username, aparelhoPendente = linha.AparelhoPendente,
+                        email = string.IsNullOrWhiteSpace(linha.Email) ? emails.GetValueOrDefault(linha.Id, "") : linha.Email });
             }
             return Ok(usuarios);
         }
@@ -647,7 +649,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
             await db.OpenAsync();
-            const string sql = "UPDATE app.usuario SET bloqueado_por_master=@bloqueado WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE));";
+            const string sql = "UPDATE app.usuario SET bloqueado_por_master=@bloqueado, excluido=CASE WHEN @bloqueado THEN COALESCE(excluido,FALSE) ELSE FALSE END WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome, (COALESCE(excluido,FALSE) OR COALESCE(bloqueado_por_master,FALSE));";
             await using var cmd = new NpgsqlCommand(sql, db);
             cmd.Parameters.AddWithValue("bloqueado", request.Bloqueado);
             cmd.Parameters.AddWithValue("id", id);
@@ -662,6 +664,46 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             _logger.LogError(ex, "Falha ao alterar bloqueio do usuário {UsuarioId} na empresa {EmpresaId}.", id, empresaId);
             return StatusCode(503, new { mensagem = $"Não foi possível alterar o bloqueio do usuário na empresa código {empresaId}." });
+        }
+    }
+
+    [HttpPut("acessos/empresas/{empresaId:long}/usuarios/{id:long}/identidade")]
+    public async Task<IActionResult> EditarIdentidadeUsuario(long empresaId, long id, [FromBody] EditarIdentidadeUsuarioRequest request)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        string username = (request.Username ?? "").Trim();
+        string email = (request.Email ?? "").Trim().ToLowerInvariant();
+        string nome = (request.Nome ?? "").Trim();
+        string tipoNegocio = request.TipoNegocio is "chat" or "comercial" ? request.TipoNegocio : "";
+        if (empresaId <= 0 || id <= 0 || username.Length is < 3 or > 40
+            || username.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-')
+            || !MailAddress.TryCreate(email, out var parsedEmail)
+            || !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase)
+            || nome.Length is < 1 or > 120 || string.IsNullOrEmpty(tipoNegocio))
+            return BadRequest(new { mensagem = "Informe username (3 a 40 caracteres), e-mail válido, nome (até 120 caracteres) e tipo Chat ou Comercial." });
+        try
+        {
+            await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+            await db.OpenAsync();
+            await GarantirColunasIdentidadeUsuario(db);
+            const string duplicado = "SELECT EXISTS(SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id<>@id AND COALESCE(excluido,FALSE)=FALSE AND (lower(username)=lower(@username) OR lower(email)=lower(@email)));";
+            await using (var check = new NpgsqlCommand(duplicado, db))
+            {
+                check.Parameters.AddWithValue("empresaId", empresaId); check.Parameters.AddWithValue("id", id);
+                check.Parameters.AddWithValue("username", username); check.Parameters.AddWithValue("email", email);
+                if ((bool)(await check.ExecuteScalarAsync() ?? false)) return Conflict(new { mensagem = "Username ou e-mail já está em uso nesta empresa." });
+            }
+            const string sql = "UPDATE app.usuario SET username=@username,email=@email,nome=@nome,tipo_negocio=@tipoNegocio,data_alteracao=NOW() WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING id;";
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("username", username); cmd.Parameters.AddWithValue("email", email); cmd.Parameters.AddWithValue("nome", nome);
+            cmd.Parameters.AddWithValue("tipoNegocio", tipoNegocio); cmd.Parameters.AddWithValue("id", id); cmd.Parameters.AddWithValue("empresaId", empresaId);
+            if (await cmd.ExecuteScalarAsync() is null) return NotFound(new { mensagem = "Usuário não encontrado ou protegido como administrador Master." });
+            return Ok(new { sucesso = true, id, empresaId, username, email, nome, tipoNegocio });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao editar identidade do usuário {UsuarioId} na empresa {EmpresaId}.", id, empresaId);
+            return StatusCode(503, new { mensagem = "Não foi possível editar o usuário. Confira a configuração do banco." });
         }
     }
 
@@ -742,6 +784,22 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     private static async Task GarantirColunaTipoNegocio(NpgsqlConnection db)
     {
         await using var cmd = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata';", db);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task GarantirColunasIdentidadeUsuario(NpgsqlConnection db)
+    {
+        const string sql = """
+            ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS username TEXT NULL;
+            ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS email TEXT NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_usuario_empresa_username_ativo
+                ON app.usuario (empresa_id, lower(trim(username)))
+                WHERE username IS NOT NULL AND trim(username)<>'' AND COALESCE(excluido,FALSE)=FALSE;
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_usuario_empresa_email_ativo
+                ON app.usuario (empresa_id, lower(trim(email)))
+                WHERE email IS NOT NULL AND trim(email)<>'' AND COALESCE(excluido,FALSE)=FALSE;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -1038,6 +1096,14 @@ public sealed class TipoNegocioUsuarioRequest
 public sealed class BloqueioUsuarioRequest
 {
     public bool Bloqueado { get; set; }
+}
+
+public sealed class EditarIdentidadeUsuarioRequest
+{
+    public string Username { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public string TipoNegocio { get; set; } = "comercial";
 }
 
 public sealed class MasterChatConversaResponse
