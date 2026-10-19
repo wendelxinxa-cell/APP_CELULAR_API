@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Net.Http.Json;
 
 namespace APP_CELULAR_API.Controllers;
 
@@ -14,15 +16,102 @@ public class AutenticacaoController : ControllerBase
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _sessions;
     private readonly ILogger<AutenticacaoController> _logger;
+    private readonly IConfiguration _configuration;
 
     public AutenticacaoController(
         IEmpresaDatabaseResolver resolver,
         TenantSessionStore sessions,
-        ILogger<AutenticacaoController> logger)
+        ILogger<AutenticacaoController> logger,
+        IConfiguration configuration)
     {
         _resolver = resolver;
         _sessions = sessions;
         _logger = logger;
+        _configuration = configuration;
+    }
+
+    [HttpPost("login-supabase")]
+    public async Task<IActionResult> LoginSupabase([FromBody] LoginSupabaseApiRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        if (request.EmpresaId <= 0 || string.IsNullOrWhiteSpace(request.Identificador) || string.IsNullOrWhiteSpace(request.Senha) || request.ChaveInstalacao == Guid.Empty)
+            return BadRequest(new { mensagem = "Informe apelido ou e-mail, senha, empresa e identidade deste aparelho." });
+
+        var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        try
+        {
+            using var loginRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/functions/v1/master-user-invite")
+            {
+                Content = JsonContent.Create(new { action = "signIn", identificador = request.Identificador.Trim(), senha = request.Senha, empresaId = request.EmpresaId })
+            };
+            loginRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            loginRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", anonKey);
+            using var loginResponse = await clients.CreateClient().SendAsync(loginRequest);
+            using var loginJson = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
+            if (!loginResponse.IsSuccessStatusCode)
+            {
+                var message = loginJson.RootElement.TryGetProperty("message", out var errorMessage) ? errorMessage.GetString() : null;
+                return Unauthorized(new { codigo = "AUTH_SUPABASE", mensagem = message ?? "Apelido/e-mail ou senha incorretos." });
+            }
+            if (!loginJson.RootElement.TryGetProperty("session", out var tokenSession) ||
+                !tokenSession.TryGetProperty("access_token", out var accessTokenElement))
+                return StatusCode(502, new { mensagem = "O Supabase não retornou uma sessão válida." });
+            var accessToken = accessTokenElement.GetString();
+            if (string.IsNullOrWhiteSpace(accessToken)) return StatusCode(502, new { mensagem = "O Supabase não retornou uma sessão válida." });
+
+            using var identityRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/rpc/obter_identidade")
+            {
+                Content = JsonContent.Create(new { p_empresa_id = request.EmpresaId })
+            };
+            identityRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            identityRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            using var identityResponse = await clients.CreateClient().SendAsync(identityRequest);
+            if (!identityResponse.IsSuccessStatusCode) return StatusCode(502, new { mensagem = "Não foi possível validar o vínculo Supabase." });
+            using var identityJson = JsonDocument.Parse(await identityResponse.Content.ReadAsStringAsync());
+            var identity = identityJson.RootElement.ValueKind == JsonValueKind.Array && identityJson.RootElement.GetArrayLength() > 0
+                ? identityJson.RootElement[0] : default;
+            if (identity.ValueKind != JsonValueKind.Object || !identity.TryGetProperty("usuario_id", out var idElement) || !idElement.TryGetInt64(out var usuarioId))
+                return StatusCode(403, new { codigo = "USUARIO_NAO_VINCULADO", mensagem = "Este apelido ainda não foi aprovado e vinculado por Zeus para esta empresa." });
+
+            string connectionString;
+            try { connectionString = await _resolver.ObterConnectionString(request.EmpresaId); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Database configuration could not be resolved for company {EmpresaId}. Reason: {Reason}", request.EmpresaId, ex.Message);
+                return StatusCode(503, new { mensagem = "Configuração do banco da empresa incompleta ou inválida." });
+            }
+
+            await using var db = new NpgsqlConnection(connectionString);
+            await db.OpenAsync();
+            await GarantirColunaTipoNegocio(db);
+            const string sql = "SELECT id, COALESCE(eh_master,FALSE), upper(trim(COALESCE(funcao,''))), COALESCE(aprovado,TRUE), COALESCE(excluido,FALSE), COALESCE(bloqueado_por_master,FALSE), COALESCE(tipo_negocio,'sucata'), trim(nome) FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId LIMIT 1;";
+            await using var cmd = new NpgsqlCommand(sql, db);
+            cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return NotFound(new { codigo = "USUARIO_NAO_CADASTRADO", mensagem = "O usuário vinculado não existe nesta empresa." });
+            long legacyId = reader.GetInt64(0);
+            bool ehMaster = reader.GetBoolean(1);
+            string funcao = reader.GetString(2);
+            bool aprovado = reader.GetBoolean(3);
+            bool excluido = reader.GetBoolean(4);
+            bool bloqueado = reader.GetBoolean(5);
+            string tipoNegocio = reader.GetString(6);
+            string nome = reader.GetString(7);
+            await reader.CloseAsync();
+            if (excluido || bloqueado) return StatusCode(403, new { codigo = "USUARIO_BLOQUEADO", mensagem = "Este usuário está bloqueado. Solicite liberação a Zeus." });
+            if (!aprovado) return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Este usuário aguarda aprovação da empresa." });
+
+            var (dispositivoId, dispositivoAtivo) = await ObterOuSolicitarDispositivo(db, request.EmpresaId, legacyId, request.ChaveInstalacao, request.NomeDispositivo);
+            if (!dispositivoAtivo) return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação de Zeus." });
+            var (token, session) = _sessions.Create(request.EmpresaId, legacyId, ehMaster || funcao == "ADMINISTRADOR", dispositivoId);
+            return Ok(new LoginApiResponse { Nome = nome, Token = token, EmpresaId = session.EmpresaId, UsuarioId = session.UsuarioId, DispositivoId = session.DispositivoId, Funcao = funcao, TipoNegocio = tipoNegocio == "chat" ? "chat" : "sucata", EhMaster = ehMaster, ExpiraEm = session.ExpiresAt });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha no login com Supabase para empresa {EmpresaId}.", request.EmpresaId);
+            return StatusCode(503, new { mensagem = "Não foi possível autenticar pelo Supabase. Confira a conexão e tente novamente." });
+        }
     }
 
     [HttpPost("login")]

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
 namespace APP_CELULAR_API.Controllers;
@@ -44,7 +45,25 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
         build = 0;
         codigoVersao = 0;
 
-        if (!int.TryParse(configuration["AppUpdate:Build"], out build) ||
+        var manifesto = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", "current.json");
+        if (System.IO.File.Exists(manifesto))
+        {
+            try
+            {
+                using var json = JsonDocument.Parse(System.IO.File.ReadAllText(manifesto));
+                var root = json.RootElement;
+                versao = root.GetProperty("version").GetString() ?? string.Empty;
+                build = root.GetProperty("build").GetInt32();
+                arquivo = root.GetProperty("fileName").GetString() ?? string.Empty;
+                hashEsperado = root.GetProperty("sha256").GetString() ?? string.Empty;
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException or KeyNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        if ((build == 0 && !int.TryParse(configuration["AppUpdate:Build"], out build)) ||
             build is < 1 or > 99 ||
             string.IsNullOrWhiteSpace(versao) || string.IsNullOrWhiteSpace(arquivo) ||
             Path.GetFileName(arquivo) != arquivo ||
