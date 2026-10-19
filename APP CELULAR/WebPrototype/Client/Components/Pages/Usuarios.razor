@@ -37,7 +37,15 @@ else if (Portal.Autenticado && Portal.EhZeus)
                         <label>E-mail<input @bind="form.Email" type="email" maxlength="254" autocomplete="email" required /></label>
                         @if (!form.Master)
                         {
-                            <label>ID do usuário existente no CATCHAT<input @bind="form.UsuarioId" type="number" min="1" required /></label>
+                            <label>Usuário CATCHAT para vincular
+                                <select @bind="form.UsuarioId" required>
+                                    <option value="0">Selecione pelo nome</option>
+                                    @foreach (var user in usuariosEmpresa.Where(user => user.EmpresaId == Portal.Sessao!.EmpresaId))
+                                    {
+                                        <option value="@user.Id">@user.Nome · @user.Funcao</option>
+                                    }
+                                </select>
+                            </label>
                         }
                     </div>
                     <label class="user-master-choice">
@@ -93,6 +101,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
 @code {
     private readonly ConviteForm form = new();
     private List<UsuarioAuthGerenciavel> usuarios = [];
+    private List<UsuarioEmpresaDisponivel> usuariosEmpresa = [];
     private bool carregando = true;
     private bool processando;
     private bool falha;
@@ -121,6 +130,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
         try
         {
             usuarios = await Portal.ListarUsuariosGerenciaveisAsync();
+            usuariosEmpresa = await Portal.ListarUsuariosEmpresaAsync();
             aviso = null;
             falha = false;
         }
@@ -139,12 +149,14 @@ else if (Portal.Autenticado && Portal.EhZeus)
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome) || (!form.Master && form.UsuarioId <= 0))
         {
             falha = true;
-            aviso = form.Master ? "Informe nome e e-mail válidos." : "Informe nome, e-mail e o ID do usuário CATCHAT.";
+            aviso = form.Master ? "Informe nome e e-mail válidos." : "Informe nome, e-mail e selecione o usuário CATCHAT pelo nome.";
             return;
         }
+        var user = form.Master ? null : usuariosEmpresa.FirstOrDefault(user => user.Id == form.UsuarioId && user.EmpresaId == Portal.Sessao!.EmpresaId);
+        if (!form.Master && user is null) { falha = true; aviso = "Selecione um usuário CATCHAT disponível nesta empresa."; return; }
         var descricaoAcesso = form.Master
             ? $"Enviar convite para {email} e conceder a função Zeus master global no Supabase?"
-            : $"Enviar convite para {email} e vinculá-lo ao usuário CATCHAT ID {form.UsuarioId}?";
+            : $"Enviar convite para {email} e vinculá-lo ao usuário CATCHAT {user!.Nome}?";
         if (!await JS.InvokeAsync<bool>("confirm", descricaoAcesso)) return;
 
         processando = true;
@@ -155,12 +167,13 @@ else if (Portal.Autenticado && Portal.EhZeus)
             await Portal.ConvidarUsuarioAsync(email, nome, form.Master, Portal.Sessao!.EmpresaId, form.Master ? null : form.UsuarioId);
             aviso = form.Master
                 ? $"Convite enviado para {email}; a função master global foi ativada. A pessoa deverá definir a própria senha pelo e-mail."
-                : $"Convite enviado para {email} e vinculado ao usuário CATCHAT ID {form.UsuarioId}. A pessoa deverá definir a própria senha pelo e-mail.";
+                : $"Convite enviado para {email} e vinculado a {user!.Nome}. A pessoa deverá definir a própria senha pelo e-mail.";
             form.Nome = "";
             form.Email = "";
             form.UsuarioId = 0;
             form.Master = false;
             usuarios = await Portal.ListarUsuariosGerenciaveisAsync();
+            usuariosEmpresa = await Portal.ListarUsuariosEmpresaAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {

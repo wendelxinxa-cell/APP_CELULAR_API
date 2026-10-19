@@ -11,19 +11,19 @@
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
         <h1>Solicitar acesso</h1>
-        <p class="muted login-intro">Crie sua conta. Zeus receberá a solicitação e liberará o acesso após conferir seu cadastro.</p>
+        <p class="muted login-intro">Informe seus dados. Zeus analisará o pedido e, se aprovado, você receberá um convite para criar sua senha.</p>
 
         @if (enviado)
         {
-            <div class="notice success" role="status">Solicitação enviada. Confirme seu e-mail, se o Supabase pedir, e aguarde a aprovação de Zeus.</div>
+            <div class="notice success" role="status">Pedido enviado. Aguarde a aprovação de Zeus; o convite para criar sua senha chegará por e-mail depois da aprovação.</div>
             <a class="primary-button login-submit" href="/login">Voltar ao login</a>
         }
         else
         {
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
-                <div class="field"><label for="request-name">Nome</label><input id="request-name" @bind="form.Nome" autocomplete="name" maxlength="120" required /></div>
+                <div class="field"><label for="request-name">Apelido para entrar</label><input id="request-name" @bind="form.Nome" autocomplete="nickname" maxlength="120" required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
-                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
+                <div class="field"><label for="request-company">ID da empresa</label><input id="request-company" type="number" @bind="form.EmpresaId" min="1" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -45,9 +45,8 @@
         erro = null;
         try
         {
-            await Portal.SolicitarAcessoAsync(form.Email, form.Senha, form.Nome);
+            await Portal.SolicitarAcessoAsync(form.Email, form.Nome, form.EmpresaId);
             enviado = true;
-            form.Senha = "";
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
@@ -60,6 +59,6 @@
     {
         public string Nome { get; set; } = "";
         public string Email { get; set; } = "";
-        public string Senha { get; set; } = "";
+        public long EmpresaId { get; set; }
     }
 }

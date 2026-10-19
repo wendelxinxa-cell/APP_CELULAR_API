@@ -1,5 +1,5 @@
 (() => {
-    const state = { client: null, empresaId: 0, bucket: "chat-media", channel: null, passwordRecovery: false };
+    const state = { client: null, empresaId: 0, bucket: "chat-media", apiBaseUrl: "", masterApiToken: null, masterApiTokenExpiresAt: 0, channel: null, passwordRecovery: false };
     const api = {};
     const fail = (error) => { if (error) throw new Error(error.message || String(error)); };
     const row = (data) => Array.isArray(data) ? data[0] : data;
@@ -49,21 +49,23 @@
     api.configureFromPage = () => {
         const config = window.chatcatSupabaseConfig;
         if (!config) throw new Error("O serviço ainda não publicou a configuração pública do Supabase.");
-        api.configure(config.url, config.publishableKey, config.bucket, config.empresaId);
+        api.configure(config.url, config.publishableKey, config.bucket, config.empresaId, config.apiBaseUrl);
     };
 
-    api.configure = (url, publishableKey, bucket, empresaId) => {
+    api.configure = (url, publishableKey, bucket, empresaId, apiBaseUrl) => {
         if (!window.supabase?.createClient) throw new Error("A biblioteca Supabase não carregou. Recarregue a página.");
         if (!url || !publishableKey || !empresaId) throw new Error("Configuração Supabase incompleta.");
         state.empresaId = Number(empresaId);
         state.bucket = bucket || "chat-media";
+        state.apiBaseUrl = (apiBaseUrl || "https://app-celular-api-test.onrender.com").replace(/\/$/, "");
         if (!state.client) {
-            state.passwordRecovery = new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
+            const linkType = new URLSearchParams(window.location.hash.slice(1)).get("type");
+            state.passwordRecovery = linkType === "recovery" || linkType === "invite";
             state.client = window.supabase.createClient(url, publishableKey, {
                 auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storageKey: "chatcat-supabase-auth" }
             });
             state.client.auth.onAuthStateChange(event => {
-                if (event === "PASSWORD_RECOVERY") state.passwordRecovery = true;
+                if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && new URLSearchParams(window.location.hash.slice(1)).get("type") === "invite")) state.passwordRecovery = true;
             });
         }
     };
@@ -80,8 +82,18 @@
 
     api.signIn = async (email, password) => {
         const client = getClient();
-        const { data, error } = await client.auth.signInWithPassword({ email, password });
-        fail(error);
+        let data;
+        if (email.includes("@")) {
+            const { data: result, error } = await client.auth.signInWithPassword({ email, password });
+            fail(error);
+            data = result;
+        } else {
+            const result = await invokeMasterInvite({ action: "signIn", identificador: email.trim(), senha: password, empresaId: state.empresaId });
+            if (!result.session?.access_token || !result.session?.refresh_token) throw new Error("Não foi possível iniciar a sessão com esse apelido.");
+            const { data: sessionData, error } = await client.auth.setSession({ access_token: result.session.access_token, refresh_token: result.session.refresh_token });
+            fail(error);
+            data = sessionData;
+        }
         try { return toSession(data.session, await getIdentity()); }
         catch (error) { await client.auth.signOut({ scope: "local" }); throw error; }
     };
@@ -107,17 +119,21 @@
         await client.auth.signOut({ scope: "local" });
     };
 
-    api.signUp = async (email, password, name) => {
-        const { data, error } = await getClient().auth.signUp({
-            email: email.trim(), password,
-            options: { data: { nome: name.trim() }, emailRedirectTo: window.location.origin }
-        });
-        fail(error);
-        // The database trigger records the pending request even when Supabase
-        // requires email confirmation and therefore returns no active session.
-        if (data.session) await getClient().auth.signOut({ scope: "local" });
-        return { confirmationRequired: !data.session };
+    const invokeMasterInvite = async body => {
+        const { data, error } = await getClient().functions.invoke("master-user-invite", { body });
+        if (error) {
+            let detail = error.message || "Falha na função de cadastro.";
+            try { const response = error.context; if (response?.json) { const payload = await response.json(); if (payload?.message) detail = payload.message; } } catch { }
+            throw new Error(detail);
+        }
+        if (data?.message && !data.ok) throw new Error(data.message);
+        return data;
     };
+
+    api.requestSignup = async (email, name, companyId) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: companyId });
+    api.listSignupRequests = async () => (await invokeMasterInvite({ action: "listSignupRequests" })).requests || [];
+    api.approveSignupRequest = async (requestId, userId) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId }); };
+    api.rejectSignupRequest = async requestId => { await invokeMasterInvite({ action: "rejectSignupRequest", requestId }); };
 
     api.isZeus = async () => {
         const { data, error } = await getClient().schema("chat").rpc("eh_zeus");
@@ -134,6 +150,68 @@
         }));
     };
 
+    const getMasterApiToken = async () => {
+        if (state.masterApiToken && Date.now() < state.masterApiTokenExpiresAt - 60000) return state.masterApiToken;
+        const { data, error } = await getClient().auth.getSession();
+        fail(error);
+        const supabaseToken = data.session?.access_token;
+        if (!supabaseToken) throw new Error("Entre novamente como Zeus para carregar as aprovações.");
+        const response = await fetch(`${state.apiBaseUrl}/api/administracao/master/sessao-supabase`, {
+            method: "POST", headers: { Authorization: `Bearer ${supabaseToken}` }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || "Não foi possível validar o acesso Zeus na API.");
+        state.masterApiToken = result.token;
+        state.masterApiTokenExpiresAt = result.expiraEm ? new Date(result.expiraEm).getTime() : Date.now() + 3600000;
+        return state.masterApiToken;
+    };
+
+    const masterApiFetch = async (path, method = "GET") => {
+        const token = await getMasterApiToken();
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
+        return result;
+    };
+
+    api.listPendingUserDevices = async () => {
+        const data = await masterApiFetch("/api/administracao/acessos/pendentes");
+        const pendingUsers = new Map((data.usuarios || []).map(user => [`${user.empresaId}:${user.id}`, user]));
+        const rows = (data.dispositivos || []).filter(device => device.usuarioId != null).map(device => {
+            const user = pendingUsers.get(`${device.empresaId}:${device.usuarioId}`);
+            return {
+                empresaId: device.empresaId, empresa: device.empresa, dispositivoId: device.id,
+                usuarioId: device.usuarioId, usuarioPendenteId: user?.id ?? null,
+                usuario: device.usuario, dispositivo: device.nome,
+                tipo: device.descricao === "Novo aparelho" ? "Novo vínculo pendente" : "Troca de aparelho pendente",
+                criadoEm: device.criadoEm
+            };
+        });
+        const pairedUsers = new Set(rows.filter(row => row.usuarioPendenteId != null).map(row => `${row.empresaId}:${row.usuarioPendenteId}`));
+        for (const user of (data.usuarios || [])) {
+            if (pairedUsers.has(`${user.empresaId}:${user.id}`)) continue;
+            rows.push({ empresaId: user.empresaId, empresa: user.empresa, usuarioPendenteId: user.id,
+                usuarioId: user.id, usuario: user.nome, dispositivo: "Aparelho ainda não solicitado",
+                tipo: "Usuário pendente · aguardando aparelho", criadoEm: user.criadoEm, semDispositivo: true });
+        }
+        return rows.sort((a, b) => new Date(a.criadoEm || 0) - new Date(b.criadoEm || 0));
+    };
+
+    api.listCompanyUsers = async () => {
+        const users = await masterApiFetch("/api/administracao/acessos/usuarios");
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao }))
+            .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
+    };
+
+    api.approvePendingUserDevice = async request => {
+        if (request.usuarioPendenteId != null) {
+            await masterApiFetch(`/api/administracao/acessos/empresas/${request.empresaId}/usuarios/${request.usuarioPendenteId}/aprovar`, "POST");
+        }
+        if (request.dispositivoId != null) {
+            await masterApiFetch(`/api/administracao/acessos/empresas/${request.empresaId}/dispositivos/${request.dispositivoId}/aprovar`, "POST");
+        }
+    };
+
     api.approveAccessRequest = async (authUid, userId) => {
         const { error } = await getClient().schema("chat").rpc("aprovar_solicitacao_acesso", {
             p_auth_uid: authUid, p_usuario_id: userId
@@ -148,6 +226,9 @@
 
     api.listManagedUsers = async () => {
         const { data, error } = await getClient().schema("chat").rpc("listar_usuarios_gerenciaveis");
+        if (error?.code === "PGRST202" || /Could not find the function chat\.listar_usuarios_gerenciaveis/i.test(error?.message || "")) {
+            throw new Error("A gestão de usuários ainda não foi habilitada neste Supabase. Aplique a migração database/032_master_user_management.sql e tente novamente.");
+        }
         fail(error);
         return (data || []).map(item => ({
             authUid: item.auth_uid, email: item.email, nome: item.nome,
@@ -171,11 +252,7 @@
     };
 
     api.inviteManagedUser = async (email, name, isMaster, empresaId, usuarioId) => {
-        const { data, error } = await getClient().functions.invoke("master-user-invite", {
-            body: { email, nome: name, master: isMaster, empresaId, usuarioId }
-        });
-        fail(error);
-        return data;
+        return await invokeMasterInvite({ email, nome: name, master: isMaster, empresaId, usuarioId });
     };
 
     api.signOut = async () => {

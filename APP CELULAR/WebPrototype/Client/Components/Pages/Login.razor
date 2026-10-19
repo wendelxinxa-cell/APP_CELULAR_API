@@ -72,8 +72,8 @@
 
         <EditForm Model="form" OnValidSubmit="EntrarAsync">
             <div class="field">
-                <label for="username">E-mail da conta Supabase</label>
-                <input id="username" type="email" @bind="form.Email" autocomplete="username" placeholder="voce@exemplo.com" />
+                <label for="username">E-mail ou apelido</label>
+                <input id="username" type="text" @bind="form.Email" autocomplete="username" placeholder="E-mail ou apelido cadastrado" />
             </div>
             <div class="field">
                 <label for="password">Senha</label>
@@ -95,7 +95,7 @@
 
         <div class="demo-hint">
             <span class="hint-icon">i</span>
-            <div><strong>Acesso Supabase</strong><br />Empresa definida na configuração do serviço.<br />Use uma conta criada e vinculada pelo administrador.</div>
+            <div><strong>Acesso CATCHAT</strong><br />Entre com e-mail ou apelido aprovado por Zeus.<br />Use a senha criada pelo convite recebido por e-mail.</div>
         </div>
         <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase.</p>
         <p class="login-register"><button class="text-button" type="button" @onclick="AbrirRecuperacao">Esqueci minha senha</button> · <a href="/solicitar-acesso">Solicitar acesso</a></p>
