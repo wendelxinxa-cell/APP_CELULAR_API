@@ -131,6 +131,15 @@
     };
 
     api.requestSignup = async (email, name, companyId) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: companyId });
+    api.confirmSignupEmail = async () => {
+        const client = getClient();
+        const { data, error } = await client.auth.getSession();
+        fail(error);
+        if (!data.session) throw new Error("O link de confirmação expirou ou já foi usado. Solicite outro e-mail de confirmação.");
+        await invokeMasterInvite({ action: "confirmSignupEmail" });
+        await client.auth.signOut({ scope: "local" });
+        return true;
+    };
     api.listSignupRequests = async () => (await invokeMasterInvite({ action: "listSignupRequests" })).requests || [];
     api.approveSignupRequest = async (requestId, userId) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId }); };
     api.rejectSignupRequest = async requestId => { await invokeMasterInvite({ action: "rejectSignupRequest", requestId }); };

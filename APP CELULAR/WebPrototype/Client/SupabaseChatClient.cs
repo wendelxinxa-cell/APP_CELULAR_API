@@ -46,6 +46,12 @@ public sealed class SupabaseChatClient(IJSRuntime js)
         await InvokeVoidAsync("appCelular.supabase.requestSignup", email.Trim(), nome.Trim(), empresaId);
     }
 
+    public async Task ConfirmarEmailCadastroAsync()
+    {
+        await InicializarAsync();
+        await InvokeVoidAsync("appCelular.supabase.confirmSignupEmail");
+    }
+
     public Task<bool> EhZeusAsync() => InvokeAsync<bool>("appCelular.supabase.isZeus");
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => InvokeAsync<List<SolicitacaoAcesso>>("appCelular.supabase.listAccessRequests");
     public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", authUid, usuarioId);
@@ -153,6 +159,7 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task EnviarAcaoVisualAsync(long contatoId, string tipo, string simbolo) => supabase.EnviarAcaoVisualAsync(contatoId, tipo, simbolo);
     public Task<List<AcaoVisualConversa>> ObterAcoesVisuaisAsync(long contatoId) => supabase.ObterAcoesVisuaisAsync(contatoId);
     public Task SolicitarAcessoAsync(string email, string nome, long empresaId) => supabase.SolicitarAcessoAsync(email, nome, empresaId);
+    public Task ConfirmarEmailCadastroAsync() => supabase.ConfirmarEmailCadastroAsync();
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => supabase.ListarSolicitacoesAsync();
     public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => supabase.AprovarSolicitacaoAsync(authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => supabase.RecusarSolicitacaoAsync(authUid);

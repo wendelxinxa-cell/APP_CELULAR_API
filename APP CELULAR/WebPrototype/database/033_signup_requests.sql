@@ -7,11 +7,13 @@ CREATE TABLE IF NOT EXISTS chat.solicitacao_cadastro
     empresa_id BIGINT NOT NULL CHECK (empresa_id > 0),
     status TEXT NOT NULL DEFAULT 'PENDENTE' CHECK (status IN ('PENDENTE','APROVADO','RECUSADO')),
     auth_uid UUID NULL REFERENCES auth.users(id) ON DELETE SET NULL,
+    email_verificado_em TIMESTAMPTZ NULL,
     usuario_id BIGINT NULL,
     criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     analisada_em TIMESTAMPTZ NULL,
     analisada_por UUID NULL REFERENCES auth.users(id) ON DELETE SET NULL
 );
+ALTER TABLE chat.solicitacao_cadastro ADD COLUMN IF NOT EXISTS email_verificado_em TIMESTAMPTZ NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_solicitacao_cadastro_email_pendente
     ON chat.solicitacao_cadastro (lower(email)) WHERE status='PENDENTE';
 ALTER TABLE chat.solicitacao_cadastro ENABLE ROW LEVEL SECURITY;
@@ -30,6 +32,9 @@ BEGIN
     IF p_usuario_id IS NULL OR p_usuario_id <= 0 THEN RAISE EXCEPTION 'Selecione um usuário CATCHAT'; END IF;
     SELECT * INTO v_req FROM chat.solicitacao_cadastro WHERE id=p_request_id AND status='PENDENTE' FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Pedido pendente não encontrado'; END IF;
+    IF v_req.email_verificado_em IS NULL OR v_req.auth_uid IS DISTINCT FROM p_auth_uid THEN
+        RAISE EXCEPTION 'O solicitante ainda não confirmou o e-mail';
+    END IF;
     INSERT INTO chat.usuario_auth (auth_uid,empresa_id,usuario_id,nome,ativo)
         VALUES (p_auth_uid,v_req.empresa_id,p_usuario_id,v_req.nome,TRUE);
     UPDATE chat.solicitacao_cadastro SET status='APROVADO',auth_uid=p_auth_uid,usuario_id=p_usuario_id,
