@@ -49,15 +49,34 @@ Deno.serve(async (request: Request) => {
       const identificador = String(body.identificador ?? "").trim();
       const senha = String(body.senha ?? "");
       if (!identificador || !senha) return json({ message: "Informe apelido e senha." }, 400);
-      const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
       const companyId = Number(body.empresaId);
-      const matches = (listed?.users || []).filter(user => identificador.includes("@")
-        ? user.email?.toLowerCase() === identificador.toLowerCase()
-        : String(user.user_metadata?.nome ?? "").trim().toLowerCase() === identificador.toLowerCase()
-          && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId));
-      if (matches.length !== 1 || !matches[0].email) return json({ message: matches.length > 1 ? "Esse apelido está associado a mais de uma conta. Entre com seu e-mail." : "Apelido não encontrado. Confira o cadastro ou entre com o e-mail." }, 401);
-      const { data: login, error: loginError } = await caller.auth.signInWithPassword({ email: matches[0].email, password: senha });
+      let matchingAuthUids: string[] = [];
+
+      if (Number.isInteger(companyId) && companyId > 0) {
+        const { data: linkedUsers, error: linkedUsersError } = await admin.schema("chat").from("usuario_auth")
+          .select("auth_uid,username,nome,empresa_id")
+          .eq("empresa_id", companyId);
+        if (linkedUsersError) return json({ message: `Não foi possível consultar o apelido na tabela de usuários: ${linkedUsersError.message}` }, 400);
+        matchingAuthUids = (linkedUsers || [])
+          .filter(user => [user.username, user.nome].some(value => String(value ?? "").trim().toLowerCase() === identificador.toLowerCase()))
+          .map(user => String(user.auth_uid ?? ""))
+          .filter(Boolean);
+      }
+
+      // Compatibilidade com contas antigas ainda sem username preenchido na tabela vinculada.
+      if (matchingAuthUids.length === 0) {
+        const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
+        matchingAuthUids = (listed?.users || [])
+          .filter(user => String(user.user_metadata?.username ?? user.user_metadata?.nome ?? "").trim().toLowerCase() === identificador.toLowerCase()
+            && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId))
+          .map(user => user.id);
+      }
+
+      if (matchingAuthUids.length !== 1) return json({ message: matchingAuthUids.length > 1 ? "Esse apelido está associado a mais de uma conta. Entre com seu e-mail." : "Apelido não encontrado. Confira o cadastro ou entre com o e-mail." }, 401);
+      const { data: authUserResult, error: authUserError } = await admin.auth.admin.getUserById(matchingAuthUids[0]);
+      if (authUserError || !authUserResult.user?.email) return json({ message: "Não foi possível localizar o e-mail vinculado a esse apelido. Entre com o e-mail ou solicite ajuda ao Zeus." }, 401);
+      const { data: login, error: loginError } = await caller.auth.signInWithPassword({ email: authUserResult.user.email, password: senha });
       if (loginError || !login.session) return json({ message: "Apelido ou senha incorretos." }, 401);
       return json({ session: { access_token: login.session.access_token, refresh_token: login.session.refresh_token } });
     }
