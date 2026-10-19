@@ -33,6 +33,8 @@ public partial class NovoUsuarioPage : ContentPage
 
         string nome =
             NomeEntry.Text?.Trim() ?? "";
+        string username = nome;
+        string email = EmailEntry.Text?.Trim().ToLowerInvariant() ?? "";
 
         string senha =
             SenhaEntry.Text ?? "";
@@ -83,6 +85,18 @@ public partial class NovoUsuarioPage : ContentPage
         // VALIDAR SENHA
         // =====================================================
 
+        if (username.Length is < 3 or > 40 || username.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-'))
+        {
+            await DisplayAlert("Username inv\u00E1lido", "Use letras, n\u00FAmeros, ponto, h\u00EDfen ou sublinhado (3 a 40 caracteres).", "OK");
+            NomeEntry.Focus();
+            return;
+        }
+        if (!System.Net.Mail.MailAddress.TryCreate(email, out var endereco) || !string.Equals(endereco.Address, email, StringComparison.OrdinalIgnoreCase))
+        {
+            await DisplayAlert("E-mail inv\u00E1lido", "Informe um e-mail v\u00E1lido para o usu\u00E1rio.", "OK");
+            EmailEntry.Focus();
+            return;
+        }
         if (string.IsNullOrWhiteSpace(senha))
         {
             await DisplayAlert(
@@ -95,11 +109,11 @@ public partial class NovoUsuarioPage : ContentPage
         }
 
 
-        if (senha.Length < 4)
+        if (senha.Length < 8)
         {
             await DisplayAlert(
                 "Atenção",
-                "A senha deve possuir pelo menos 4 caracteres.",
+                "A senha deve possuir pelo menos 8 caracteres.",
                 "OK");
 
             SenhaEntry.Focus();
@@ -149,7 +163,7 @@ public partial class NovoUsuarioPage : ContentPage
             // =================================================
 
             bool existe =
-                await _database.ExisteUsuarioComNome(nome);
+                await _database.ExisteUsuarioComIdentificador(username, email) || await _database.ExisteUsuarioComNome(username);
 
             if (existe)
             {
@@ -169,7 +183,9 @@ public partial class NovoUsuarioPage : ContentPage
 
             var usuario = new Usuario
             {
-                Nome = nome,
+                Nome = username,
+                Username = username,
+                Email = email,
                 SenhaHash =
                     _database.CriarHashSenha(senha),
                 Funcao = funcao,

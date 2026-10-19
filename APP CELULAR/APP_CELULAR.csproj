@@ -91,6 +91,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Compile Remove="WebPrototype\**\*.cs" />
+	  <EmbeddedResource Remove="WebPrototype\**\*" />
+	  <Content Remove="WebPrototype\**\*" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Compile Update="NovaCompraPage.xaml.cs">
 	    <DependentUpon>NovaCompraPage.xaml</DependentUpon>
 	  </Compile>

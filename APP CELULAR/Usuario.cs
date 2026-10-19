@@ -9,6 +9,10 @@ public class Usuario
 
     public string Nome { get; set; } = "";
 
+    public string Username { get; set; } = "";
+
+    public string Email { get; set; } = "";
+
     public string SenhaHash { get; set; } = "";
 
     public string Funcao { get; set; } = "USUARIO";

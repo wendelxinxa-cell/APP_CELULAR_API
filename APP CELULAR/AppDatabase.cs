@@ -58,6 +58,9 @@ public class AppDatabase
             "EhMaster",
             "INTEGER NOT NULL DEFAULT 0");
 
+        await AdicionarColunaSeNaoExistir("Usuario", "Username", "TEXT NOT NULL DEFAULT ''");
+        await AdicionarColunaSeNaoExistir("Usuario", "Email", "TEXT NOT NULL DEFAULT ''");
+
         // ============================================================
         // GARANTIR EXISTÊNCIA DO ADMINISTRADOR MASTER
         // ============================================================
@@ -127,6 +130,9 @@ public class AppDatabase
                 precisaAtualizar = true;
             }
 
+            if (master.Username != "zeus") { master.Username = "zeus"; precisaAtualizar = true; }
+            if (master.Email != "wendelxinxa@gmail.com") { master.Email = "wendelxinxa@gmail.com"; precisaAtualizar = true; }
+
             if (!master.EhMaster)
             {
                 master.EhMaster = true;
@@ -153,6 +159,8 @@ public class AppDatabase
         {
             master.EhMaster = true;
             master.Funcao = "ADMINISTRADOR MASTER";
+            master.Username = "zeus";
+            master.Email = "wendelxinxa@gmail.com";
 
             await _database.UpdateAsync(master);
 
@@ -166,6 +174,8 @@ public class AppDatabase
         var novoMaster = new Usuario
         {
             Nome = "ADMINISTRADOR MASTER",
+            Username = "zeus",
+            Email = "wendelxinxa@gmail.com",
             SenhaHash = GerarHashSenha("123a456b"),
             Funcao = "ADMINISTRADOR MASTER",
             EhMaster = true
@@ -360,6 +370,15 @@ public class AppDatabase
                 StringComparison.OrdinalIgnoreCase));
     }
 
+    public async Task<bool> ExisteUsuarioComIdentificador(string username, string email, int idIgnorar = 0)
+    {
+        await Init();
+        var usuarios = await _database!.Table<Usuario>().ToListAsync();
+        return usuarios.Any(x => x.Id != idIgnorar &&
+            (string.Equals(x.Username?.Trim(), username.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(x.Email?.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase)));
+    }
+
 
     public async Task<int> AtualizarUsuario(Usuario usuario)
     {
@@ -428,15 +447,15 @@ public class AppDatabase
     // ============================================================
 
     public async Task<Usuario?> ValidarLogin(
-        string nome,
+        string identificador,
         string senha)
     {
         await Init();
 
-        var usuario = await _database!
-            .Table<Usuario>()
-            .Where(x => x.Nome == nome)
-            .FirstOrDefaultAsync();
+        var usuario = (await _database!.Table<Usuario>().ToListAsync()).FirstOrDefault(x =>
+            string.Equals(x.Username?.Trim(), identificador.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(x.Email?.Trim(), identificador.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            (string.IsNullOrWhiteSpace(x.Username) && string.Equals(x.Nome.Trim(), identificador.Trim(), StringComparison.OrdinalIgnoreCase)));
 
         if (usuario == null)
             return null;

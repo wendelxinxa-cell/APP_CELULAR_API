@@ -47,7 +47,7 @@
             <VerticalStackLayout Padding="20"
                                  Spacing="18">
 
-                <!-- NOME -->
+                <!-- USERNAME -->
                 <Frame Padding="14,8"
                        CornerRadius="12"
                        BackgroundColor="White"
@@ -55,19 +55,26 @@
 
                     <VerticalStackLayout Spacing="3">
 
-                        <Label Text="NOME"
+                        <Label Text="USERNAME"
                                FontSize="12"
                                FontAttributes="Bold"
                                TextColor="#666" />
 
                         <Entry x:Name="NomeEntry"
-                               Placeholder="Digite o nome do usuário"
+                               Placeholder="Escolha seu username"
                                FontSize="16"
                                TextColor="#222"
                                PlaceholderColor="#999" />
 
                     </VerticalStackLayout>
 
+                </Frame>
+
+                <Frame Padding="14,8" CornerRadius="12" BackgroundColor="White" HasShadow="True">
+                    <VerticalStackLayout Spacing="3">
+                        <Label Text="E-MAIL" FontSize="12" FontAttributes="Bold" TextColor="#666" />
+                        <Entry x:Name="EmailEntry" Placeholder="voce@empresa.com" Keyboard="Email" FontSize="16" TextColor="#222" PlaceholderColor="#999" />
+                    </VerticalStackLayout>
                 </Frame>
 
 

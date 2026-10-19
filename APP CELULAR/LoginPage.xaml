@@ -18,7 +18,7 @@
             <!-- Campos de entrada -->
             <Frame CornerRadius="15" BackgroundColor="#F0F0F0" Padding="10">
                 <Entry x:Name="UsernameEntry"
-                       Placeholder="Digite seu usuário"
+                       Placeholder="Username ou e-mail"
                        PlaceholderColor="#888"
                        TextColor="Black" />
             </Frame>
