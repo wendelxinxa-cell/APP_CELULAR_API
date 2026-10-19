@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "37"
+        value: "39"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_37.apk"
+        value: "CATCHAT_0.0.001_build_39.apk"
       - key: AppUpdate__Sha256
-        value: "216ED55B3E0B8E119924D16042FC1DA3AFA3245E2A9C7A610B717FE40BE6D1B7"
+        value: "210ECDC9637B4E84592D3609625BA5CC120F2A8B3E07DFE64C785CA14D27AF63"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 37: cadastro público pelo Razor e recuperação de senha via link."
+        value: "CATCHAT build 39: e-mail associado exibido na lista de usuários."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
@@ -54,6 +54,7 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+
 
 
 
