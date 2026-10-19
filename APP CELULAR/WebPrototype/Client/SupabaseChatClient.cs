@@ -52,6 +52,8 @@ public sealed class SupabaseChatClient(IJSRuntime js)
     public Task RecusarSolicitacaoAsync(string authUid) => InvokeVoidAsync("appCelular.supabase.rejectAccessRequest", authUid);
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() =>
         InvokeAsync<List<UsuarioAuthGerenciavel>>("appCelular.supabase.listManagedUsers");
+    public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() =>
+        InvokeAsync<List<UsuarioEmpresaDisponivel>>("appCelular.supabase.listCompanyUsers");
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) =>
         InvokeVoidAsync("appCelular.supabase.setManagedUserMaster", authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) =>
@@ -151,6 +153,7 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => supabase.AprovarSolicitacaoAsync(authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => supabase.RecusarSolicitacaoAsync(authUid);
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() => supabase.ListarUsuariosGerenciaveisAsync();
+    public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => supabase.ListarUsuariosEmpresaAsync();
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) => supabase.DefinirUsuarioMasterAsync(authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) => supabase.DefinirUsuarioAtivoAsync(authUid, ativo);
     public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
@@ -199,6 +202,15 @@ public sealed class UsuarioAuthGerenciavel
     public bool Ativo { get; set; }
     public bool Master { get; set; }
     public DateTimeOffset CriadoEm { get; set; }
+}
+
+public sealed class UsuarioEmpresaDisponivel
+{
+    public long Id { get; set; }
+    public long EmpresaId { get; set; }
+    public string Empresa { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public string Funcao { get; set; } = "";
 }
 
 public sealed class ConviteUsuarioResponse

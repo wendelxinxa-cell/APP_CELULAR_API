@@ -1,5 +1,5 @@
 (() => {
-    const state = { client: null, empresaId: 0, bucket: "chat-media", channel: null, passwordRecovery: false };
+    const state = { client: null, empresaId: 0, bucket: "chat-media", apiBaseUrl: "https://app-celular-api-test.onrender.com", masterApiToken: null, masterApiTokenExpiresAt: 0, channel: null, passwordRecovery: false };
     const api = {};
     const fail = (error) => { if (error) throw new Error(error.message || String(error)); };
     const row = (data) => Array.isArray(data) ? data[0] : data;
@@ -29,6 +29,28 @@
     const getClient = () => {
         if (!state.client) throw new Error("O Supabase ainda não foi inicializado.");
         return state.client;
+    };
+    const getMasterApiToken = async () => {
+        if (state.masterApiToken && Date.now() < state.masterApiTokenExpiresAt - 60000) return state.masterApiToken;
+        const { data, error } = await getClient().auth.getSession();
+        fail(error);
+        const supabaseToken = data.session?.access_token;
+        if (!supabaseToken) throw new Error("Entre novamente como Zeus para carregar os usuários.");
+        const response = await fetch(`${state.apiBaseUrl}/api/administracao/master/sessao-supabase`, {
+            method: "POST", headers: { Authorization: `Bearer ${supabaseToken}` }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || "Não foi possível validar o acesso Zeus na API.");
+        state.masterApiToken = result.token;
+        state.masterApiTokenExpiresAt = result.expiraEm ? new Date(result.expiraEm).getTime() : Date.now() + 3600000;
+        return state.masterApiToken;
+    };
+    const masterApiFetch = async path => {
+        const token = await getMasterApiToken();
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
+        return result;
     };
     const getIdentity = async () => {
         const client = getClient();
@@ -66,6 +88,12 @@
                 if (event === "PASSWORD_RECOVERY") state.passwordRecovery = true;
             });
         }
+    };
+
+    api.listCompanyUsers = async () => {
+        const users = await masterApiFetch("/api/administracao/acessos/usuarios");
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao }))
+            .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
     };
 
     api.restoreSession = async () => {
