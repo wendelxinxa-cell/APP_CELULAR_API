@@ -49,13 +49,39 @@ Deno.serve(async (request: Request) => {
       const identificador = String(body.identificador ?? "").trim();
       const senha = String(body.senha ?? "");
       if (!identificador || !senha) return json({ message: "Informe apelido e senha." }, 400);
-      const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
       const companyId = Number(body.empresaId);
-      const matches = (listed?.users || []).filter(user => identificador.includes("@")
-        ? user.email?.toLowerCase() === identificador.toLowerCase()
-        : String(user.user_metadata?.nome ?? "").trim().toLowerCase() === identificador.toLowerCase()
-          && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId));
+      if (!Number.isInteger(companyId) || companyId <= 0) return json({ message: "Empresa não configurada para este acesso." }, 400);
+      let matches: Array<{ email: string }> = [];
+      if (identificador.includes("@")) {
+        const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listError) return json({ message: "Não foi possível localizar a conta. Tente novamente." }, 400);
+        matches = (listed?.users || []).filter(user => user.email?.toLowerCase() === identificador.toLowerCase())
+          .flatMap(user => user.email ? [{ email: user.email }] : []);
+      } else {
+        // Apelidos aprovados ficam no vínculo ativo da empresa, não necessariamente em user_metadata.
+        const normalizedIdentifier = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
+        const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
+          .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
+        if (linkedError) return json({ message: "Não foi possível localizar o apelido vinculado à empresa." }, 400);
+        const authUids = (linkedUsers || [])
+          .filter(user => String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier)
+          .map(user => user.auth_uid);
+        for (const authUid of authUids) {
+          const { data: authUser, error: authUserError } = await admin.auth.admin.getUserById(authUid);
+          if (authUserError) return json({ message: "Não foi possível validar o e-mail associado ao apelido." }, 400);
+          if (authUser.user?.email) matches.push({ email: authUser.user.email });
+        }
+        // Mantém compatibilidade com contas master antigas vinculadas apenas por metadados.
+        if (matches.length === 0) {
+          const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+          if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
+          matches = (listed?.users || []).filter(user =>
+            String(user.user_metadata?.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier
+            && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId))
+            .flatMap(user => user.email ? [{ email: user.email }] : []);
+        }
+      }
+      matches = [...new Map(matches.map(user => [user.email.toLowerCase(), user])).values()];
       if (matches.length !== 1 || !matches[0].email) return json({ message: matches.length > 1 ? "Esse apelido está associado a mais de uma conta. Entre com seu e-mail." : "Apelido não encontrado. Confira o cadastro ou entre com o e-mail." }, 401);
       const { data: login, error: loginError } = await caller.auth.signInWithPassword({ email: matches[0].email, password: senha });
       if (loginError || !login.session) return json({ message: "Apelido ou senha incorretos." }, 401);
