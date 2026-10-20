@@ -115,7 +115,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
                             </div>
                             <span class="managed-user-role">@(usuario.Bloqueado ? "BLOQUEADO" : usuario.Aprovado ? "LIBERADO" : "PENDENTE")</span>
                             <button class="secondary-button" type="button" @onclick="() => IniciarEdicao(usuario)" disabled="@processando">Editar</button>
-                            <button class="@(usuario.Bloqueado ? "primary-button" : "danger-button")" type="button" @onclick="() => AlterarUsuarioEmpresaAtivoAsync(usuario, !usuario.Bloqueado)" disabled="@processando">@(usuario.Bloqueado ? "Ativar" : "Desativar")</button>
+                            <button class="@(usuario.Bloqueado ? "primary-button" : "danger-button")" type="button" @onclick="() => AlterarUsuarioEmpresaAtivoAsync(usuario, usuario.Bloqueado)" disabled="@processando">@(usuario.Bloqueado ? "Ativar" : "Desativar")</button>
                             @if (!string.IsNullOrWhiteSpace(usuario.Email))
                             {
                                 <button class="secondary-button" type="button" @onclick="() => SolicitarRedefinicaoAsync(usuario.Email)" disabled="@processando">Redefinir senha</button>
