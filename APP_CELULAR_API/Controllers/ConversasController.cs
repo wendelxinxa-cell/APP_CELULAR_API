@@ -18,13 +18,15 @@ public class ConversasController : ControllerBase
     private readonly TenantSessionStore _sessions;
     private readonly IConfiguration _configuration;
     private readonly ConversaRealtimeConnections _realtime;
+    private readonly ILogger<ConversasController> _logger;
 
-    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions, IConfiguration configuration, ConversaRealtimeConnections realtime)
+    public ConversasController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions, IConfiguration configuration, ConversaRealtimeConnections realtime, ILogger<ConversasController> logger)
     {
         _resolver = resolver;
         _sessions = sessions;
         _configuration = configuration;
         _realtime = realtime;
+        _logger = logger;
     }
 
     [HttpPost("contatos")]
@@ -33,8 +35,7 @@ public class ConversasController : ControllerBase
         if (!ValidarIdentidadeInput(request)) return BadRequest(new { mensagem = "Identidade inválida." });
         await using var db = await AbrirEValidar(request);
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
-        if (await BancoChatCentral.Pronto(_configuration)) return await ContatosCentrais(db, request);
-        return await ContatosTenant(db, request);
+        return await ContatosCompartilhados(db, request);
     }
 
     [HttpPost("contatos-web")]
@@ -94,8 +95,21 @@ public class ConversasController : ControllerBase
         }
 
         var identidade = new IdentidadeConversaRequest { EmpresaId = request.EmpresaId, UsuarioId = usuarioId };
-        if (await BancoChatCentral.Pronto(_configuration)) return await ContatosCentrais(empresaDb, identidade);
-        return await ContatosTenant(empresaDb, identidade);
+        return await ContatosCompartilhados(empresaDb, identidade);
+    }
+
+    private async Task<IActionResult> ContatosCompartilhados(NpgsqlConnection empresaDb, IdentidadeConversaRequest request)
+    {
+        try
+        {
+            if (await BancoChatCentral.Pronto(_configuration))
+                return await ContatosCentrais(empresaDb, request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Chat central indisponível ao listar contatos da empresa {EmpresaId}; usando mensagens operacionais.", request.EmpresaId);
+        }
+        return await ContatosTenant(empresaDb, request);
     }
 
     private static async Task<IActionResult> ContatosTenant(NpgsqlConnection db, IdentidadeConversaRequest request)
