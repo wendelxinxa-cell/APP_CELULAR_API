@@ -291,7 +291,7 @@
         fail(sessionError);
         const accessToken = sessionData.session?.access_token;
         if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
-        const response = await fetch(`${state.apiBaseUrl}/api/conversas/contatos-web`, {
+        const response = await fetch("/api/chat/contacts", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
             body: JSON.stringify({ empresaId: state.empresaId })
