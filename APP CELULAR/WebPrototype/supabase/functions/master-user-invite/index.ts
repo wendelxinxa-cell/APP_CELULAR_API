@@ -62,7 +62,7 @@ Deno.serve(async (request: Request) => {
         // Apelidos aprovados ficam no vínculo ativo da empresa, não necessariamente em user_metadata.
         const normalizedIdentifier = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
         const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
-          .select("auth_uid,username,nome").eq("empresa_id", companyId).eq("ativo", true);
+          .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
         if (linkedError) return json({ message: "Não foi possível localizar o apelido vinculado à empresa." }, 400);
         const authUids = (linkedUsers || [])
           .filter(user => [user.username, user.nome].some(value =>
