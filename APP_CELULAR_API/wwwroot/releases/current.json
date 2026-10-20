@@ -2,7 +2,7 @@
   "version": "0.0.001",
   "build": 41,
   "fileName": "CATCHAT_0.0.001_build_41.apk",
-  "sha256": "8312781E0242E26235B2DFE2C6C02F2AE80D9B817942639806D2D37CB259E19E",
-  "notes": "CATCHAT build 41: identidade visual atualizada, mantendo telas e recursos completos.",
-  "versionCode": 43
+  "sha256": "C2ACFC873FA52F77EF982163FA38601F6D977A38671DDD027E27E85F69C1F5EC",
+  "notes": "CATCHAT build 41 atualizado para testar fluxo de aprovação de usuários e conversas.",
+  "versionCode": 44
 }
