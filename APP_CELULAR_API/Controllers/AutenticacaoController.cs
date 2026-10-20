@@ -65,6 +65,8 @@ public class AutenticacaoController : ControllerBase
             };
             identityRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
             identityRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            identityRequest.Headers.TryAddWithoutValidation("Accept-Profile", "chat");
+            identityRequest.Headers.TryAddWithoutValidation("Content-Profile", "chat");
             using var identityResponse = await clients.CreateClient().SendAsync(identityRequest);
             if (!identityResponse.IsSuccessStatusCode) return StatusCode(502, new { mensagem = "Não foi possível validar o vínculo Supabase." });
             using var identityJson = JsonDocument.Parse(await identityResponse.Content.ReadAsStringAsync());

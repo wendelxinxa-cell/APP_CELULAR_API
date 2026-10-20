@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 41,
-  "fileName": "CATCHAT_0.0.001_build_41.apk",
-  "sha256": "C2ACFC873FA52F77EF982163FA38601F6D977A38671DDD027E27E85F69C1F5EC",
-  "notes": "CATCHAT build 41 atualizado para testar fluxo de aprovação de usuários e conversas.",
-  "versionCode": 44
+  "build": 42,
+  "fileName": "CATCHAT_0.0.001_build_42.apk",
+  "sha256": "FE93CE3BF1E978F259CCC33C14F49B80136D194F11C9E1574AC675B9BA14C347",
+  "notes": "CATCHAT build 42: login do APK usando a mesma autenticação e identidade central do Razor.",
+  "versionCode": 45
 }
