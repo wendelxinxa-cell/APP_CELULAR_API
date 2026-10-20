@@ -11,11 +11,11 @@
         <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
         <h1>Solicitar acesso</h1>
-        <p class="muted login-intro">Informe seu apelido e e-mail. A empresa será identificada automaticamente pelo CATCHAT; primeiro confirme seu e-mail e depois Zeus analisará seu pedido em Pendências.</p>
+        <p class="muted login-intro">Informe seu nome, e-mail e crie sua senha. Confirme o e-mail; Zeus definirá a empresa, o tipo de negócio e o vínculo antes de liberar o acesso.</p>
 
         @if (enviado)
         {
-            <div class="notice success" role="status">Solicitação registrada. Confira sua caixa de entrada e confirme o e-mail. Após a confirmação, Zeus verá seu pedido em Pendências. Se não encontrar, confira o spam.</div>
+            <div class="notice success" role="status">Cadastro registrado. Confira sua caixa de entrada e confirme o e-mail. Zeus verá o pedido em Pendências e definirá a empresa, o tipo de negócio e o vínculo. Se não encontrar, confira o spam.</div>
             <a class="primary-button login-submit" href="/login">Voltar ao login</a>
         }
         else
@@ -23,6 +23,8 @@
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
                 <div class="field"><label for="request-name">Nome</label><input id="request-name" @bind="form.Nome" autocomplete="name" maxlength="120" required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
+                <div class="field"><label for="request-password">Crie uma senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" required /></div>
+                <div class="field"><label for="request-password-confirm">Confirme a senha</label><input id="request-password-confirm" type="password" @bind="form.ConfirmarSenha" autocomplete="new-password" minlength="8" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -44,7 +46,10 @@
         erro = null;
         try
         {
-            await Portal.SolicitarAcessoAsync(form.Email, form.Nome);
+            if (form.Senha.Length < 8) throw new InvalidOperationException("A senha deve ter pelo menos 8 caracteres.");
+            if (!string.Equals(form.Senha, form.ConfirmarSenha, StringComparison.Ordinal))
+                throw new InvalidOperationException("As senhas não conferem.");
+            await Portal.SolicitarAcessoAsync(form.Email, form.Nome, form.Senha);
             enviado = true;
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
@@ -58,5 +63,7 @@
     {
         public string Nome { get; set; } = "";
         public string Email { get; set; } = "";
+        public string Senha { get; set; } = "";
+        public string ConfirmarSenha { get; set; } = "";
     }
 }

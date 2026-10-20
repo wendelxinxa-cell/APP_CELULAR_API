@@ -18,7 +18,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
         <section class="home-content">
             <p class="eyebrow">ADMINISTRAÇÃO</p>
             <div class="managed-users-heading"><h1>Aprovações</h1><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
-            <p class="home-intro">Cada pedido mostra o usuário e o aparelho juntos. Ao aprovar, o usuário pendente é liberado e o aparelho fica vinculado a ele.</p>
+            <p class="home-intro">Confira o e-mail e escolha empresa, tipo de negócio e usuário CATCHAT antes de aprovar o cadastro.</p>
             @if (!string.IsNullOrWhiteSpace(aviso)) { <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div> }
             <section class="managed-users">
                 <h2>Solicitações de acesso da conta</h2>
@@ -51,18 +51,29 @@ else if (Portal.Autenticado && Portal.EhZeus)
                     @foreach (var cadastro in cadastros)
                     {
                         <article class="access-request" @key="cadastro.Id">
-                            <div><strong>@cadastro.Nome</strong><small>@cadastro.Email</small><small>@NomeEmpresa(cadastro.EmpresaId) · Pedido em @cadastro.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                            <div><strong>@cadastro.Nome</strong><small>@cadastro.Email</small><small>@(cadastro.EmpresaId > 0 ? NomeEmpresa(cadastro.EmpresaId) : "Empresa e tipo de negócio definidos por Zeus") · Pedido em @cadastro.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
                                 @if (!cadastro.EmailVerificado) { <small class="managed-user-role">Aguardando confirmação do e-mail; a aprovação fica bloqueada até a confirmação.</small> }
                             </div>
                             <div class="request-actions">
-                                <select aria-label="Usuário CATCHAT para vincular" @bind="cadastro.UsuarioIdSelecionado" disabled="@processando">
+                                <select aria-label="Empresa do usuário" @bind="cadastro.EmpresaId" @bind:after="() => cadastro.UsuarioIdSelecionado = 0" disabled="@processando">
+                                    <option value="0">Selecione a empresa</option>
+                                    @foreach (var empresa in EmpresasDisponiveis)
+                                    {
+                                        <option value="@empresa.Id">@empresa.Nome · @empresa.Id</option>
+                                    }
+                                </select>
+                                <select aria-label="Tipo de negócio" @bind="cadastro.TipoNegocioSelecionado" disabled="@processando">
+                                    <option value="chat">Chat</option>
+                                    <option value="comercial">Comercial</option>
+                                </select>
+                                <select aria-label="Usuário CATCHAT para vincular" @bind="cadastro.UsuarioIdSelecionado" disabled="@(processando || cadastro.EmpresaId <= 0)">
                                     <option value="0">Selecione o usuário CATCHAT</option>
                                     @foreach (var user in usuariosEmpresa.Where(user => user.EmpresaId == cadastro.EmpresaId))
                                     {
                                         <option value="@user.Id">@user.Nome · @user.Funcao</option>
                                     }
                                 </select>
-                                <button class="primary-button" @onclick="() => AprovarCadastroAsync(cadastro)" disabled="@(processando || !cadastro.EmailVerificado || cadastro.UsuarioIdSelecionado <= 0)">Aprovar e enviar criação de senha</button>
+                                <button class="primary-button" @onclick="() => AprovarCadastroAsync(cadastro)" disabled="@(processando || !cadastro.EmailVerificado || cadastro.EmpresaId <= 0 || cadastro.UsuarioIdSelecionado <= 0)">Aprovar vínculo</button>
                                 <button class="secondary-button" @onclick="() => RecusarCadastroAsync(cadastro)" disabled="@processando">Recusar</button>
                             </div>
                         </article>
@@ -100,6 +111,11 @@ else if (Portal.Autenticado && Portal.EhZeus)
     private List<SolicitacaoAcesso> acessos = [];
     private List<CadastroPendente> cadastros = [];
     private List<UsuarioEmpresaDisponivel> usuariosEmpresa = [];
+    private IEnumerable<(long Id, string Nome)> EmpresasDisponiveis => usuariosEmpresa
+        .Where(user => user.EmpresaId > 0)
+        .GroupBy(user => user.EmpresaId)
+        .Select(group => (Id: group.Key, Nome: string.IsNullOrWhiteSpace(group.First().Empresa) ? $"Empresa {group.Key}" : group.First().Empresa))
+        .OrderBy(empresa => empresa.Nome);
     private bool carregando = true;
     private bool processando;
     private bool falha;
@@ -144,10 +160,16 @@ else if (Portal.Autenticado && Portal.EhZeus)
     private async Task AprovarCadastroAsync(CadastroPendente item)
     {
         var user = usuariosEmpresa.FirstOrDefault(user => user.Id == item.UsuarioIdSelecionado && user.EmpresaId == item.EmpresaId);
-        if (user is null) { falha = true; aviso = "Selecione um usuário CATCHAT da mesma empresa do pedido."; return; }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Aprovar {item.Nome} ({item.Email}) e vincular a {user.Nome}, empresa {user.Empresa}? O link para criar a senha será enviado por e-mail.")) return;
+        if (item.EmpresaId <= 0 || user is null) { falha = true; aviso = "Selecione empresa e usuário CATCHAT correspondentes."; return; }
+        string tipoNome = item.TipoNegocioSelecionado == "chat" ? "Chat" : "Comercial";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Aprovar {item.Nome} ({item.Email}) e vincular a {user.Nome}, empresa {user.Empresa}, tipo {tipoNome}? A senha definida no cadastro será mantida.")) return;
         processando = true; aviso = null; falha = false;
-        try { await Portal.AprovarCadastroAsync(item.Id, user.Id); aviso = $"Cadastro aprovado e link para criar a senha enviado para {item.Email}."; await AtualizarAsync(); }
+        try
+        {
+            await Portal.AprovarCadastroAsync(item.Id, user.Id, item.EmpresaId, item.TipoNegocioSelecionado);
+            aviso = $"Cadastro aprovado: {user.Nome}, empresa {user.Empresa}, tipo {tipoNome}. A senha escolhida no cadastro foi mantida.";
+            await AtualizarAsync();
+        }
         catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
         finally { processando = false; }
     }

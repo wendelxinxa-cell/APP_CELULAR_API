@@ -15,7 +15,7 @@ type SignupRequestRow = {
   id: number;
   email: string;
   nome: string;
-  empresa_id: number;
+  empresa_id: number | null;
   auth_uid: string | null;
   email_verificado_em: string | null;
 };
@@ -76,8 +76,8 @@ Deno.serve(async (request: Request) => {
       return json({ session: { access_token: login.session.access_token, refresh_token: login.session.refresh_token } });
     }
     if (action === "requestSignup") {
-      const empresaId = Number(body.empresaId);
-      if (!email.includes("@") || email.length > 254 || !nome || !Number.isInteger(empresaId) || empresaId <= 0) return json({ message: "Informe nome, e-mail e ID da empresa válidos." }, 400);
+      const senha = String(body.senha ?? "");
+      if (!email.includes("@") || email.length > 254 || !nome || senha.length < 8 || senha.length > 128) return json({ message: "Informe nome, e-mail válido e senha de 8 a 128 caracteres." }, 400);
       const { data: existing, error: existingError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingError) return json({ message: `Não foi possível validar o e-mail: ${existingError.message}` }, 500);
       let signup: SignupRequestRow | null = null;
@@ -86,13 +86,13 @@ Deno.serve(async (request: Request) => {
         .eq("email", email).eq("status", "PENDENTE").maybeSingle();
       if (pendingError) return json({ message: `Não foi possível consultar pedidos pendentes: ${pendingError.message}` }, 500);
       if (pending) {
-        if (pending.nome.toLowerCase() !== nome.toLowerCase() || Number(pending.empresa_id) !== empresaId) {
-          return json({ message: "Já existe uma solicitação pendente para este e-mail. Confira seus dados ou aguarde a análise." }, 409);
+        if (pending.nome.toLowerCase() !== nome.toLowerCase()) {
+          return json({ message: "Já existe uma solicitação pendente para este e-mail. Confira o nome informado ou aguarde a análise." }, 409);
         }
         signup = pending;
       } else {
         const { data, error } = await admin.schema("chat").from("solicitacao_cadastro")
-          .insert({ email, nome, empresa_id: empresaId }).select("id,email,nome,empresa_id,auth_uid,email_verificado_em").single();
+          .insert({ email, nome, empresa_id: null }).select("id,email,nome,empresa_id,auth_uid,email_verificado_em").single();
         if (error?.code === "23505") return json({ message: "Já existe um pedido pendente para este e-mail." }, 409);
         if (error || !data) return json({ message: `Não foi possível registrar o pedido: ${error?.message ?? "erro desconhecido"}` }, 400);
         signup = data;
@@ -104,14 +104,11 @@ Deno.serve(async (request: Request) => {
         return json({ message: "Este e-mail já está cadastrado. Entre ou recupere a senha da conta existente." }, 409);
       }
       if (!authUser) {
-        const randomBytes = new Uint8Array(32);
-        crypto.getRandomValues(randomBytes);
-        const temporaryPassword = Array.from(randomBytes, byte => byte.toString(16).padStart(2, "0")).join("") + "Aa1!";
         const created = await admin.auth.admin.createUser({
           email,
-          password: temporaryPassword,
+          password: senha,
           email_confirm: false,
-          user_metadata: { nome, empresa_id: empresaId, pending_signup_request_id: signup.id },
+          user_metadata: { nome, pending_signup_request_id: signup.id },
         });
         if (created.error || !created.data.user) {
           return json({ message: `Não foi possível preparar a confirmação do e-mail: ${created.error?.message ?? "erro desconhecido"}` }, 400);
@@ -120,6 +117,14 @@ Deno.serve(async (request: Request) => {
         const { error: linkError } = await admin.schema("chat").from("solicitacao_cadastro")
           .update({ auth_uid: authUser.id }).eq("id", signup.id).eq("status", "PENDENTE");
         if (linkError) return json({ message: `Solicitação criada, mas não foi possível vinculá-la à confirmação: ${linkError.message}` }, 500);
+      } else if (authUser.email_confirmed_at) {
+        return json({ ok: true, emailJaVerificado: true });
+      } else {
+        const { error: updateError } = await admin.auth.admin.updateUserById(authUser.id, {
+          password: senha,
+          user_metadata: { ...authUser.user_metadata, nome, pending_signup_request_id: signup.id },
+        });
+        if (updateError) return json({ message: `Não foi possível atualizar a senha deste pedido pendente: ${updateError.message}` }, 400);
       }
       if (signup.auth_uid !== authUser.id) {
         const { error: linkError } = await admin.schema("chat").from("solicitacao_cadastro")
@@ -179,8 +184,9 @@ Deno.serve(async (request: Request) => {
       return json({ ok: true });
     }
     if (action === "approveSignupRequest") {
-      const requestId = Number(body.requestId), selectedUserId = Number(body.usuarioId);
-      if (!Number.isInteger(requestId) || requestId <= 0 || !Number.isInteger(selectedUserId) || selectedUserId <= 0) return json({ message: "Selecione um usuário CATCHAT válido." }, 400);
+      const requestId = Number(body.requestId), selectedUserId = Number(body.usuarioId), empresaId = Number(body.empresaId);
+      const tipoNegocio = String(body.tipoNegocio ?? "");
+      if (!Number.isInteger(requestId) || requestId <= 0 || !Number.isInteger(selectedUserId) || selectedUserId <= 0 || !Number.isInteger(empresaId) || empresaId <= 0 || !["chat", "sucata"].includes(tipoNegocio)) return json({ message: "Selecione empresa, tipo de negócio e usuário CATCHAT válidos." }, 400);
       const { data: signup, error: requestError } = await admin.schema("chat").from("solicitacao_cadastro").select("id,email,nome,empresa_id,auth_uid,email_verificado_em").eq("id", requestId).eq("status", "PENDENTE").not("email_verificado_em", "is", null).single();
       if (requestError || !signup) return json({ message: "Pedido pendente não encontrado." }, 404);
       if (!signup.auth_uid) return json({ message: "O pedido confirmado não tem conta de autenticação vinculada. Solicite novo cadastro." }, 409);
@@ -189,13 +195,12 @@ Deno.serve(async (request: Request) => {
       if (userError || !invited || invited.email?.toLowerCase() !== signup.email.toLowerCase() || !invited.email_confirmed_at) {
         return json({ message: "A conta Auth não confirmou este e-mail. Peça ao usuário para reenviar a confirmação." }, 409);
       }
-      const appUrl = (Deno.env.get("APP_PUBLIC_URL") || "https://catchat-razor-test.onrender.com").replace(/\/$/, "");
-      const publicAuth = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { error: emailError } = await publicAuth.auth.resetPasswordForEmail(signup.email, { redirectTo: `${appUrl}/redefinir-senha` });
-      if (emailError) return json({ message: `Não foi possível enviar o e-mail para criar a senha: ${emailError.message}` }, 502);
-      const { error: linkError } = await admin.schema("chat").rpc("aprovar_cadastro_pendente", { p_request_id: requestId, p_auth_uid: invited.id, p_usuario_id: selectedUserId, p_admin_uid: authResult.user.id });
-      if (linkError) return json({ message: `E-mail para criar a senha enviado, mas o vínculo falhou: ${linkError.message}. O pedido continua pendente.`, authUid: invited.id }, 500);
-      return json({ ok: true, email: signup.email, authUid: invited.id });
+      const { error: linkError } = await admin.schema("chat").rpc("aprovar_cadastro_pendente", {
+        p_request_id: requestId, p_auth_uid: invited.id, p_usuario_id: selectedUserId,
+        p_admin_uid: authResult.user.id, p_empresa_id: empresaId, p_tipo_negocio: tipoNegocio,
+      });
+      if (linkError) return json({ message: `O vínculo não foi concluído; o pedido continua pendente: ${linkError.message}`, authUid: invited.id }, 500);
+      return json({ ok: true, email: signup.email, authUid: invited.id, empresaId, tipoNegocio });
     }
     const master = body.master === true;
     const empresaId = Number(body.empresaId ?? 1);

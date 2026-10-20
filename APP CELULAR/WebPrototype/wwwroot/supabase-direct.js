@@ -132,7 +132,7 @@
         return data;
     };
 
-    api.requestSignup = async (email, name) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: state.empresaId });
+    api.requestSignup = async (email, name, password) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, senha: password });
     api.confirmSignupEmail = async () => {
         const client = getClient();
         const { data, error } = await client.auth.getSession();
@@ -143,7 +143,7 @@
         return true;
     };
     api.listSignupRequests = async () => (await invokeMasterInvite({ action: "listSignupRequests" })).requests || [];
-    api.approveSignupRequest = async (requestId, userId) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId }); };
+    api.approveSignupRequest = async (requestId, userId, companyId, businessType) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId, empresaId: companyId, tipoNegocio: businessType }); };
     api.rejectSignupRequest = async requestId => { await invokeMasterInvite({ action: "rejectSignupRequest", requestId }); };
 
     api.isZeus = async () => {
@@ -178,9 +178,15 @@
         return state.masterApiToken;
     };
 
-    const masterApiFetch = async (path, method = "GET") => {
+    const masterApiFetch = async (path, method = "GET", body = null) => {
         const token = await getMasterApiToken();
-        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const headers = { Authorization: `Bearer ${token}` };
+        const options = { method, headers };
+        if (body !== null) {
+            headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(body);
+        }
+        const response = await fetch(`${state.apiBaseUrl}${path}`, options);
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
         return result;
@@ -277,6 +283,10 @@
             p_auth_uid: authUid, p_ativo: active
         });
         fail(error);
+    };
+
+    api.setCompanyUserBusinessType = async (companyId, userId, businessType) => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${encodeURIComponent(companyId)}/usuarios/${encodeURIComponent(userId)}/tipo-negocio`, "PUT", { tipoNegocio: businessType });
     };
 
     api.inviteManagedUser = async (email, name, isMaster, empresaId, usuarioId) => {
