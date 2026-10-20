@@ -79,3 +79,17 @@ COMANDOS DE CONFERÊNCIA SUGERIDOS
 - `git -C "C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR" ls-remote app-celular refs/heads/main`
 - `Invoke-WebRequest https://catchat-razor-test.onrender.com/version.json`
 - `Invoke-WebRequest https://app-celular-api-test.onrender.com/api/app/atualizacao`
+
+ESTADO ATUAL — PUBLICAÇÃO DE TESTE (2026-10-20)
+- Projeto local canônico continua em `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR`. O Razor fica em `WebPrototype`; o APK é produzido pelo `APP_CELULAR.csproj`.
+- Repositório existente do app/Razor: `https://github.com/wendelxinxa-cell/APP_CELULAR.git`. A branch `main` contém o commit `d9559fe`; a branch existente `codex/blazor-render-preview`, usada pelo Razor de teste, recebeu o merge `b0f2188`. Ambos preservam versão exibida `0.0.001`, build 41.
+- Render Razor de teste: `https://catchat-razor-test.onrender.com/`. Deploy acionado ao enviar `b0f2188` para `codex/blazor-render-preview`; conferir o build até `GET /version.json` e `GET /catchat_official.png` responderem 200.
+- Repositório existente da API/APK: `https://github.com/wendelxinxa-cell/APP_CELULAR_API.git`, branch `master`, commit `27b21e4`. Render API de teste: `https://app-celular-api-test.onrender.com/`.
+- APK de teste: `https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo`. Manifesto de atualização: `https://app-celular-api-test.onrender.com/api/app/atualizacao`.
+- O APK local canônico foi atualizado em `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\artifacts\releases\CATCHAT_0.0.001_build_41.apk`; os APKs temporários/antigos de `artifacts\publish\android` e `artifacts\test\apk` foram removidos. SHA-256: `C2ACFC873FA52F77EF982163FA38601F6D977A38671DDD027E27E85F69C1F5EC`.
+- O pacote mantém `versionName=0.0.001` e rótulo build41. `versionCode` Android avançou de 43 para 44 para que aparelhos com a build41 atual aceitem o APK de atualização. Assinatura v1/v2/v3 validada.
+- Build Razor Release no worktree da branch de preview: sucesso. Build APK Release: sucesso. Ambos têm os avisos documentados no histórico (NU1903 no pacote do Razor; avisos MAUI de nullable/Android obsoleto).
+- A fila antiga `solicitacao_acesso` foi conectada à tela de Zeus e os parâmetros RPC corrigidos. Pedidos de cadastro não confirmado agora aparecem sem permitir aprovação prematura. Migração `database/035_acesso_sem_username.sql` substitui o trigger legado que rejeitava nomes com espaços/acentos. Conversas têm atualização manual e diagnóstico de empresa/vínculo.
+- Limite de publicação: o deploy web foi enviado para a branch de preview, mas ainda não foi confirmado no domínio (na última checagem logo e `/version.json` retornaram 404). Revalidar Render. A API já retorna build41, `codigoVersao=44` e o hash acima. O endpoint ainda precisa ser checado via GET do APK após o deploy terminar.
+- O código da Edge Function `master-user-invite` e a migração 035 foram enviados ao GitHub/Razor, mas não foram aplicados no projeto Supabase `zuqwlupzxfjqswfseuat`: não havia token/CLI Supabase nem acesso automatizado ao dashboard neste ambiente. Para completar o fluxo de cadastro, publicar a função e executar a migração no Supabase antes de declarar a fila de pendências totalmente ativa.
+- Não criar outro repositório. Manter as branches/repositórios existentes, preservar o versionamento acima e manter este arquivo atualizado com novos commits/deploys.
