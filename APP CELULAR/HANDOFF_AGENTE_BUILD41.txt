@@ -2,7 +2,7 @@ CATCHAT — HANDOFF PARA OUTRO AGENTE
 Atualizado: 2026-10-20
 
 OBJETIVO / REGRA DE CONTINUIDADE
-- Continuar o projeto a partir da versão 0.0.001, build 41. Não voltar para 1.1.0.
+- Continuar o projeto a partir da versão 0.0.001, build 42. Não voltar para 1.1.0.
 - Antes de editar ou publicar, conferir os commits, branches, arquivos locais e deploy remoto para evitar duplicação ou sobrescrever trabalho.
 - Não colocar tokens, senhas, chaves privadas ou secrets neste arquivo. Segredos do Supabase/Render devem ficar nas configurações seguras do ambiente.
 
@@ -93,3 +93,42 @@ ESTADO ATUAL — PUBLICAÇÃO DE TESTE (2026-10-20)
 - Limite de publicação: o deploy web foi enviado para a branch de preview, mas ainda não foi confirmado no domínio (na última checagem logo e `/version.json` retornaram 404). Revalidar Render. A API já retorna build41, `codigoVersao=44` e o hash acima. O endpoint ainda precisa ser checado via GET do APK após o deploy terminar.
 - O código da Edge Function `master-user-invite` e a migração 035 foram enviados ao GitHub/Razor, mas não foram aplicados no projeto Supabase `zuqwlupzxfjqswfseuat`: não havia token/CLI Supabase nem acesso automatizado ao dashboard neste ambiente. Para completar o fluxo de cadastro, publicar a função e executar a migração no Supabase antes de declarar a fila de pendências totalmente ativa.
 - Não criar outro repositório. Manter as branches/repositórios existentes, preservar o versionamento acima e manter este arquivo atualizado com novos commits/deploys.
+
+CORREÇÃO / ESTADO FINAL CONFIRMADO — 2026-10-20
+- Esta seção substitui os estados anteriores deste TXT que diziam que o Razor não estava publicado, que o APK tinha versionCode 43 ou que a API ainda não havia terminado o deploy.
+- Projeto MAUI local (fonte canônica): `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR`; repositório existente: `https://github.com/wendelxinxa-cell/APP_CELULAR.git`, branch `main`, commit `346fb0d26d4f75244d6ef8cf720e755c237c1a6e`.
+- Razor local: `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\WebPrototype`. Para o domínio de teste, o mesmo repositório usa a branch existente `codex/blazor-render-preview`, publicada no commit `d9e3548b41033033eae549e9d904179ac87eff94`. Render Razor: `https://catchat-razor-test.onrender.com/`.
+- O Razor foi conferido ao vivo: `GET /version.json` respondeu HTTP 200 com `{"version":"0.0.001","build":41,"release":"0.0.001-build41"}`; `GET /catchat_official.png` respondeu HTTP 200 (56.857 bytes). A versão publicada continua 0.0.001, build 41.
+- APK canônico local: `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\artifacts\releases\CATCHAT_0.0.001_build_41.apk`.
+- API local existente: `C:\PROJETO_WENDEL\APP CELULAR\APP_CELULAR_API`; repositório existente `https://github.com/wendelxinxa-cell/APP_CELULAR_API.git`, branch `master`, commit publicado `27b21e4`. Não mover ou apagar essa pasta como se fosse duplicata: é o checkout local do repositório API separado.
+- Render API Android: `https://app-celular-api-test.onrender.com/`. `GET /api/app/atualizacao` foi confirmado ao vivo com versão 0.0.001, build 41, código Android 44 e SHA-256 `C2ACFC873FA52F77EF982163FA38601F6D977A38671DDD027E27E85F69C1F5EC`. Endpoint de download também respondeu HTTP 206 a uma leitura parcial: `https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo`.
+- Links de teste: Razor https://catchat-razor-test.onrender.com/ ; APK https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo ; manifesto APK https://app-celular-api-test.onrender.com/api/app/atualizacao.
+- Não foram criados repositórios novos. Manter `0.0.001` / build 41 em ambos os ambientes; versionCode 44 existe apenas para permitir a atualização Android sobre instalações anteriores.
+- Supabase: o código da Edge Function e a migração continuam no repositório, mas não foram aplicados ao projeto `zuqwlupzxfjqswfseuat`; portanto, não presumir que essa alteração de backend está publicada.
+
+MAPA DOS PROJETOS SUPABASE — FONTE DE VERDADE (2026-10-20)
+- Existem DOIS projetos Supabase distintos e intencionais. Não os tratar como duplicatas nem presumir que tabelas dos dois ficam no mesmo SQL Editor.
+- `zuqwlupzxfjqswfseuat` (URL `https://zuqwlupzxfjqswfseuat.supabase.co`; nome histórico no setup: `catalogo-central-empresas`) é o projeto CENTRAL da plataforma: catálogo `platform.empresa_catalogo`, empresas, status/ativação e conexões de banco cifradas. Hoje há somente a empresa de teste ID 1, conforme informado pelo usuário.
+- O projeto central também contém o Supabase Auth e o schema `chat` usados pelo Razor de teste. Isso é confirmado por `WebPrototype/appsettings.json`, pelo endpoint publicado `/supabase-config.js` (URL atual `zuqwlupzxfjqswfseuat`, `empresaId=1`) e por `WebPrototype/SUPABASE_SETUP.md` (migrações 010, 020, 030 e 031 aplicadas nesse projeto). Portanto, ele não é apenas catálogo: no arranjo atual também hospeda a autenticação e o vínculo de identidade/chat.
+- `kzntsoscayjgmbxuiixx` é o projeto Supabase operacional/tenant atualmente aberto no dashboard e identificado pelo usuário como banco da empresa de teste 1. Nele ficam os dados de negócio da empresa, incluindo schema `app` e tabelas como `app.usuario`, produtos e compras/vendas. O API resolve a conexão conforme o `empresa_id` usando conexão específica configurada no Render ou a conexão cifrada do catálogo. O valor secreto da conexão não deve ser copiado para este TXT.
+- Há dois registros de usuário com papéis diferentes: `app.usuario` no banco tenant (`kznts...`, cadastro operacional usado por módulos legados/API) e `chat.usuario_auth` no central (`zuq...`, mapa do `auth_uid` Supabase para `empresa_id`, `usuario_id`, `nome` e `ativo`). Conversas web lista contatos por `chat.usuario_auth`; usuários/produtos/compras operacionais vêm do tenant. A associação usa empresa ID 1 e o `usuario_id` correspondente.
+- As duas consultas SQL devem ser executadas separadamente: consultar `app.usuario` no projeto `kzntsoscayjgmbxuiixx`; consultar `chat.usuario_auth` e `auth.users` no projeto `zuqwlupzxfjqswfseuat`. Não executar uma consulta que junte `app.usuario` e `chat.usuario_auth` num projeto presumindo que ambos os schemas estejam lá.
+- O projeto exibido no dashboard não é “o projeto errado” em termos gerais: `kznts...` é o banco operacional correto da empresa 1. Para depurar o catálogo, o login/chat web e `chat.usuario_auth`, selecionar `zuq...`. Para usuários operacionais, produtos e compras, selecionar `kznts...`.
+- Novas empresas são cadastradas no catálogo central e recebem IDs próprios. Cada ID é roteado pela API para a conexão tenant definida para essa empresa; no ambiente atual, não existe empresa de teste além da ID 1. O código também aceita configuração Render `Empresas:1` como conexão única de compatibilidade; confirmar a configuração do serviço antes de inferir que empresas futuras usarão bancos fisicamente separados.
+- Corrige a orientação dada anteriormente: não chamar `kznts...` de projeto incorreto; para dados operacionais ele é o projeto certo. A URL `zuq...` continua sendo a origem atual do login/chat direto do Razor.
+
+
+PUBLICAÇÃO MAIS RECENTE — BUILD 42 (2026-10-20)
+- Versão publicada: 0.0.001, build 42; Android versionCode 45.
+- Correção: APK usa autenticação central do projeto Supabase `zuqwlupzxfjqswfseuat`, via a mesma função `master-user-invite` e RPC `chat.obter_identidade` do Razor. O fallback de login legado foi removido do APK.
+- API existente `APP_CELULAR_API.git`, branch `master`: commit `61c85c7` publicado com cabeçalhos de schema `chat` no RPC e APK build 42 no manifesto estático.
+- Razor existente `APP_CELULAR.git`, branch de deploy `codex/blazor-render-preview`: commit `f1406a7` publica metadados e cache do build 42.
+- APK canônico local: `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\artifacts\releases\CATCHAT_0.0.001_build_42.apk`.
+- SHA-256 APK: `FE93CE3BF1E978F259CCC33C14F49B80136D194F11C9E1574AC675B9BA14C347`.
+- Link Razor: https://catchat-razor-test.onrender.com/ (validar `/version.json` até reportar build 42).
+- Download APK: https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo
+- Manifesto: https://app-celular-api-test.onrender.com/api/app/atualizacao
+- Publicação confirmada nos domínios existentes: `/version.json` respondeu HTTP 200 com build 42; a página Razor respondeu HTTP 200 com os metadados +42 e script central-auth.
+- API/manifesto respondeu online com build 42, `codigoVersao=45` e o SHA-256 acima. O download respondeu HTTP 206 e `Content-Range: bytes 0-0/34672382`.
+- Repositórios existentes foram reutilizados; não foi criado repositório novo. Commit API `61c85c7`; commit branch Razor `f1406a7`.
+- O checkout API em `C:\PROJETO_WENDEL\APP CELULAR\APP_CELULAR_API` continua no branch local `codex/cloudflare-r2-media` com alterações R2 preexistentes não commitadas; elas foram preservadas. A publicação build 42 foi feita no branch existente `master` usando o checkout já existente `api-release-worktree`. Não misturar nem descartar o WIP R2 ao sincronizar esse checkout.
