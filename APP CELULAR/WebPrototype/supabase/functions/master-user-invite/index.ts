@@ -186,7 +186,7 @@ Deno.serve(async (request: Request) => {
     if (action === "approveSignupRequest") {
       const requestId = Number(body.requestId), selectedUserId = Number(body.usuarioId), empresaId = Number(body.empresaId);
       const tipoNegocio = String(body.tipoNegocio ?? "");
-      if (!Number.isInteger(requestId) || requestId <= 0 || !Number.isInteger(selectedUserId) || selectedUserId <= 0 || !Number.isInteger(empresaId) || empresaId <= 0 || !["chat", "sucata"].includes(tipoNegocio)) return json({ message: "Selecione empresa, tipo de negócio e usuário CATCHAT válidos." }, 400);
+      if (!Number.isInteger(requestId) || requestId <= 0 || !Number.isInteger(selectedUserId) || selectedUserId <= 0 || !Number.isInteger(empresaId) || empresaId <= 0 || !["chat", "comercial"].includes(tipoNegocio)) return json({ message: "Selecione empresa, tipo de negócio e usuário CATCHAT válidos." }, 400);
       const { data: signup, error: requestError } = await admin.schema("chat").from("solicitacao_cadastro").select("id,email,nome,empresa_id,auth_uid,email_verificado_em").eq("id", requestId).eq("status", "PENDENTE").not("email_verificado_em", "is", null).single();
       if (requestError || !signup) return json({ message: "Pedido pendente não encontrado." }, 404);
       if (!signup.auth_uid) return json({ message: "O pedido confirmado não tem conta de autenticação vinculada. Solicite novo cadastro." }, 409);
