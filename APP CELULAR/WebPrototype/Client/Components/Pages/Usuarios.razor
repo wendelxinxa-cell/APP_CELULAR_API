@@ -77,14 +77,10 @@ else if (Portal.Autenticado && Portal.EhZeus)
                                 <small>@EstadoUsuario(usuario)</small>
                             </div>
                             <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
-                            @if (!usuario.Master && usuario.UsuarioId.HasValue)
+                            @if (!usuario.Master)
                             {
                                 <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
                                 <button class="@(usuario.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(usuario, !usuario.Ativo)" disabled="@processando">@(usuario.Ativo ? "Bloquear" : "Ativar")</button>
-                            }
-                            else if (!usuario.Master)
-                            {
-                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
                             }
                             else if (usuario.AuthUid != Portal.Sessao!.SupabaseUserId)
                             {
@@ -241,9 +237,14 @@ else if (Portal.Autenticado && Portal.EhZeus)
 
     private async Task AlterarAtivoAsync(UsuarioAuthGerenciavel usuario, bool ativo)
     {
-        var acao = ativo ? "reativar" : "bloquear";
-        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} a conta de {usuario.Email}?")) return;
-        await ProcessarAsync(async () => await Portal.DefinirUsuarioAtivoAsync(usuario.AuthUid, ativo), "Acesso do usuário atualizado.");
+        var pergunta = ativo && !usuario.UsuarioId.HasValue
+            ? $"Reabrir a solicitação de acesso de {usuario.Email}?"
+            : $"Confirma {(ativo ? "reativar" : "bloquear")} a conta de {usuario.Email}?";
+        if (!await JS.InvokeAsync<bool>("confirm", pergunta)) return;
+        var sucesso = ativo && !usuario.UsuarioId.HasValue
+            ? "Solicitação reaberta. Vincule esta conta a um usuário CATCHAT para liberar o acesso completo."
+            : ativo ? "Acesso do usuário reativado." : "Acesso do usuário bloqueado.";
+        await ProcessarAsync(async () => await Portal.DefinirUsuarioAtivoAsync(usuario.AuthUid, ativo), sucesso);
     }
 
     private async Task ProcessarAsync(Func<Task> acao, string sucesso)
@@ -251,13 +252,19 @@ else if (Portal.Autenticado && Portal.EhZeus)
         processando = true;
         aviso = null;
         falha = false;
-        try { await acao(); aviso = sucesso; await AtualizarAsync(); }
+        try
+        {
+            await acao();
+            await AtualizarAsync();
+            if (!string.IsNullOrWhiteSpace(aviso)) falha = true;
+            else { aviso = sucesso; falha = false; }
+        }
         catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
         finally { processando = false; }
     }
 
     private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Ativo ? "Ativo" : "Acesso desativado";
+        usuario.Ativo ? usuario.UsuarioId.HasValue ? "Ativo" : "Solicitação pendente · sem vínculo" : "Acesso desativado";
 
     private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) =>
         usuario.Bloqueado ? "Acesso desativado" : usuario.Aprovado ? "Ativo" : usuario.AparelhoPendente ? "Aguardando aprovação do aparelho" : "Pendente";
