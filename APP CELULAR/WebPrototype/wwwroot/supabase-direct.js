@@ -9,14 +9,14 @@
         naoLidas: value.nao_lidas ?? value.naoLidas ?? 0
     });
     const normalizeMessage = (value) => ({
-        id: value.id, clienteMensagemId: value.cliente_mensagem_id,
-        remetenteId: value.remetente_id, remetenteNome: value.remetente_nome ?? "",
-        destinatarioId: value.destinatario_id, texto: value.texto ?? "",
-        midiaChave: value.midia_chave, midiaNome: value.midia_nome,
-        midiaTipo: value.midia_tipo, midiaTamanhoBytes: value.midia_tamanho_bytes,
-        foto: value.foto, fotoNome: value.foto_nome ?? value.fotoNome,
-        fotoTipo: value.foto_tipo ?? value.fotoTipo,
-        enviadaEm: value.enviada_em, lidaEm: value.lida_em, fotoUrl: null
+        id: value.id ?? value.Id, clienteMensagemId: value.cliente_mensagem_id ?? value.clienteMensagemId ?? value.ClienteMensagemId,
+        remetenteId: value.remetente_id ?? value.remetenteId ?? value.RemetenteId, remetenteNome: value.remetente_nome ?? value.remetenteNome ?? value.RemetenteNome ?? "",
+        destinatarioId: value.destinatario_id ?? value.destinatarioId ?? value.DestinatarioId, texto: value.texto ?? value.Texto ?? "",
+        midiaChave: value.midia_chave ?? value.midiaChave ?? value.MidiaChave, midiaNome: value.midia_nome ?? value.midiaNome ?? value.MidiaNome,
+        midiaTipo: value.midia_tipo ?? value.midiaTipo ?? value.MidiaTipo, midiaTamanhoBytes: value.midia_tamanho_bytes ?? value.midiaTamanhoBytes ?? value.MidiaTamanhoBytes,
+        foto: value.foto ?? value.Foto, fotoNome: value.foto_nome ?? value.fotoNome ?? value.FotoNome,
+        fotoTipo: value.foto_tipo ?? value.fotoTipo ?? value.FotoTipo,
+        enviadaEm: value.enviada_em ?? value.enviadaEm ?? value.EnviadaEm, lidaEm: value.lida_em ?? value.lidaEm ?? value.LidaEm, fotoUrl: null
     });
     const toSession = (authSession, identity) => {
         if (!authSession?.user || !identity) return null;
@@ -186,6 +186,11 @@
         return result;
     };
 
+    api.deleteConversationForZeus = async (empresaId, usuarioId, contatoId) => {
+        const path = `/api/administracao/chat/empresas/${encodeURIComponent(empresaId)}/usuarios/${encodeURIComponent(usuarioId)}/contatos/${encodeURIComponent(contatoId)}`;
+        return await masterApiFetch(path, "DELETE");
+    };
+
     api.listPendingUserDevices = async () => {
         const data = await masterApiFetch("/api/administracao/acessos/pendentes");
         const pendingUsers = new Map((data.usuarios || []).map(user => [`${user.empresaId}:${user.id}`, user]));
@@ -341,6 +346,20 @@
     };
 
     api.sendMessage = async (contactId, text, clientMessageId, mediaPath, mediaName, mediaType, mediaSize) => {
+        if (!mediaPath) {
+            const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
+            fail(sessionError);
+            const accessToken = sessionData.session?.access_token;
+            if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
+            const response = await fetch("/api/chat/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                body: JSON.stringify({ empresaId: state.empresaId, contatoId: contactId, clienteMensagemId: clientMessageId, texto: text || "" })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.mensagem || `Não foi possível enviar a mensagem (${response.status}).`);
+            return normalizeMessage(result);
+        }
         const { data, error } = await getClient().schema("chat").rpc("enviar_mensagem", {
             p_contato_id: contactId, p_cliente_mensagem_id: clientMessageId,
             p_texto: text || "", p_midia_chave: mediaPath || null, p_midia_nome: mediaName || null,
@@ -351,8 +370,16 @@
     };
 
     api.markRead = async (contactId) => {
-        const { error } = await getClient().schema("chat").rpc("marcar_como_lida", { p_contato_id: contactId });
-        fail(error);
+        const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
+        fail(sessionError);
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
+        const response = await fetch("/api/chat/read", {
+            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ empresaId: state.empresaId, contatoId })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `Não foi possível atualizar a leitura (${response.status}).`);
     };
 
     api.sendVisualAction = async (contactId, type, symbol) => {

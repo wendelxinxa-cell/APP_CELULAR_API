@@ -29,8 +29,13 @@ else
 
         <div class="messaging-layout">
             <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
-                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true, atualizar: true)" disabled="@carregandoContatos">Atualizar</button></div>
+                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@ContatosFiltrados.Count()</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true, atualizar: true)" disabled="@carregandoContatos">Atualizar</button></div>
                 <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
+                <div class="conversation-filter-actions">
+                    <button type="button" class="conversation-filter-toggle" @onclick="() => mostrarOcultas = !mostrarOcultas">
+                        @(mostrarOcultas ? "← Voltar às conversas" : $"Ver conversas apagadas ({contatos.Count(c => conversasOcultas.Contains(c.Id))})")
+                    </button>
+                </div>
                 <div class="contact-list">
                     @if (carregandoContatos && contatos.Count == 0)
                     {
@@ -38,17 +43,33 @@ else
                     }
                     else if (!ContatosFiltrados.Any())
                     {
-                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhuma conversa com mensagens encontrada na empresa {Portal.Sessao!.EmpresaId}." : "Nenhuma pessoa encontrada.")</div>
+                        <div class="contact-empty">@(mostrarOcultas ? "Você não tem conversas apagadas neste navegador." : string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhuma conversa com mensagens encontrada na empresa {Portal.Sessao!.EmpresaId}." : "Nenhuma pessoa encontrada.")</div>
                     }
                     else
                     {
                         @foreach (var contato in ContatosFiltrados)
                         {
-                            <a class="contact-item @(ContatoId == contato.Id ? "contact-active" : "")" href="@($"/conversas/{contato.Id}")">
-                                <span class="contact-avatar">@PrimeiraLetra(contato.Nome)</span>
-                                <span class="contact-copy"><strong>@contato.Nome</strong><small>@(string.IsNullOrWhiteSpace(contato.UltimaMensagem) ? "Iniciar conversa" : contato.UltimaMensagem)</small></span>
-                                <span class="contact-meta">@if (contato.NaoLidas > 0) { <b>@contato.NaoLidas</b> }</span>
-                            </a>
+                            <div class="conversation-list-row">
+                                <a class="contact-item @(ContatoId == contato.Id ? "contact-active" : "")" href="@($"/conversas/{contato.Id}")">
+                                    <span class="contact-avatar">@PrimeiraLetra(contato.Nome)</span>
+                                    <span class="contact-copy"><strong>@contato.Nome</strong><small>@(string.IsNullOrWhiteSpace(contato.UltimaMensagem) ? "Iniciar conversa" : contato.UltimaMensagem)</small></span>
+                                    <span class="contact-meta">@if (contato.NaoLidas > 0) { <b>@contato.NaoLidas</b> }</span>
+                                </a>
+                                <div class="conversation-row-actions">
+                                    @if (mostrarOcultas)
+                                    {
+                                        <button class="conversation-row-button" type="button" title="Restaurar conversa para você" @onclick="() => RestaurarConversaAsync(contato)">Restaurar</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="conversation-row-button" type="button" title="Apagar somente para você" @onclick="() => ApagarParaMimAsync(contato)">Apagar para mim</button>
+                                    }
+                                    @if (Portal.EhZeus)
+                                    {
+                                        <button class="conversation-row-button danger" type="button" title="Excluir permanentemente do banco de dados" @onclick="() => ExcluirDoBancoAsync(contato)">Excluir do banco</button>
+                                    }
+                                </div>
+                            </div>
                         }
                     }
                 </div>
@@ -198,6 +219,8 @@ else
     private readonly CancellationTokenSource polling = new();
     private readonly List<ContatoConversa> contatos = new();
     private readonly List<MensagemConversa> mensagens = new();
+    private readonly HashSet<long> conversasOcultas = new();
+    private bool mostrarOcultas;
     private string filtroContato = "";
     private string texto = "";
     private string? erro;
@@ -231,6 +254,7 @@ else
     private static readonly TimeZoneInfo FusoBrasilia = ObterFusoBrasilia();
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
+        .Where(contato => conversasOcultas.Contains(contato.Id) == mostrarOcultas)
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
         .OrderByDescending(contato => contato.DataUltimaMensagem.HasValue)
         .ThenByDescending(contato => contato.DataUltimaMensagem)
@@ -327,7 +351,15 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!inicializado || ContatoId == contatoCarregado)
+        if (!inicializado)
+            return;
+
+        if (ContatoId.HasValue && conversasOcultas.Contains(ContatoId.Value))
+        {
+            Navigation.NavigateTo("/conversas", replace: true);
+            return;
+        }
+        if (ContatoId == contatoCarregado)
             return;
 
         contatoCarregado = ContatoId;
@@ -367,6 +399,7 @@ else
         if (firstRender && Portal.Autenticado)
         {
             inicializado = true;
+            await CarregarConversasOcultasAsync();
             await CarregarContatosAsync(exibirErro: true);
             Realtime.MensagemRecebida += AoReceberMensagemAsync;
             Realtime.Reconectado += AoReconectarAsync;
@@ -406,6 +439,56 @@ else
         {
             carregandoContatos = false;
         }
+    }
+
+    private string ChaveConversasOcultas => $"{Portal.Sessao!.EmpresaId}:{Portal.Sessao.UsuarioId}";
+
+    private async Task CarregarConversasOcultasAsync()
+    {
+        try
+        {
+            var ids = await JS.InvokeAsync<List<long>>("appCelular.getHiddenConversations", ChaveConversasOcultas);
+            conversasOcultas.Clear();
+            conversasOcultas.UnionWith(ids);
+        }
+        catch (JSException) { }
+    }
+
+    private async Task SalvarConversasOcultasAsync() =>
+        await JS.InvokeVoidAsync("appCelular.saveHiddenConversations", ChaveConversasOcultas, conversasOcultas.ToArray());
+
+    private async Task ApagarParaMimAsync(ContatoConversa contato)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Apagar a conversa com {contato.Nome} somente para você? As mensagens continuarão no banco e visíveis para os outros participantes.")) return;
+        conversasOcultas.Add(contato.Id);
+        await SalvarConversasOcultasAsync();
+        if (ContatoId == contato.Id) Navigation.NavigateTo("/conversas");
+    }
+
+    private async Task RestaurarConversaAsync(ContatoConversa contato)
+    {
+        conversasOcultas.Remove(contato.Id);
+        await SalvarConversasOcultasAsync();
+    }
+
+    private async Task ExcluirDoBancoAsync(ContatoConversa contato)
+    {
+        if (!Portal.EhZeus || Portal.Sessao is null) return;
+        var confirmacao = await JS.InvokeAsync<bool>("confirm", $"EXCLUSÃO PERMANENTE: apagar do banco todas as mensagens entre {Portal.Sessao.Usuario} e {contato.Nome}? Isso afeta todos os participantes e não pode ser desfeito.");
+        if (!confirmacao) return;
+
+        try
+        {
+            historicoProcessando = true;
+            await JS.InvokeVoidAsync("appCelular.supabase.deleteConversationForZeus", Portal.Sessao.EmpresaId, Portal.Sessao.UsuarioId, contato.Id);
+            conversasOcultas.Remove(contato.Id);
+            await SalvarConversasOcultasAsync();
+            if (ContatoId == contato.Id) Navigation.NavigateTo("/conversas");
+            await CarregarContatosAsync(exibirErro: true, atualizar: true);
+            historicoStatus = "Conversa excluída permanentemente do banco de dados.";
+        }
+        catch (Exception ex) { erro = ex.Message; }
+        finally { historicoProcessando = false; }
     }
 
     private async Task CarregarMensagensAsync(bool exibirErro, bool marcarComoLidas, bool buscarAcoes = true)

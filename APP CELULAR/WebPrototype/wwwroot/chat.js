@@ -36,6 +36,17 @@ window.appCelular.getHiddenChatMessages = (key) => {
     } catch { return []; }
 };
 
+window.appCelular.getHiddenConversations = (key) => {
+    try {
+        const value = localStorage.getItem(`chatcat-hidden-conversations:${key}`);
+        return value ? JSON.parse(value) : [];
+    } catch { return []; }
+};
+
+window.appCelular.saveHiddenConversations = (key, contactIds) => {
+    localStorage.setItem(`chatcat-hidden-conversations:${key}`, JSON.stringify(contactIds ?? []));
+};
+
 window.appCelular.saveHiddenChatMessages = (key, messageKeys) => {
     localStorage.setItem(`chatcat-hidden-messages:${key}`, JSON.stringify(messageKeys ?? []));
 };

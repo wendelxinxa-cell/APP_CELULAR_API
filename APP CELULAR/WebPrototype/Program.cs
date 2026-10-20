@@ -11,6 +11,26 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
+async Task<IResult> ProxyChatRequest(HttpRequest request, IHttpClientFactory clients, IConfiguration config, string apiPath)
+{
+    var authorization = request.Headers.Authorization.ToString();
+    if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return Results.Unauthorized();
+    var apiBase = (config["Api:BaseUrl"] ?? "https://app-celular-api-test.onrender.com").TrimEnd('/');
+    var body = await new StreamReader(request.Body).ReadToEndAsync(request.HttpContext.RequestAborted);
+    using var upstream = new HttpRequestMessage(HttpMethod.Post, $"{apiBase}{apiPath}");
+    upstream.Headers.Authorization = AuthenticationHeaderValue.Parse(authorization);
+    upstream.Content = new StringContent(body, Encoding.UTF8, "application/json");
+    try
+    {
+        using var response = await clients.CreateClient().SendAsync(upstream, request.HttpContext.RequestAborted);
+        var content = await response.Content.ReadAsStringAsync(request.HttpContext.RequestAborted);
+        return Results.Content(content, response.Content.Headers.ContentType?.ToString() ?? "application/json", statusCode: (int)response.StatusCode);
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Json(new { mensagem = "A API de conversas está temporariamente inacessível. Tente novamente." }, statusCode: StatusCodes.Status502BadGateway);
+    }
+}
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 app.UseStaticFiles();
@@ -46,6 +66,12 @@ app.MapPost("/api/chat/contacts", async (HttpRequest request, IHttpClientFactory
         return Results.Json(new { mensagem = "A API de conversas está temporariamente inacessível. Tente atualizar novamente." }, statusCode: StatusCodes.Status502BadGateway);
     }
 }).AllowAnonymous();
+
+app.MapPost("/api/chat/send", (HttpRequest request, IHttpClientFactory clients, IConfiguration config) =>
+    ProxyChatRequest(request, clients, config, "/api/conversas/enviar-web")).AllowAnonymous();
+
+app.MapPost("/api/chat/read", (HttpRequest request, IHttpClientFactory clients, IConfiguration config) =>
+    ProxyChatRequest(request, clients, config, "/api/conversas/marcar-lidas-web")).AllowAnonymous();
 
 app.MapPost("/api/chat/messages", async (HttpRequest request, IHttpClientFactory clients, IConfiguration config) =>
 {
