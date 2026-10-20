@@ -26,4 +26,10 @@ public class Material
     public string StatusSincronizacao { get; set; } = "PENDENTE";
 
     public string MensagemErro { get; set; } = "";
+
+    public long EmpresaId { get; set; } = 1;
+
+    public long DispositivoId { get; set; } = 1;
+
+    public bool Excluido { get; set; } = false;
 }

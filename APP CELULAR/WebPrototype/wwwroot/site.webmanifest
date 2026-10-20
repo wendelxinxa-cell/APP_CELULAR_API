@@ -7,25 +7,13 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "background_color": "#140723",
+  "theme_color": "#140723",
   "icons": [
     {
-      "src": "app-icon-512.png",
+      "src": "catchat_official.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "apple-touch-icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

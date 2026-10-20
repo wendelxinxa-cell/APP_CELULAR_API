@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.FigurinhasStipopPage"
+             Title="Figurinhas"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="14" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <SearchBar x:Name="BuscaEntry" Placeholder="Buscar figurinhas" SearchButtonPressed="Buscar_Completed" />
+            <Button Grid.Column="1" Text="Buscar" Clicked="Buscar_Clicked" />
+        </Grid>
+        <Grid x:Name="ListaAcoes" Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Text="Em alta" Clicked="EmAlta_Clicked" />
+            <Button Grid.Column="1" Text="Novos" Clicked="Novos_Clicked" />
+        </Grid>
+        <CollectionView x:Name="PacotesList" Grid.Row="2" SelectionMode="None">
+            <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" VerticalItemSpacing="10" HorizontalItemSpacing="10" /></CollectionView.ItemsLayout>
+            <CollectionView.EmptyView><Label Text="Nenhum pacote encontrado." TextColor="{DynamicResource BrandMuted}" HorizontalOptions="Center" VerticalOptions="Center" /></CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="8" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                        <VerticalStackLayout Spacing="5">
+                            <Image Source="{Binding PackageImg}" HeightRequest="110" Aspect="AspectFit" />
+                            <Label Text="{Binding PackageName}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                            <Label Text="{Binding ArtistName, StringFormat='por {0}'}" FontSize="11" TextColor="{DynamicResource BrandMuted}" LineBreakMode="TailTruncation" />
+                            <Button Text="Abrir pacote" Clicked="AbrirPacote_Clicked" CommandParameter="{Binding .}" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <VerticalStackLayout x:Name="DetalhePanel" Grid.Row="2" IsVisible="False" Spacing="8">
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Text="‹ Voltar" Clicked="Voltar_Clicked" Padding="8,4" />
+                <Label x:Name="PacoteTitulo" Grid.Column="1" VerticalTextAlignment="Center" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            </Grid>
+            <Label x:Name="ArtistaLabel" FontSize="11" TextColor="{DynamicResource BrandMuted}" HorizontalTextAlignment="Center" />
+            <CollectionView x:Name="StickersList" SelectionMode="None" VerticalOptions="FillAndExpand">
+                <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" VerticalItemSpacing="6" HorizontalItemSpacing="6" /></CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="3" HeightRequest="92" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                            <Border.GestureRecognizers><TapGestureRecognizer Tapped="EnviarFigurinha_Tapped" CommandParameter="{Binding .}" /></Border.GestureRecognizers>
+                            <Image Source="{Binding StickerImg}" Aspect="AspectFit" />
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+            <Button x:Name="CarregarMaisButton" Text="Carregar mais pacotes" Clicked="CarregarMais_Clicked" IsVisible="False" FontSize="12" />
+            <ActivityIndicator x:Name="Carregando" Grid.Column="1" IsRunning="False" IsVisible="False" Color="{DynamicResource BrandPrimary}" />
+        </Grid>
+    </Grid>
+</ContentPage>

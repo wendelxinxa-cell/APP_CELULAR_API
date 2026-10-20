@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.NovaVendaPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     Title="Vendas">
 
     <Grid RowDefinitions="Auto,*">
@@ -15,7 +15,7 @@
 
         <Border
             Grid.Row="0"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             Padding="20,18">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -23,7 +23,7 @@
                 <Button
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     BackgroundColor="Transparent"
                     Padding="0"
                     Clicked="Voltar_Clicked"/>
@@ -37,12 +37,12 @@
                         Text="Vendas"
                         FontSize="24"
                         FontAttributes="Bold"
-                        TextColor="White"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                     <Label
                         Text="Saída de materiais"
                         FontSize="13"
-                        TextColor="#D8D7F5"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                 </VerticalStackLayout>
 
@@ -76,10 +76,10 @@
                         Text="CLIENTE"
                         FontSize="12"
                         FontAttributes="Bold"
-                        TextColor="#777"/>
+                        TextColor="{DynamicResource BrandMuted}"/>
 
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="14">
 
@@ -93,14 +93,14 @@
                                 x:Name="ClienteLabel"
                                 Text="Selecione o cliente"
                                 FontSize="16"
-                                TextColor="#777"
+                                TextColor="{DynamicResource BrandMuted}"
                                 VerticalOptions="Center"/>
 
                             <Label
                                 Grid.Column="1"
                                 Text="›"
                                 FontSize="28"
-                                TextColor="#777"
+                                TextColor="{DynamicResource BrandMuted}"
                                 VerticalOptions="Center"/>
 
                             <Grid.GestureRecognizers>
@@ -125,10 +125,10 @@
                         Text="MATERIAL"
                         FontSize="12"
                         FontAttributes="Bold"
-                        TextColor="#777"/>
+                        TextColor="{DynamicResource BrandMuted}"/>
 
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="14">
 
@@ -142,14 +142,14 @@
                                 x:Name="MaterialLabel"
                                 Text="Selecione o material"
                                 FontSize="16"
-                                TextColor="#777"
+                                TextColor="{DynamicResource BrandMuted}"
                                 VerticalOptions="Center"/>
 
                             <Label
                                 Grid.Column="1"
                                 Text="›"
                                 FontSize="28"
-                                TextColor="#777"
+                                TextColor="{DynamicResource BrandMuted}"
                                 VerticalOptions="Center"/>
 
                             <Grid.GestureRecognizers>
@@ -169,7 +169,7 @@
                 <!-- ESTOQUE -->
 
                 <Border
-                    BackgroundColor="#EEEAFB"
+                    BackgroundColor="{DynamicResource BrandSoft}"
                     StrokeThickness="0"
                     Padding="14">
 
@@ -185,14 +185,14 @@
                                 Text="ESTOQUE DISPONÍVEL"
                                 FontSize="11"
                                 FontAttributes="Bold"
-                                TextColor="#777"/>
+                                TextColor="{DynamicResource BrandMuted}"/>
 
                             <Label
                                 x:Name="EstoqueLabel"
                                 Text="Selecione um material"
                                 FontSize="15"
                                 FontAttributes="Bold"
-                                TextColor="#2E2A6A"/>
+                                TextColor="{DynamicResource BrandPrimary}"/>
 
                         </VerticalStackLayout>
 
@@ -215,10 +215,10 @@
                         Text="QUANTIDADE"
                         FontSize="12"
                         FontAttributes="Bold"
-                        TextColor="#777"/>
+                        TextColor="{DynamicResource BrandMuted}"/>
 
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="10">
 
@@ -231,7 +231,7 @@
                             Placeholder="0,00"
                             Keyboard="Numeric"
                             FontSize="18"
-                            TextColor="#222"
+                            TextColor="{DynamicResource BrandText}"
                             TextChanged="Quantidade_TextChanged"/>
 
                     </Border>
@@ -247,10 +247,10 @@
                         Text="PREÇO DE VENDA"
                         FontSize="12"
                         FontAttributes="Bold"
-                        TextColor="#777"/>
+                        TextColor="{DynamicResource BrandMuted}"/>
 
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="10">
 
@@ -263,7 +263,7 @@
                             Placeholder="R$ 0,00"
                             Keyboard="Numeric"
                             FontSize="18"
-                            TextColor="#222"
+                            TextColor="{DynamicResource BrandText}"
                             TextChanged="Preco_TextChanged"/>
 
                     </Border>
@@ -274,7 +274,7 @@
                 <!-- TOTAL DO ITEM -->
 
                 <Border
-                    BackgroundColor="#2E2A6A"
+                    BackgroundColor="{DynamicResource BrandPrimary}"
                     StrokeThickness="0"
                     Padding="18">
 
@@ -290,14 +290,14 @@
                                 Text="TOTAL DO ITEM"
                                 FontSize="11"
                                 FontAttributes="Bold"
-                                TextColor="#D8D7F5"/>
+                                TextColor="{DynamicResource BrandOnPrimary}"/>
 
                             <Label
                                 x:Name="TotalItemLabel"
                                 Text="R$ 0,00"
                                 FontSize="25"
                                 FontAttributes="Bold"
-                                TextColor="White"/>
+                                TextColor="{DynamicResource BrandText}"/>
 
                         </VerticalStackLayout>
 
@@ -316,8 +316,8 @@
 
                 <Button
                     Text="+  ADICIONAR ITEM"
-                    BackgroundColor="#007AFF"
-                    TextColor="White"
+                    BackgroundColor="{DynamicResource BrandPrimary}"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     FontSize="15"
                     FontAttributes="Bold"
                     CornerRadius="14"
@@ -331,7 +331,7 @@
                     Text="Itens da venda"
                     FontSize="18"
                     FontAttributes="Bold"
-                    TextColor="#222"
+                    TextColor="{DynamicResource BrandText}"
                     Margin="0,5,0,0"/>
 
 
@@ -342,7 +342,7 @@
                     <CollectionView.EmptyView>
 
                         <Border
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="20">
 
@@ -362,7 +362,7 @@
                                 <Label
                                     Text="Nenhum item adicionado"
                                     FontAttributes="Bold"
-                                    TextColor="#555"
+                                    TextColor="{DynamicResource BrandMuted}"
                                     HorizontalOptions="Center"/>
 
                             </VerticalStackLayout>
@@ -377,7 +377,7 @@
                         <DataTemplate>
 
                             <Border
-                                BackgroundColor="White"
+                                BackgroundColor="{DynamicResource BrandSurface}"
                                 StrokeThickness="0"
                                 Padding="15"
                                 Margin="0,0,0,10">
@@ -396,11 +396,11 @@
                                             Text="{Binding MaterialNome}"
                                             FontSize="16"
                                             FontAttributes="Bold"
-                                            TextColor="#222"/>
+                                            TextColor="{DynamicResource BrandText}"/>
 
                                         <Label
                                             FontSize="13"
-                                            TextColor="#777">
+                                            TextColor="{DynamicResource BrandMuted}">
 
                                             <Label.FormattedText>
 
@@ -439,7 +439,7 @@
                                             Text="{Binding ValorTotal, StringFormat='R$ {0:N2}'}"
                                             FontSize="16"
                                             FontAttributes="Bold"
-                                            TextColor="#2E2A6A"
+                                            TextColor="{DynamicResource BrandPrimary}"
                                             HorizontalTextAlignment="End"/>
 
                                         <Label
@@ -473,7 +473,7 @@
                 <!-- TOTAL DA VENDA -->
 
                 <Border
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BrandSurface}"
                     StrokeThickness="0"
                     Padding="18"
                     Margin="0,5,0,0">
@@ -488,7 +488,7 @@
                             Text="TOTAL DA VENDA"
                             FontSize="15"
                             FontAttributes="Bold"
-                            TextColor="#555"
+                            TextColor="{DynamicResource BrandMuted}"
                             VerticalOptions="Center"/>
 
                         <Label
@@ -497,7 +497,7 @@
                             Text="R$ 0,00"
                             FontSize="23"
                             FontAttributes="Bold"
-                            TextColor="#2E2A6A"/>
+                            TextColor="{DynamicResource BrandPrimary}"/>
 
                     </Grid>
 
@@ -512,10 +512,10 @@
                         Text="OBSERVAÇÃO"
                         FontSize="12"
                         FontAttributes="Bold"
-                        TextColor="#777"/>
+                        TextColor="{DynamicResource BrandMuted}"/>
 
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="10">
 
@@ -528,7 +528,7 @@
                             Placeholder="Observações da venda..."
                             AutoSize="TextChanges"
                             MinimumHeightRequest="80"
-                            TextColor="#222"/>
+                            TextColor="{DynamicResource BrandText}"/>
 
                     </Border>
 
@@ -539,8 +539,8 @@
 
                 <Button
                     Text="FINALIZAR VENDA"
-                    BackgroundColor="#2E2A6A"
-                    TextColor="White"
+                    BackgroundColor="{DynamicResource BrandPrimary}"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     FontSize="16"
                     FontAttributes="Bold"
                     CornerRadius="15"

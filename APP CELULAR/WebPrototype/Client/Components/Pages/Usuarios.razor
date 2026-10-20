@@ -15,7 +15,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
 {
     <main class="home-shell">
         <header class="home-topbar">
-            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a>
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="catchat_official.png" alt="" /> CATCHAT</a>
             <a href="/main">Voltar</a>
         </header>
         <section class="home-content users-admin">
@@ -107,7 +107,6 @@ else if (Portal.Autenticado && Portal.EhZeus)
                         <article class="managed-user" @key="usuario.Id">
                             <div class="managed-user-copy">
                                 <strong>@usuario.Nome</strong>
-                                @if (!string.IsNullOrWhiteSpace(usuario.Username)) { <small>Username: @usuario.Username</small> }
                                 <small>@usuario.Funcao · @(usuario.TipoNegocio == "chat" ? "Chat" : "Comercial")</small>
                                 <small>@(string.IsNullOrWhiteSpace(usuario.Empresa) ? $"Empresa · código {usuario.EmpresaId}" : $"Empresa: {usuario.Empresa} · código {usuario.EmpresaId}")</small>
                                 @if (!string.IsNullOrWhiteSpace(usuario.Email)) { <small>@usuario.Email</small> }
@@ -124,9 +123,8 @@ else if (Portal.Autenticado && Portal.EhZeus)
                             {
                                 <EditForm Model="edicao" OnValidSubmit="SalvarEdicaoAsync" @key="usuario.Id">
                                     <div class="user-invite-grid">
-                                        <label>Username<input @bind="edicao.Username" minlength="3" maxlength="40" required /></label>
                                         <label>E-mail<input @bind="edicao.Email" type="email" maxlength="254" required /></label>
-                                        <label>Nome de exibição<input @bind="edicao.Nome" maxlength="120" required /></label>
+                                        <label>Nome<input @bind="edicao.Nome" maxlength="120" required /></label>
                                         <label>Tipo de acesso<select @bind="edicao.TipoNegocio"><option value="chat">Chat</option><option value="comercial">Comercial</option></select></label>
                                     </div>
                                     <button class="primary-button" type="submit" disabled="@processando">Salvar alterações</button>
@@ -283,12 +281,11 @@ else if (Portal.Autenticado && Portal.EhZeus)
         var username = edicao.Username.Trim();
         var email = edicao.Email.Trim();
         var nome = edicao.Nome.Trim();
-        if (username.Length is < 3 or > 40 || username.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-')
-            || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome))
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome))
         {
-            falha = true; aviso = "Username, e-mail e nome são obrigatórios; username aceita letras, números, ponto, hífen e sublinhado."; return;
+            falha = true; aviso = "Este usuário ainda não tem identidade vinculada para edição. Confira o cadastro e tente novamente."; return;
         }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Salvar username {username} e e-mail {email} para este usuário?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Salvar nome e e-mail para este usuário?")) return;
         await ProcessarAsync(async () => await Portal.EditarUsuarioEmpresaAsync(edicao.EmpresaId, edicao.Id, username, email, nome, edicao.TipoNegocio), "Dados do usuário atualizados no banco.");
         if (!falha) editandoId = null;
     }

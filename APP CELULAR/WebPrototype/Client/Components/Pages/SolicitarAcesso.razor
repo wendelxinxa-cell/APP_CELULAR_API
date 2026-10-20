@@ -8,23 +8,21 @@
 
 <main class="login-page">
     <section class="login-card">
-        <div class="brand-mark" aria-label="CATCHAT"><img src="/app-icon.svg" alt="" /></div>
+        <div class="brand-mark" aria-hidden="true">😺</div>
         <p class="eyebrow">CATCHAT</p>
         <h1>Solicitar acesso</h1>
-        <p class="muted login-intro">Informe o username que usará para entrar, seu e-mail e uma senha. A empresa será identificada automaticamente. Confirme o e-mail para Zeus receber o pedido em Pendências.</p>
+        <p class="muted login-intro">Informe seu apelido e e-mail. A empresa será identificada automaticamente pelo CATCHAT; primeiro confirme seu e-mail e depois Zeus analisará seu pedido em Pendências.</p>
 
         @if (enviado)
         {
-            <div class="notice success" role="status">Pedido registrado. Confirme o e-mail; depois Zeus poderá aprovar seu acesso em Pendências. Use o username e a senha escolhidos para entrar após a aprovação.</div>
+            <div class="notice success" role="status">Solicitação registrada. Confira sua caixa de entrada e confirme o e-mail. Após a confirmação, Zeus verá seu pedido em Pendências. Se não encontrar, confira o spam.</div>
             <a class="primary-button login-submit" href="/login">Voltar ao login</a>
         }
         else
         {
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
-                <div class="field"><label for="request-name">Username</label><input id="request-name" @bind="form.Nome" autocomplete="username" maxlength="120" required /></div>
+                <div class="field"><label for="request-name">Nome</label><input id="request-name" @bind="form.Nome" autocomplete="name" maxlength="120" required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
-                <div class="field"><label for="request-password">Senha</label><input id="request-password" type="password" @bind="form.Senha" autocomplete="new-password" minlength="8" maxlength="72" required /></div>
-                <div class="field"><label for="request-password-confirm">Confirme a senha</label><input id="request-password-confirm" type="password" @bind="form.ConfirmacaoSenha" autocomplete="new-password" minlength="8" maxlength="72" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>
             </EditForm>
@@ -46,15 +44,8 @@
         erro = null;
         try
         {
-            if (!string.Equals(form.Senha, form.ConfirmacaoSenha, StringComparison.Ordinal))
-            {
-                erro = "As senhas não coincidem.";
-                return;
-            }
-            await Portal.SolicitarAcessoAsync(form.Email, form.Nome, form.Senha);
+            await Portal.SolicitarAcessoAsync(form.Email, form.Nome);
             enviado = true;
-            form.Senha = "";
-            form.ConfirmacaoSenha = "";
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
@@ -67,7 +58,5 @@
     {
         public string Nome { get; set; } = "";
         public string Email { get; set; } = "";
-        public string Senha { get; set; } = "";
-        public string ConfirmacaoSenha { get; set; } = "";
     }
 }

@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.PessoasPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     Title="Pessoas">
 
     <Grid RowDefinitions="Auto,*">
@@ -12,7 +12,7 @@
         <!-- CABEÇALHO -->
         <Border
             Grid.Row="0"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             Padding="20,18">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -20,7 +20,7 @@
                 <Button
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     BackgroundColor="Transparent"
                     Padding="0"
                     Clicked="Voltar_Clicked"/>
@@ -35,13 +35,13 @@
                         Text="Pessoas"
                         FontSize="24"
                         FontAttributes="Bold"
-                        TextColor="White"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                     <Label
                         x:Name="QuantidadeLabel"
                         Text="0 cadastradas"
                         FontSize="13"
-                        TextColor="#D8D7F5"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
                 </VerticalStackLayout>
 
                 <Label
@@ -62,7 +62,7 @@
             <Border
             Grid.Row="1"
             Margin="20,-22,20,0"
-            BackgroundColor="White"
+            BackgroundColor="{DynamicResource BrandSurface}"
             StrokeThickness="0"
             Padding="15,5">
 
@@ -76,7 +76,7 @@
                     Grid.Column="0"
                     Text="⌕"
                     FontSize="28"
-                    TextColor="#777777"
+                    TextColor="{DynamicResource BrandMuted}"
                     VerticalTextAlignment="Center"
                     HorizontalTextAlignment="Center" />
 
@@ -84,8 +84,8 @@
                     Grid.Column="1"
                     x:Name="PesquisaEntry"
                     Placeholder="Pesquisar..."
-                    PlaceholderColor="#999999"
-                    TextColor="#222222"
+                    PlaceholderColor="{DynamicResource BrandMuted}"
+                    TextColor="{DynamicResource BrandText}"
                     FontSize="15"
                     BackgroundColor="Transparent"
                     TextChanged="Pesquisa_TextChanged" />
@@ -100,13 +100,13 @@
                 Text="Cadastros"
                 FontSize="18"
                 FontAttributes="Bold"
-                TextColor="#222"
+                TextColor="{DynamicResource BrandText}"
                 Margin="0,5,0,10"/>
 
             <Picker
                 x:Name="TipoCadastroPicker"
                 Title="Selecione o tipo"
-                TextColor="#222">
+                TextColor="{DynamicResource BrandText}">
 
                 <Picker.Items>
                     <x:String>Cliente</x:String>
@@ -138,13 +138,13 @@
                             Text="Nenhuma pessoa cadastrada"
                             FontSize="17"
                             FontAttributes="Bold"
-                            TextColor="#555"
+                            TextColor="{DynamicResource BrandMuted}"
                             HorizontalOptions="Center"/>
 
                         <Label
                             Text="Toque no + para cadastrar"
                             FontSize="14"
-                            TextColor="#888"
+                            TextColor="{DynamicResource BrandMuted}"
                             HorizontalOptions="Center"/>
                     </VerticalStackLayout>
 
@@ -155,7 +155,7 @@
                     <DataTemplate>
 
                         <Border
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="15"
                             Margin="0,0,0,10">
@@ -169,7 +169,7 @@
                                 <Border
                                     WidthRequest="48"
                                     HeightRequest="48"
-                                    BackgroundColor="#EEEAFB"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     VerticalOptions="Center">
 
@@ -194,25 +194,25 @@
                                         Text="{Binding Nome}"
                                         FontSize="16"
                                         FontAttributes="Bold"
-                                        TextColor="#222"/>
+                                        TextColor="{DynamicResource BrandText}"/>
 
                                     <Label
                                         Text="{Binding Documento}"
                                         FontSize="13"
-                                        TextColor="#888"/>
+                                        TextColor="{DynamicResource BrandMuted}"/>
 
                                     <HorizontalStackLayout Spacing="8">
 
                                         <Label
                                             Text="CLIENTE"
                                             FontSize="10"
-                                            TextColor="#2E2A6A"
+                                            TextColor="{DynamicResource BrandPrimary}"
                                             IsVisible="{Binding Cliente}"/>
 
                                         <Label
                                             Text="FORNECEDOR"
                                             FontSize="10"
-                                            TextColor="#777"
+                                            TextColor="{DynamicResource BrandMuted}"
                                             IsVisible="{Binding Fornecedor}"/>
 
                                     </HorizontalStackLayout>
@@ -223,7 +223,7 @@
                                     Grid.Column="2"
                                     Text="⋮"
                                     FontSize="28"
-                                    TextColor="#777"
+                                    TextColor="{DynamicResource BrandMuted}"
                                     VerticalOptions="Center">
 
                                     <Label.GestureRecognizers>
@@ -250,7 +250,7 @@
                 Grid.Row="2"
                 WidthRequest="60"
                 HeightRequest="60"
-                BackgroundColor="#2E2A6A"
+                BackgroundColor="{DynamicResource BrandPrimary}"
                 StrokeThickness="0"
                 HorizontalOptions="End"
                 VerticalOptions="End"
@@ -263,7 +263,7 @@
                 <Label
                     Text="+"
                     FontSize="32"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandText}"
                     HorizontalOptions="Center"
                     VerticalOptions="Center">
 

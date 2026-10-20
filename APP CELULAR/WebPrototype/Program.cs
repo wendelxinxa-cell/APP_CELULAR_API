@@ -13,6 +13,13 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapGet("/version.json", () => Results.Json(new
+{
+    version = "0.0.001",
+    build = 41,
+    release = "0.0.001-build41"
+})).AllowAnonymous();
+
 // Only the browser-safe Supabase URL and publishable key are exposed. All chat,
 // authentication, realtime and media operations run from the browser to Supabase.
 app.MapGet("/supabase-config.js", (IConfiguration config) =>

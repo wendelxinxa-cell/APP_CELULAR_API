@@ -1,71 +1,134 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="APP_CELULAR.LoginPage"
-             BackgroundColor="#2E2A6A"
+             BackgroundColor="#140723"
              Title="Login">
 
     <ScrollView>
-        <VerticalStackLayout Spacing="25" Padding="40" VerticalOptions="Center">
+        <VerticalStackLayout Spacing="20" Padding="28,34" VerticalOptions="Center">
             <!-- Ícone e título -->
-            <Image Source="lock_icon.png"
-                   HeightRequest="100"
+            <Image Source="catchat_login.png"
+                   HeightRequest="84"
                    HorizontalOptions="Center" />
             <Label Text="Bem-vindo!"
                    FontSize="32"
-                   TextColor="White"
+                   TextColor="#FFFFFF"
                    HorizontalOptions="Center" />
+            <Label Text="CATCHAT" FontSize="15" FontAttributes="Bold" TextColor="#00C5B3"
+                   CharacterSpacing="2" HorizontalOptions="Center" Margin="0,-16,0,0" />
 
             <!-- Campos de entrada -->
-            <Frame CornerRadius="15" BackgroundColor="#F0F0F0" Padding="10">
+            <Frame x:Name="UsernameFrame" CornerRadius="15" BackgroundColor="#20112E" BorderColor="#3A2850" Padding="10">
                 <Entry x:Name="UsernameEntry"
-                       Placeholder="Digite seu usuário"
-                       PlaceholderColor="#888"
-                       TextColor="Black" />
+                       Placeholder="Digite seu nome ou e-mail"
+                       PlaceholderColor="#B6A9C3"
+                       TextColor="#FFFFFF" BackgroundColor="Transparent" />
             </Frame>
 
-            <Frame CornerRadius="15" BackgroundColor="#F0F0F0" Padding="10">
-                <Entry x:Name="PasswordEntry"
-                       Placeholder="Digite sua senha"
-                       IsPassword="True"
-                       PlaceholderColor="#888"
-                       TextColor="Black" />
+            <Frame x:Name="UsuarioSalvoFrame" IsVisible="False" CornerRadius="15" BackgroundColor="#20112E" BorderColor="#3A2850" Padding="14,12">
+                <VerticalStackLayout Spacing="3">
+                    <Label Text="CONTA DESTE APARELHO" FontSize="10" CharacterSpacing="1.2" TextColor="#B6A9C3" />
+                    <Label x:Name="UsuarioSalvoLabel" FontSize="18" FontAttributes="Bold" TextColor="#FFFFFF" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame CornerRadius="15" BackgroundColor="#20112E" BorderColor="#3A2850" Padding="10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Entry x:Name="PasswordEntry"
+                           Grid.Column="0"
+                           Placeholder="Digite sua senha"
+                           IsPassword="True"
+                           PlaceholderColor="#B6A9C3"
+                           TextColor="#FFFFFF" BackgroundColor="Transparent" />
+                    <Button x:Name="MostrarSenhaButton"
+                            Grid.Column="1"
+                            Text="👁"
+                            FontSize="20"
+                            Padding="8,0"
+                            HeightRequest="42"
+                            BackgroundColor="Transparent"
+                            TextColor="#00C5B3"
+                            SemanticProperties.Description="Mostrar senha"
+                            Clicked="MostrarSenha_Clicked" />
+                </Grid>
             </Frame>
 
             <!-- Botão de login -->
             <Button Text="Entrar"
-                    BackgroundColor="#007AFF"
-                    TextColor="White"
-                    CornerRadius="20"
+                    BackgroundColor="#00C5B3"
+                    TextColor="#140723"
+                    CornerRadius="16"
+                    HeightRequest="54"
                     FontAttributes="Bold"
                     Clicked="OnLoginClicked" />
+
+            <Button x:Name="BiometriaButton" Text="Entrar com biometria" IsVisible="False"
+                    BackgroundColor="#20112E" TextColor="#00C5B3" BorderColor="#00C5B3" BorderWidth="1"
+                    CornerRadius="16" HeightRequest="50" FontAttributes="Bold"
+                    Clicked="Biometria_Clicked" />
+
+            <Label x:Name="AlterarUsuarioLabel" Text="Alterar conta" IsVisible="False"
+                   TextColor="#00C5B3"
+                   HorizontalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="AlterarUsuario_Clicked" />
+                </Label.GestureRecognizers>
+            </Label>
 
             <!-- Links -->
             <HorizontalStackLayout HorizontalOptions="Center" Spacing="30">
                 <Label Text="Esqueci a senha"
-                       TextColor="#00BFFF"
-                       FontAttributes="Bold" />
+                       TextColor="#00C5B3"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="EsqueciSenha_Clicked" />
+                    </Label.GestureRecognizers>
+                </Label>
                 <Label Text="Cadastre-se"
-                       TextColor="#00BFFF"
-                       FontAttributes="Bold" />
+                    TextColor="#00C5B3"
+                     FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer
+                     Tapped="CadastreSe_Clicked" />
+                    </Label.GestureRecognizers>
+                </Label>
+                
             </HorizontalStackLayout>
 
             <!-- Login social -->
             <Label Text="Ou entre com"
-                   TextColor="White"
+                   TextColor="#FFFFFF"
                    HorizontalOptions="Center"
                    FontSize="18" />
 
             <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
                 <ImageButton Source="facebook_icon.png"
                              HeightRequest="40"
-                             WidthRequest="40" />
+                             WidthRequest="40"
+                             BackgroundColor="#20112E"
+                             CornerRadius="10" />
                 <ImageButton Source="google_icon.png"
                              HeightRequest="40"
-                             WidthRequest="40" />
+                             WidthRequest="40"
+                             BackgroundColor="#20112E"
+                             CornerRadius="10" />
                 <ImageButton Source="apple_icon.png"
                              HeightRequest="40"
-                             WidthRequest="40" />
+                             WidthRequest="40"
+                             BackgroundColor="#20112E"
+                             CornerRadius="10" />
             </HorizontalStackLayout>
+
+            <Label x:Name="VersionLabel"
+                   TextColor="#B6A9C3"
+                   FontSize="11"
+                   HorizontalOptions="Center"
+                   Margin="0,8,0,0" />
+            <VerticalStackLayout x:Name="AtualizacaoPanel" IsVisible="False" Spacing="5">
+                <Label x:Name="AtualizacaoStatusLabel" TextColor="#FFFFFF" FontSize="12" HorizontalTextAlignment="Center" />
+                <ProgressBar x:Name="AtualizacaoProgressBar" Progress="0" ProgressColor="#00C5B3" />
+            </VerticalStackLayout>
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
+

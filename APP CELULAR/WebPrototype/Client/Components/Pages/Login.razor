@@ -12,7 +12,7 @@
 
 <main class="login-page">
     <section class="login-card">
-        <div class="brand-mark" aria-label="CATCHAT"><img src="/app-icon.svg" alt="" /></div>
+        <div class="brand-mark" aria-label="CATCHAT"><img src="/catchat_official.png" alt="" /></div>
         <p class="eyebrow">CATCHAT</p>
         @if (modoConfirmarEmail)
         {
@@ -90,8 +90,8 @@
 
         <EditForm Model="form" OnValidSubmit="EntrarAsync">
             <div class="field">
-                <label for="username">E-mail ou apelido</label>
-                <input id="username" type="text" @bind="form.Email" autocomplete="username" placeholder="E-mail ou apelido cadastrado" />
+                <label for="login-identifier">Nome ou e-mail</label>
+                <input id="login-identifier" type="text" @bind="form.Email" autocomplete="username" placeholder="Digite seu nome ou e-mail" />
             </div>
             <div class="field">
                 <label for="password">Senha</label>
@@ -113,9 +113,9 @@
 
         <div class="demo-hint">
             <span class="hint-icon">i</span>
-            <div><strong>Acesso CATCHAT</strong><br />Entre com e-mail ou apelido aprovado por Zeus.<br />Use a senha criada pelo convite recebido por e-mail.</div>
+            <div><strong>Acesso CATCHAT</strong><br />Entre com seu nome cadastrado ou e-mail.<br />Use a senha criada no convite recebido por e-mail.</div>
         </div>
-        <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase. · Versão 0.0.001 (build 40)</p>
+        <p class="prototype-label">Mensagens e mídias sincronizadas diretamente com o Supabase.</p>
         <p class="login-register"><button class="text-button" type="button" @onclick="AbrirRecuperacao">Esqueci minha senha</button> · <a href="/solicitar-acesso">Solicitar acesso</a></p>
         }
     </section>

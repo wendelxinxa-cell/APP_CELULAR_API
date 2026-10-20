@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.ChatZeusPage"
+             Title="Chat"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <Grid RowDefinitions="Auto,*">
+        <VerticalStackLayout Grid.Row="0" Padding="18,14" BackgroundColor="{DynamicResource BrandPrimary}" Spacing="3">
+            <Label Text="CHAT" FontSize="22" FontAttributes="Bold" TextColor="{DynamicResource BrandOnPrimary}" />
+            <Label x:Name="SubtituloLabel" Text="Chats das empresas" FontSize="13" TextColor="{DynamicResource BrandOnPrimary}" />
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1" x:Name="ChatsList" SelectionMode="None">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Padding="30" Spacing="10" VerticalOptions="Center">
+                    <Label Text="Nenhuma mensagem no chat." FontSize="17" TextColor="{DynamicResource BrandMuted}" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="14,7" Padding="14" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="ChatSelecionado" CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Titulo}" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" LineBreakMode="TailTruncation" />
+                            <Label Grid.Row="1" Grid.Column="0" Text="{Binding EmpresaExibida}" FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" LineBreakMode="TailTruncation" />
+                            <Label Grid.Row="2" Grid.Column="0" Text="{Binding UltimaMensagem}" FontSize="13" TextColor="{DynamicResource BrandMuted}" LineBreakMode="TailTruncation" />
+                            <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" IsVisible="{Binding TemNaoLidas}" BackgroundColor="#D1242F" Padding="8,4" VerticalOptions="Center" StrokeThickness="0">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                                <Label Text="{Binding NaoLidas}" TextColor="{DynamicResource BrandText}" FontSize="12" FontAttributes="Bold" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

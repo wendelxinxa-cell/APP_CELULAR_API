@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="APP_CELULAR.ChequesClientePage">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Frame Padding="10"
+               Margin="10">
+
+            <VerticalStackLayout>
+
+                <Label
+                    x:Name="ClienteLabel"
+                    FontSize="22"
+                    FontAttributes="Bold"/>
+
+                <Label
+                    x:Name="ResumoLabel"/>
+
+            </VerticalStackLayout>
+
+        </Frame>
+
+        <CollectionView
+    x:Name="ChequesCollection"
+    SelectionChanged="ChequesCollection_SelectionChanged">
+
+            <CollectionView.ItemTemplate>
+
+                <DataTemplate>
+
+                    <Frame Margin="10,5">
+
+                        <VerticalStackLayout>
+
+                            <Label
+                        Text="{Binding NumeroCheque}"
+                        FontAttributes="Bold"
+                        FontSize="18"/>
+
+                            <Label
+                        Text="{Binding ClienteNome}"/>
+
+                            <Label
+                        Text="{Binding SaldoAtual,
+                               StringFormat='Saldo: R$ {0:N2}'}"
+                        TextColor="Green"/>
+
+                            <Label
+                        Text="{Binding Status}"/>
+
+                        </VerticalStackLayout>
+
+                    </Frame>
+
+                </DataTemplate>
+
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+        <!-- BOTÃO NOVO CHEQUE -->
+
+        <Border
+      HorizontalOptions="End"
+      VerticalOptions="End"
+      Margin="0,0,18,18"
+      WidthRequest="58"
+      HeightRequest="58"
+      BackgroundColor="{DynamicResource BrandPrimary}"
+      StrokeThickness="0">
+
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="29"/>
+            </Border.StrokeShape>
+
+            <Label
+          Text="+"
+          FontSize="34"
+          TextColor="{DynamicResource BrandText}"
+          HorizontalTextAlignment="Center"
+          VerticalTextAlignment="Center"/>
+
+            <Border.GestureRecognizers>
+
+                <TapGestureRecognizer
+              Tapped="NovoCheque_Tapped"/>
+
+            </Border.GestureRecognizers>
+
+        </Border>
+
+    
+    </Grid>
+
+</ContentPage>

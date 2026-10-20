@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.EmpresasPage"
+             Title="Empresas"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="22" Spacing="16">
+            <Label Text="Cadastro de empresas" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" />
+            <Label Text="Somente o Administrador Master pode cadastrar empresas. A conexão Supabase é enviada à API por HTTPS e guardada criptografada no servidor." TextColor="{DynamicResource BrandMuted}" />
+
+            <Border x:Name="LoginPanel" BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Confirme o acesso Master do servidor" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                    <Entry x:Name="MasterUsuarioEntry" Placeholder="Usuário Master" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" BackgroundColor="{DynamicResource BrandBackground}" FontSize="16" FontAttributes="Bold" />
+                    <Entry x:Name="MasterSenhaEntry" Placeholder="Senha Master do servidor" IsPassword="True" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" BackgroundColor="{DynamicResource BrandBackground}" FontSize="16" FontAttributes="Bold" />
+                    <Button x:Name="EntrarMasterButton" Text="Acessar cadastro" Clicked="EntrarMaster_Clicked" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border x:Name="CadastroPanel" IsVisible="False" BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" Padding="16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Nova empresa" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                    <Entry x:Name="NomeEmpresaEntry" Placeholder="Nome da empresa" MaxLength="120" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" BackgroundColor="{DynamicResource BrandBackground}" FontSize="16" FontAttributes="Bold" />
+                    <Entry x:Name="EmailResponsavelEntry" Placeholder="E-mail do responsável pela empresa" Keyboard="Email" MaxLength="254" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" BackgroundColor="{DynamicResource BrandBackground}" FontSize="16" FontAttributes="Bold" />
+                    <Entry x:Name="ConexaoSupabaseEntry" Placeholder="Conexão PostgreSQL do Supabase" IsPassword="True" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" BackgroundColor="{DynamicResource BrandBackground}" FontSize="16" FontAttributes="Bold" />
+                    <Label Text="A conexão é testada e guardada criptografada. O cadastro fica pendente até você aprová-lo. Sem e-mail configurado, informe o código ao responsável manualmente." FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                    <Button x:Name="CadastrarButton" Text="Testar e solicitar aprovação" Clicked="Cadastrar_Clicked" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+                    <Button Text="Sair do modo Master" Clicked="SairMaster_Clicked" BackgroundColor="Transparent" TextColor="{DynamicResource BrandPrimary}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Empresas cadastradas" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+            <CollectionView x:Name="EmpresasList" EmptyView="Nenhuma empresa cadastrada ainda.">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" Padding="14" Margin="0,0,0,8">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Text="{Binding Nome}" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                                <Label Grid.Column="1" Text="{Binding Codigo}" TextColor="{DynamicResource BrandPrimary}" FontAttributes="Bold" />
+                                <Label Grid.Row="1" Text="{Binding Status}" FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                                <Button Grid.Row="1" Grid.Column="1" Text="Aprovar" IsVisible="{Binding Pendente}" CommandParameter="{Binding Id}" Clicked="AprovarEmpresa_Clicked" Padding="10,2" FontSize="12" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+                                <Label Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding EmailResponsavel}" FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

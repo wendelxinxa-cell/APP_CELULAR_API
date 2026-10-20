@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.ComprasPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     NavigationPage.HasNavigationBar="False">
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
@@ -12,7 +12,7 @@
         <!-- CABEÇALHO -->
         <Grid
             Grid.Row="0"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             Padding="18,15,18,18"
             ColumnDefinitions="Auto,*,Auto">
 
@@ -21,7 +21,7 @@
                 Grid.Column="0"
                 Text="‹"
                 FontSize="38"
-                TextColor="White"
+                TextColor="{DynamicResource BrandOnPrimary}"
                 BackgroundColor="Transparent"
                 WidthRequest="45"
                 HeightRequest="50"
@@ -38,12 +38,14 @@
                     Text="Compras"
                     FontSize="23"
                     FontAttributes="Bold"
-                    TextColor="White" />
+                    TextColor="{DynamicResource BrandOnPrimary}" />
 
                 <Label
                     Text="Entradas de materiais"
                     FontSize="13"
-                    TextColor="#DAD8F5" />
+                    TextColor="{DynamicResource BrandOnPrimary}" />
+
+                <Label x:Name="UsuarioLogadoLabel" FontSize="10" TextColor="{DynamicResource BrandOnPrimary}" />
 
             </VerticalStackLayout>
 
@@ -63,8 +65,8 @@
             Grid.Row="1"
             Margin="15,15,15,8"
             Padding="15,10"
-            BackgroundColor="White"
-            Stroke="#E1E2EA"
+            BackgroundColor="{DynamicResource BrandSurface}"
+            Stroke="{DynamicResource BrandBorder}"
             StrokeThickness="1"
             StrokeShape="RoundRectangle 14">
 
@@ -85,14 +87,14 @@
                     <Label
                         Text="Data das compras"
                         FontSize="12"
-                        TextColor="#777777" />
+                        TextColor="{DynamicResource BrandMuted}" />
 
                     <Label
                         x:Name="DataSelecionadaLabel"
                         Text="Hoje"
                         FontSize="16"
                         FontAttributes="Bold"
-                        TextColor="#2E2A6A" />
+                        TextColor="{DynamicResource BrandPrimary}" />
 
                 </VerticalStackLayout>
 
@@ -100,7 +102,7 @@
                     Grid.Column="2"
                     x:Name="DataPicker"
                     Format="dd/MM/yyyy"
-                    TextColor="#2E2A6A"
+                    TextColor="{DynamicResource BrandPrimary}"
                     FontAttributes="Bold"
                     VerticalOptions="Center"
                     DateSelected="DataPicker_DateSelected" />
@@ -139,7 +141,7 @@
                 FontAttributes="Bold"
                 CornerRadius="12"
                 HeightRequest="45"
-                BackgroundColor="#DDEBFF"
+                BackgroundColor="{DynamicResource BrandSoft}"
                 TextColor="#2463B5"
                 Clicked="FiltroAguardando_Clicked" />
 
@@ -184,14 +186,14 @@
                             Text="Nenhuma compra encontrada"
                             FontSize="17"
                             FontAttributes="Bold"
-                            TextColor="#666666"
+                            TextColor="{DynamicResource BrandMuted}"
                             HorizontalOptions="Center" />
 
                         <Label
                             x:Name="MensagemVaziaLabel"
                             Text="Não existem compras para esta data."
                             FontSize="13"
-                            TextColor="#999999"
+                            TextColor="{DynamicResource BrandMuted}"
                             HorizontalOptions="Center" />
 
                     </VerticalStackLayout>
@@ -205,8 +207,8 @@
                         <Border
                             Margin="0,5"
                             Padding="15"
-                            BackgroundColor="White"
-                            Stroke="#E3E4EA"
+                            BackgroundColor="{DynamicResource BrandSurface}"
+                            Stroke="{DynamicResource BrandBorder}"
                             StrokeThickness="1"
                             StrokeShape="RoundRectangle 16">
 
@@ -232,13 +234,13 @@
                                         Text="{Binding NumeroCompra}"
                                         FontSize="16"
                                         FontAttributes="Bold"
-                                        TextColor="#2E2A6A" />
+                                        TextColor="{DynamicResource BrandPrimary}" />
 
                                     <Label
                                         Text="{Binding Compra.PessoaNome}"
                                         FontSize="15"
                                         FontAttributes="Bold"
-                                        TextColor="#333333"
+                                        TextColor="{DynamicResource BrandText}"
                                         LineBreakMode="TailTruncation" />
 
                                 </VerticalStackLayout>
@@ -278,7 +280,7 @@
                                         <Label
                                             Text="{Binding Horario}"
                                             FontSize="13"
-                                            TextColor="#777777" />
+                                            TextColor="{DynamicResource BrandMuted}" />
 
                                     </HorizontalStackLayout>
 
@@ -291,7 +293,7 @@
                                         <Label
                                             Text="{Binding QuantidadeItensTexto}"
                                             FontSize="13"
-                                            TextColor="#777777" />
+                                            TextColor="{DynamicResource BrandMuted}" />
 
                                     </HorizontalStackLayout>
 
@@ -308,7 +310,7 @@
                                         Grid.Column="0"
                                         Text="Total da compra"
                                         FontSize="12"
-                                        TextColor="#999999"
+                                        TextColor="{DynamicResource BrandMuted}"
                                         VerticalOptions="End" />
 
                                     <Label
@@ -316,7 +318,7 @@
                                         Text="{Binding TotalFormatado}"
                                         FontSize="19"
                                         FontAttributes="Bold"
-                                        TextColor="#2E2A6A"
+                                        TextColor="{DynamicResource BrandPrimary}"
                                         HorizontalOptions="End" />
 
                                 </Grid>
@@ -344,8 +346,8 @@
                 Text="+  Nova compra"
                 FontSize="16"
                 FontAttributes="Bold"
-                TextColor="White"
-                BackgroundColor="#2E2A6A"
+                TextColor="{DynamicResource BrandOnPrimary}"
+                BackgroundColor="{DynamicResource BrandPrimary}"
                 CornerRadius="18"
                 HeightRequest="55"
                 HorizontalOptions="End"

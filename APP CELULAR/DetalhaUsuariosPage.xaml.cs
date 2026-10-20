@@ -1,5 +1,6 @@
 using APP_CELULAR.Data;
 using APP_CELULAR.Models;
+using APP_CELULAR.Services;
 
 namespace APP_CELULAR;
 
@@ -31,6 +32,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         _database = new AppDatabase();
 
         FuncaoPicker.SelectedIndex = 0;
+        TipoNegocioPicker.SelectedIndex = 0;
     }
 
 
@@ -54,7 +56,7 @@ public partial class DetalhaUsuariosPage : ContentPage
             {
                 await DisplayAlert(
                     "Erro",
-                    "Usu·rio n„o encontrado.",
+                    "Usu√°rio n√£o encontrado.",
                     "OK");
 
                 await Shell.Current.GoToAsync("..");
@@ -65,6 +67,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
             NomeEntry.Text =
                 _usuario.Nome;
+            TipoNegocioPicker.SelectedIndex = _usuario.TipoNegocio == "chat" ? 1 : 0;
 
 
             if (_usuario.Funcao == "ADMINISTRADOR")
@@ -83,6 +86,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
                 NomeEntry.IsEnabled = false;
                 FuncaoPicker.IsEnabled = false;
+                TipoNegocioPicker.IsEnabled = false;
 
                 BtnExcluir.IsVisible = false;
 
@@ -97,7 +101,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
             // =================================================
-            // USU¡RIO NORMAL
+            // USU√ÅRIO NORMAL
             // =================================================
 
             MasterFrame.IsVisible = false;
@@ -119,26 +123,28 @@ public partial class DetalhaUsuariosPage : ContentPage
             {
                 NomeEntry.IsEnabled = true;
                 FuncaoPicker.IsEnabled = true;
+                TipoNegocioPicker.IsEnabled = true;
 
-                // Administrador n„o pode excluir a prÛpria conta.
+                // Administrador n√£o pode excluir a pr√≥pria conta.
                 BtnExcluir.IsVisible =
                     !souEu;
 
                 SubtituloLabel.Text =
-                    "Gerenciar usu·rio";
+                    "Gerenciar usu√°rio";
 
                 return;
             }
 
 
             // =================================================
-            // USU¡RIO COMUM
+            // USU√ÅRIO COMUM
             // =================================================
 
             if (souEu)
             {
                 NomeEntry.IsEnabled = false;
                 FuncaoPicker.IsEnabled = false;
+                TipoNegocioPicker.IsEnabled = false;
 
                 BtnExcluir.IsVisible = false;
 
@@ -150,12 +156,12 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
             // =================================================
-            // N√O PODE EDITAR OUTRO USU¡RIO
+            // N√ÉO PODE EDITAR OUTRO USU√ÅRIO
             // =================================================
 
             await DisplayAlert(
                 "Acesso negado",
-                "VocÍ n„o possui permiss„o para editar este usu·rio.",
+                "Voc√™ n√£o possui permiss√£o para editar este usu√°rio.",
                 "OK");
 
             await Shell.Current.GoToAsync("..");
@@ -164,7 +170,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         {
             await DisplayAlert(
                 "Erro",
-                $"N„o foi possÌvel carregar o usu·rio.\n\n{ex.Message}",
+                $"N√£o foi poss√≠vel carregar o usu√°rio.\n\n{ex.Message}",
                 "OK");
         }
     }
@@ -190,14 +196,14 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
         // =====================================================
-        // VERIFICAR PERMISS√O
+        // VERIFICAR PERMISS√ÉO
         // =====================================================
 
         if (!souAdministrador && !souEu)
         {
             await DisplayAlert(
                 "Acesso negado",
-                "VocÍ n„o possui permiss„o para alterar este usu·rio.",
+                "Voc√™ n√£o possui permiss√£o para alterar este usu√°rio.",
                 "OK");
 
             return;
@@ -215,6 +221,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
         string funcao =
             FuncaoPicker.SelectedItem?.ToString() ?? "USUARIO";
+        string tipoNegocio = TipoNegocioPicker.SelectedIndex == 1 ? "chat" : "sucata";
 
 
         // =====================================================
@@ -223,17 +230,18 @@ public partial class DetalhaUsuariosPage : ContentPage
 
         if (_usuario.EhMaster)
         {
-            // Nome e funÁ„o nunca podem mudar.
+            // Nome e fun√ß√£o nunca podem mudar.
             nome = "ADMINISTRADOR MASTER";
             funcao = "ADMINISTRADOR MASTER";
         }
         else
         {
-            // Usu·rio comum sÛ pode alterar a prÛpria senha.
+            // Usu√°rio comum s√≥ pode alterar a pr√≥pria senha.
             if (!souAdministrador)
             {
                 nome = _usuario.Nome;
                 funcao = _usuario.Funcao;
+                tipoNegocio = _usuario.TipoNegocio;
             }
         }
 
@@ -245,8 +253,8 @@ public partial class DetalhaUsuariosPage : ContentPage
         if (string.IsNullOrWhiteSpace(nome))
         {
             await DisplayAlert(
-                "AtenÁ„o",
-                "Informe o nome do usu·rio.",
+                "Aten√ß√£o",
+                "Informe o nome do usu√°rio.",
                 "OK");
 
             NomeEntry.Focus();
@@ -287,8 +295,8 @@ public partial class DetalhaUsuariosPage : ContentPage
             if (existe)
             {
                 await DisplayAlert(
-                    "Usu·rio existente",
-                    "J· existe outro usu·rio com esse nome.",
+                    "Usu√°rio existente",
+                    "J√° existe outro usu√°rio com esse nome.",
                     "OK");
 
                 return;
@@ -305,7 +313,7 @@ public partial class DetalhaUsuariosPage : ContentPage
             if (senha.Length < 4)
             {
                 await DisplayAlert(
-                    "AtenÁ„o",
+                    "Aten√ß√£o",
                     "A senha deve possuir pelo menos 4 caracteres.",
                     "OK");
 
@@ -317,8 +325,8 @@ public partial class DetalhaUsuariosPage : ContentPage
             if (senha != confirmarSenha)
             {
                 await DisplayAlert(
-                    "AtenÁ„o",
-                    "As senhas n„o s„o iguais.",
+                    "Aten√ß√£o",
+                    "As senhas n√£o s√£o iguais.",
                     "OK");
 
                 ConfirmarSenhaEntry.Focus();
@@ -331,13 +339,13 @@ public partial class DetalhaUsuariosPage : ContentPage
         }
         else
         {
-            // Se n„o informou senha, mantÈm a atual.
+            // Se n√£o informou senha, mant√©m a atual.
             if (souEu &&
                 string.IsNullOrWhiteSpace(
                     _usuario.SenhaHash))
             {
                 await DisplayAlert(
-                    "AtenÁ„o",
+                    "Aten√ß√£o",
                     "Informe uma senha.",
                     "OK");
 
@@ -348,7 +356,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
         // =====================================================
-        // FUN«√O
+        // FUN√á√ÉO
         // =====================================================
 
         if (!_usuario.EhMaster)
@@ -357,14 +365,15 @@ public partial class DetalhaUsuariosPage : ContentPage
                 funcao != "ADMINISTRADOR")
             {
                 await DisplayAlert(
-                    "AtenÁ„o",
-                    "Selecione uma funÁ„o v·lida.",
+                    "Aten√ß√£o",
+                    "Selecione uma fun√ß√£o v√°lida.",
                     "OK");
 
                 return;
             }
 
             _usuario.Funcao = funcao;
+            _usuario.TipoNegocio = tipoNegocio;
         }
         else
         {
@@ -383,9 +392,15 @@ public partial class DetalhaUsuariosPage : ContentPage
             BtnSalvar.IsEnabled = false;
 
             await _database.AtualizarUsuario(_usuario);
+            if (!souMaster)
+            {
+                var sincronizacao = await new SincronizacaoService().SincronizarUsuario(_usuario);
+                if (!sincronizacao.Sucesso)
+                    throw new InvalidOperationException($"O usu√°rio foi salvo neste aparelho, mas n√£o sincronizou com a API: {sincronizacao.Mensagem}");
+            }
 
 
-            // Atualiza a sess„o caso o prÛprio usu·rio tenha
+            // Atualiza a sess√£o caso o pr√≥prio usu√°rio tenha
             // alterado seus dados.
             if (SessaoUsuario.UsuarioAtual?.Id ==
                 _usuario.Id)
@@ -396,8 +411,8 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
             await DisplayAlert(
-                "Usu·rio atualizado",
-                "As alteraÁıes foram salvas com sucesso.",
+                "Usu√°rio atualizado",
+                "As altera√ß√µes foram salvas com sucesso.",
                 "OK");
 
 
@@ -407,7 +422,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         {
             await DisplayAlert(
                 "Erro",
-                $"N„o foi possÌvel salvar as alteraÁıes.\n\n{ex.Message}",
+                $"N√£o foi poss√≠vel salvar as altera√ß√µes.\n\n{ex.Message}",
                 "OK");
         }
         finally
@@ -433,7 +448,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         {
             await DisplayAlert(
                 "Acesso negado",
-                "O ADMINISTRADOR MASTER n„o pode ser excluÌdo.",
+                "O ADMINISTRADOR MASTER n√£o pode ser exclu√≠do.",
                 "OK");
 
             return;
@@ -448,7 +463,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         {
             await DisplayAlert(
                 "Acesso negado",
-                "Somente administradores podem excluir usu·rios.",
+                "Somente administradores podem excluir usu√°rios.",
                 "OK");
 
             return;
@@ -456,7 +471,7 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
         // =====================================================
-        // N√O PODE EXCLUIR A PR”PRIA CONTA
+        // N√ÉO PODE EXCLUIR A PR√ìPRIA CONTA
         // =====================================================
 
         if (SessaoUsuario.UsuarioAtual?.Id ==
@@ -464,7 +479,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         {
             await DisplayAlert(
                 "Acesso negado",
-                "VocÍ n„o pode excluir a prÛpria conta.",
+                "Voc√™ n√£o pode excluir a pr√≥pria conta.",
                 "OK");
 
             return;
@@ -473,8 +488,8 @@ public partial class DetalhaUsuariosPage : ContentPage
 
         bool confirmar =
             await DisplayAlert(
-                "Excluir usu·rio",
-                $"Deseja realmente excluir o usu·rio:\n\n{_usuario.Nome}?",
+                "Excluir usu√°rio",
+                $"Deseja realmente excluir o usu√°rio:\n\n{_usuario.Nome}?",
                 "Sim, excluir",
                 "Cancelar");
 
@@ -493,8 +508,8 @@ public partial class DetalhaUsuariosPage : ContentPage
 
 
             await DisplayAlert(
-                "Usu·rio excluÌdo",
-                "O usu·rio foi excluÌdo com sucesso.",
+                "Usu√°rio exclu√≠do",
+                "O usu√°rio foi exclu√≠do com sucesso.",
                 "OK");
 
 
@@ -503,7 +518,7 @@ public partial class DetalhaUsuariosPage : ContentPage
         catch (Exception ex)
         {
             await DisplayAlert(
-                "N„o foi possÌvel excluir",
+                "N√£o foi poss√≠vel excluir",
                 ex.Message,
                 "OK");
         }

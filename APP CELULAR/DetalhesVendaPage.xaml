@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.DetalhesVendaPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     Title="Detalhes do Pedido">
 
     <Grid RowDefinitions="Auto,*">
@@ -15,7 +15,7 @@
 
         <Border
             Grid.Row="0"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             Padding="18,16">
 
             <Grid ColumnDefinitions="Auto,*">
@@ -23,7 +23,7 @@
                 <Button
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     BackgroundColor="Transparent"
                     Padding="0"
                     Clicked="Voltar_Clicked"/>
@@ -37,12 +37,12 @@
                         Text="Detalhes do Pedido"
                         FontSize="21"
                         FontAttributes="Bold"
-                        TextColor="White"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                     <Label
                         x:Name="CabecalhoNumeroLabel"
                         FontSize="12"
-                        TextColor="#D8D7F5"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                 </VerticalStackLayout>
 
@@ -90,7 +90,7 @@
                             <Label
                                 x:Name="DataLabel"
                                 FontSize="12"
-                                TextColor="#666"/>
+                                TextColor="{DynamicResource BrandMuted}"/>
 
                         </VerticalStackLayout>
 
@@ -99,7 +99,7 @@
                             Grid.Column="1"
                             FontSize="18"
                             FontAttributes="Bold"
-                            TextColor="#1F2A44"
+                            TextColor="{DynamicResource BrandText}"
                             VerticalOptions="Center"/>
 
                     </Grid>
@@ -112,7 +112,7 @@
                 <!-- ========================= -->
 
                 <Border
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BrandSurface}"
                     StrokeThickness="0"
                     Padding="15">
 
@@ -127,14 +127,14 @@
                             Text="CLIENTE"
                             FontSize="11"
                             FontAttributes="Bold"
-                            TextColor="#777"/>
+                            TextColor="{DynamicResource BrandMuted}"/>
 
                         <Label
                             x:Name="ClienteLabel"
                             Text="Cliente"
                             FontSize="17"
                             FontAttributes="Bold"
-                            TextColor="#222"/>
+                            TextColor="{DynamicResource BrandText}"/>
 
                     </VerticalStackLayout>
 
@@ -146,7 +146,7 @@
                 <!-- ========================= -->
 
                 <Border
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BrandSurface}"
                     StrokeThickness="0"
                     Padding="15">
 
@@ -163,13 +163,13 @@
                                 Text="PRODUTOS"
                                 FontSize="13"
                                 FontAttributes="Bold"
-                                TextColor="#555"/>
+                                TextColor="{DynamicResource BrandMuted}"/>
 
                             <Label
                                 x:Name="QuantidadeItensLabel"
                                 Grid.Column="1"
                                 FontSize="12"
-                                TextColor="#888"/>
+                                TextColor="{DynamicResource BrandMuted}"/>
 
                         </Grid>
 
@@ -183,7 +183,7 @@
                         <!-- TOTAL DOS PRODUTOS -->
                         <BoxView
                             HeightRequest="1"
-                            BackgroundColor="#EEEEEE"
+                            BackgroundColor="{DynamicResource BrandSoft}"
                             Margin="0,4"/>
 
                         <Grid ColumnDefinitions="*,Auto">
@@ -191,14 +191,14 @@
                             <Label
                                 Text="Subtotal"
                                 FontSize="13"
-                                TextColor="#777"/>
+                                TextColor="{DynamicResource BrandMuted}"/>
 
                             <Label
                                 x:Name="SubtotalLabel"
                                 Grid.Column="1"
                                 FontSize="14"
                                 FontAttributes="Bold"
-                                TextColor="#333"/>
+                                TextColor="{DynamicResource BrandText}"/>
 
                         </Grid>
 
@@ -212,7 +212,7 @@
                 <!-- ========================= -->
 
                 <Border
-                    BackgroundColor="#2E2A6A"
+                    BackgroundColor="{DynamicResource BrandPrimary}"
                     StrokeThickness="0"
                     Padding="17">
 
@@ -229,12 +229,12 @@
                                 Text="TOTAL DO PEDIDO"
                                 FontSize="12"
                                 FontAttributes="Bold"
-                                TextColor="#D8D7F5"/>
+                                TextColor="{DynamicResource BrandOnPrimary}"/>
 
                             <Label
                                 Text="Valor total da venda"
                                 FontSize="11"
-                                TextColor="#D8D7F5"/>
+                                TextColor="{DynamicResource BrandOnPrimary}"/>
 
                         </VerticalStackLayout>
 
@@ -243,7 +243,7 @@
                             Grid.Column="1"
                             FontSize="24"
                             FontAttributes="Bold"
-                            TextColor="White"
+                            TextColor="{DynamicResource BrandText}"
                             VerticalOptions="Center"/>
 
                     </Grid>
@@ -256,7 +256,7 @@
                 <!-- ========================= -->
 
                 <Border
-                    BackgroundColor="White"
+                    BackgroundColor="{DynamicResource BrandSurface}"
                     StrokeThickness="0"
                     Padding="15">
 
@@ -271,13 +271,13 @@
                             Text="OBSERVAÇÃO"
                             FontSize="11"
                             FontAttributes="Bold"
-                            TextColor="#777"/>
+                            TextColor="{DynamicResource BrandMuted}"/>
 
                         <Label
                             x:Name="ObservacaoLabel"
                             Text="Nenhuma observação."
                             FontSize="14"
-                            TextColor="#555"/>
+                            TextColor="{DynamicResource BrandMuted}"/>
 
                     </VerticalStackLayout>
 
@@ -295,8 +295,8 @@
                     <Button
                         x:Name="EditarButton"
                         Text="✎  EDITAR PEDIDO"
-                        BackgroundColor="#5335B8"
-                        TextColor="White"
+                        BackgroundColor="{DynamicResource BrandPrimary}"
+                        TextColor="{DynamicResource BrandOnPrimary}"
                         FontSize="15"
                         FontAttributes="Bold"
                         CornerRadius="13"

@@ -1,5 +1,6 @@
 using APP_CELULAR.Data;
 using APP_CELULAR.Models;
+using APP_CELULAR.Services;
 
 namespace APP_CELULAR;
 
@@ -14,6 +15,7 @@ public partial class NovoUsuarioPage : ContentPage
         _database = new AppDatabase();
 
         FuncaoPicker.SelectedIndex = 0;
+        TipoNegocioPicker.SelectedIndex = 0;
     }
 
 
@@ -21,11 +23,11 @@ public partial class NovoUsuarioPage : ContentPage
         object sender,
         EventArgs e)
     {
-        if (!SessaoUsuario.EhAdministrador)
+        if (!SessaoUsuario.EhAdministrador || SessaoUsuario.EhDeus)
         {
             await DisplayAlert(
                 "Acesso negado",
-                "Somente administradores podem cadastrar usu�rios.",
+                "Somente administradores podem cadastrar usuÃ¡rios.",
                 "OK");
 
             return;
@@ -51,8 +53,8 @@ public partial class NovoUsuarioPage : ContentPage
         if (string.IsNullOrWhiteSpace(nome))
         {
             await DisplayAlert(
-                "Aten��o",
-                "Informe o nome do usu�rio.",
+                "AtenÃ§Ã£o",
+                "Informe o nome do usuÃ¡rio.",
                 "OK");
 
             NomeEntry.Focus();
@@ -61,7 +63,7 @@ public partial class NovoUsuarioPage : ContentPage
 
 
         // =====================================================
-        // N�O PERMITIR NOME DO MASTER
+        // NÃƒO PERMITIR NOME DO MASTER
         // =====================================================
 
         if (string.Equals(
@@ -71,7 +73,7 @@ public partial class NovoUsuarioPage : ContentPage
         {
             await DisplayAlert(
                 "Nome reservado",
-                "Esse nome � reservado para o ADMINISTRADOR MASTER.",
+                "Esse nome Ã© reservado para o ADMINISTRADOR MASTER.",
                 "OK");
 
             NomeEntry.Focus();
@@ -86,7 +88,7 @@ public partial class NovoUsuarioPage : ContentPage
         if (string.IsNullOrWhiteSpace(senha))
         {
             await DisplayAlert(
-                "Aten��o",
+                "AtenÃ§Ã£o",
                 "Informe uma senha.",
                 "OK");
 
@@ -98,7 +100,7 @@ public partial class NovoUsuarioPage : ContentPage
         if (senha.Length < 4)
         {
             await DisplayAlert(
-                "Aten��o",
+                "AtenÃ§Ã£o",
                 "A senha deve possuir pelo menos 4 caracteres.",
                 "OK");
 
@@ -114,8 +116,8 @@ public partial class NovoUsuarioPage : ContentPage
         if (senha != confirmarSenha)
         {
             await DisplayAlert(
-                "Aten��o",
-                "As senhas n�o s�o iguais.",
+                "AtenÃ§Ã£o",
+                "As senhas nÃ£o sÃ£o iguais.",
                 "OK");
 
             ConfirmarSenhaEntry.Focus();
@@ -124,15 +126,15 @@ public partial class NovoUsuarioPage : ContentPage
 
 
         // =====================================================
-        // VALIDAR FUN��O
+        // VALIDAR FUNÃ‡ÃƒO
         // =====================================================
 
         if (funcao != "USUARIO" &&
             funcao != "ADMINISTRADOR")
         {
             await DisplayAlert(
-                "Aten��o",
-                "Selecione uma fun��o v�lida.",
+                "AtenÃ§Ã£o",
+                "Selecione uma funÃ§Ã£o vÃ¡lida.",
                 "OK");
 
             return;
@@ -154,8 +156,8 @@ public partial class NovoUsuarioPage : ContentPage
             if (existe)
             {
                 await DisplayAlert(
-                    "Usu�rio existente",
-                    "J� existe um usu�rio com esse nome.",
+                    "UsuÃ¡rio existente",
+                    "JÃ¡ existe um usuÃ¡rio com esse nome.",
                     "OK");
 
                 NomeEntry.Focus();
@@ -164,7 +166,7 @@ public partial class NovoUsuarioPage : ContentPage
 
 
             // =================================================
-            // CRIAR USU�RIO
+            // CRIAR USUÃRIO
             // =================================================
 
             var usuario = new Usuario
@@ -173,16 +175,30 @@ public partial class NovoUsuarioPage : ContentPage
                 SenhaHash =
                     _database.CriarHashSenha(senha),
                 Funcao = funcao,
+                TipoNegocio = TipoNegocioPicker.SelectedIndex == 1 ? "chat" : "sucata",
                 EhMaster = false
             };
 
 
             await _database.SalvarUsuario(usuario);
 
+            // Publica o novo perfil pela sessÃ£o do administrador que o cadastrou.
+            // A API o manterÃ¡ pendente atÃ© a aprovaÃ§Ã£o do Administrador Master.
+            var sincronizacao = await new SincronizacaoService().SincronizarUsuario(usuario);
+            if (!sincronizacao.Sucesso)
+            {
+                await DisplayAlert(
+                    "Cadastro salvo, aguardando sincronizaÃ§Ã£o",
+                    $"O usuÃ¡rio ficou salvo neste aparelho, mas ainda nÃ£o chegou Ã  API. Ele nÃ£o conseguirÃ¡ entrar atÃ© a sincronizaÃ§Ã£o e a aprovaÃ§Ã£o do Administrador Master.\n\n{sincronizacao.Mensagem}",
+                    "OK");
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
+
 
             await DisplayAlert(
-                "Usu�rio cadastrado",
-                $"O usu�rio '{nome}' foi cadastrado com sucesso.",
+                "UsuÃ¡rio cadastrado",
+                $"O usuÃ¡rio '{nome}' foi cadastrado e enviado para aprovaÃ§Ã£o do Administrador Master.",
                 "OK");
 
 
@@ -192,7 +208,7 @@ public partial class NovoUsuarioPage : ContentPage
         {
             await DisplayAlert(
                 "Erro",
-                $"N�o foi poss�vel cadastrar o usu�rio.\n\n{ex.Message}",
+                $"NÃ£o foi possÃ­vel cadastrar o usuÃ¡rio.\n\n{ex.Message}",
                 "OK");
         }
         finally

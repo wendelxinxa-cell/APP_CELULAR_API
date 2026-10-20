@@ -41,7 +41,7 @@ public partial class DetalhesCompraPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-
+        UsuarioLogadoLabel.Text = "Usuário | " + (SessaoUsuario.UsuarioAtual?.Nome ?? "");
         if (_compraId > 0)
             await CarregarCompra();
     }
