@@ -60,9 +60,6 @@ public class ConversasController : ControllerBase
                 return Unauthorized(new { mensagem = "Não foi possível identificar a sessão Supabase." });
         }
 
-        if (!await BancoChatCentral.Pronto(_configuration))
-            return StatusCode(503, new { mensagem = "O chat central ainda não está disponível." });
-
         long usuarioId;
         await using (var central = await BancoChatCentral.Abrir(_configuration))
         await using (var cmd = new NpgsqlCommand("SELECT usuario_id FROM chat.usuario_auth WHERE auth_uid=@authUid AND empresa_id=@empresaId AND ativo=TRUE LIMIT 1;", central))
@@ -89,7 +86,9 @@ public class ConversasController : ControllerBase
                 return StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." });
         }
 
-        return await ContatosCentrais(empresaDb, new IdentidadeConversaRequest { EmpresaId = request.EmpresaId, UsuarioId = usuarioId });
+        var identidade = new IdentidadeConversaRequest { EmpresaId = request.EmpresaId, UsuarioId = usuarioId };
+        if (await BancoChatCentral.Pronto(_configuration)) return await ContatosCentrais(empresaDb, identidade);
+        return await ContatosTenant(empresaDb, identidade);
     }
 
     private static async Task<IActionResult> ContatosTenant(NpgsqlConnection db, IdentidadeConversaRequest request)
