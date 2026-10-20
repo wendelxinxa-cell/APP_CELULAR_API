@@ -62,10 +62,11 @@ Deno.serve(async (request: Request) => {
         // Apelidos aprovados ficam no vínculo ativo da empresa, não necessariamente em user_metadata.
         const normalizedIdentifier = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
         const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
-          .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
+          .select("auth_uid,username,nome").eq("empresa_id", companyId).eq("ativo", true);
         if (linkedError) return json({ message: "Não foi possível localizar o apelido vinculado à empresa." }, 400);
         const authUids = (linkedUsers || [])
-          .filter(user => String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier)
+          .filter(user => [user.username, user.nome].some(value =>
+            String(value ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier))
           .map(user => user.auth_uid);
         for (const authUid of authUids) {
           const { data: authUser, error: authUserError } = await admin.auth.admin.getUserById(authUid);
@@ -77,7 +78,8 @@ Deno.serve(async (request: Request) => {
           const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
           if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
           matches = (listed?.users || []).filter(user =>
-            String(user.user_metadata?.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier
+            [user.user_metadata?.username, user.user_metadata?.nome].some(value =>
+              String(value ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedIdentifier)
             && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId))
             .flatMap(user => user.email ? [{ email: user.email }] : []);
         }
