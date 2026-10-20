@@ -19,15 +19,15 @@ services:
       - key: Stipop__ApiKey
         sync: false
       - key: AppUpdate__Version
-        value: "1.1.0"
+        value: "0.0.001"
       - key: AppUpdate__Build
-        value: "2"
+        value: "41"
       - key: AppUpdate__FileName
-        value: "CATCHAT_1.1.0_build_2.apk"
+        value: "CATCHAT_0.0.001_build_41.apk"
       - key: AppUpdate__Sha256
-        value: "E9536EF8C3C8AC2E9EE0FF2801A5C139686D1549D2781C2860F7C80313EA8F9E"
+        value: "8312781E0242E26235B2DFE2C6C02F2AE80D9B817942639806D2D37CB259E19E"
       - key: AppUpdate__Notes
-        value: "CATCHAT 1.1.0 build 2: nova tela de login, ícone do gato e identidade visual atualizada."
+        value: "CATCHAT build 41: identidade visual atualizada, mantendo telas e recursos completos."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
@@ -54,3 +54,4 @@ services:
         sync: false
       - key: Email__EnableSsl
         value: "true"
+
