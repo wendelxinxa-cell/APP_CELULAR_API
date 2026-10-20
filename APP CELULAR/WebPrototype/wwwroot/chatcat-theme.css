@@ -73,7 +73,7 @@ body{background:var(--cat-bg);color:var(--cat-text)}
 /* Acabamento arredondado e quente para aproximar o PWA dos cartões do APK. */
 .login-page{background:radial-gradient(ellipse at 78% 48%,#24200f 0,#140723 58%)}
 .login-card{padding:clamp(26px,5vw,44px);border:1px solid var(--cat-border);border-radius:26px;background:linear-gradient(160deg,#1c1c1c,#1a0d27);box-shadow:0 22px 70px #0008}
-.login-card .brand-mark{width:68px;height:68px;border-radius:22px;display:grid;place-items:center}
+.login-card .brand-mark{width:68px;height:68px;border-radius:22px;display:grid;place-items:center}.login-card .brand-mark img{display:block;width:100%;height:100%;object-fit:contain;border-radius:18px}
 .field input,.field select{height:50px;border-radius:14px;padding-inline:15px}
 .primary-button,.danger-button,.secondary-button{border-radius:14px}
 .demo-hint{border-radius:16px}
