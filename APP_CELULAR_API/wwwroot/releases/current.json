@@ -1,7 +1,8 @@
 {
-  "version": "0.0.001",
-  "build": 41,
-  "fileName": "CATCHAT_0.0.001_build_41.apk",
-  "sha256": "C114D120FCD51F3C1CAF59F4F275BD0E0F9190034B91DBACAA742B5E811FD199",
-  "notes": "CATCHAT build 41: cadastro padronizado com username e e-mail; Zeus pode editar e reativar usuários."
+  "version": "1.1.0",
+  "build": 2,
+  "fileName": "CATCHAT_1.1.0_build_2.apk",
+  "sha256": "E9536EF8C3C8AC2E9EE0FF2801A5C139686D1549D2781C2860F7C80313EA8F9E",
+  "notes": "CATCHAT 1.1.0 build 2: nova tela de login, ícone do gato e identidade visual atualizada.",
+  "versionCode": 42
 }

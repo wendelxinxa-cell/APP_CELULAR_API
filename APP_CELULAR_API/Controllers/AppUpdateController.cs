@@ -47,6 +47,7 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
         caminho = string.Empty;
         build = 0;
         codigoVersao = 0;
+        int? codigoVersaoManifesto = null;
 
         var manifesto = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", "current.json");
         if (System.IO.File.Exists(manifesto))
@@ -59,6 +60,10 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
                 build = root.GetProperty("build").GetInt32();
                 arquivo = root.GetProperty("fileName").GetString() ?? string.Empty;
                 hashEsperado = root.GetProperty("sha256").GetString() ?? string.Empty;
+                if (root.TryGetProperty("versionCode", out var versionCode) &&
+                    versionCode.ValueKind == JsonValueKind.Number &&
+                    versionCode.TryGetInt32(out var parsedVersionCode))
+                    codigoVersaoManifesto = parsedVersionCode;
             }
             catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException or KeyNotFoundException)
             {
@@ -76,12 +81,21 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
 
         var partesVersao = versao.Split('.');
         if (partesVersao.Length != 3 ||
-            !int.TryParse(partesVersao[0], out var major) || major != 0 ||
-            !int.TryParse(partesVersao[1], out var minor) || minor != 0 ||
-            !int.TryParse(partesVersao[2], out var ciclo) || ciclo < 1)
+            !int.TryParse(partesVersao[0], out var major) || major < 0 ||
+            !int.TryParse(partesVersao[1], out var minor) || minor < 0 ||
+            !int.TryParse(partesVersao[2], out var ciclo) || ciclo < 0)
             return false;
 
-        codigoVersao = checked((ciclo - 1) * 99 + build);
+        if (codigoVersaoManifesto is int codigoConfigurado)
+        {
+            if (codigoConfigurado < 1) return false;
+            codigoVersao = codigoConfigurado;
+        }
+        else
+        {
+            if (major != 0 || minor != 0 || ciclo < 1) return false;
+            codigoVersao = checked((ciclo - 1) * 99 + build);
+        }
 
         caminho = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", arquivo);
         if (!System.IO.File.Exists(caminho)) return false;
