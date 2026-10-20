@@ -264,7 +264,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
     }
 
     private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Ativo ? usuario.UsuarioId.HasValue ? "Ativo" : "Solicitação pendente · sem vínculo" : "Acesso desativado";
+        usuario.Master ? "Acesso Zeus master ativo" : usuario.Ativo ? usuario.UsuarioId.HasValue ? "Ativo" : "Solicitação pendente · sem vínculo" : "Acesso desativado";
 
     private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) =>
         usuario.Bloqueado ? "Acesso desativado" : usuario.Aprovado ? "Ativo" : usuario.AparelhoPendente ? "Aguardando aprovação do aparelho" : "Pendente";

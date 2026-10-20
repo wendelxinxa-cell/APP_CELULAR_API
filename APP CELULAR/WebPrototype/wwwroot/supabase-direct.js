@@ -243,7 +243,8 @@
     };
 
     api.setCompanyUserActive = async (user, active) => {
-        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/bloqueio`, "POST", { bloqueado: !active });
+        const result = await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/bloqueio`, "POST", { bloqueado: !active });
+        if (Boolean(result.bloqueado) === active) throw new Error(result.mensagem || "A API não confirmou o novo estado de acesso do usuário.");
     };
 
     api.approvePendingUserDevice = async request => {
