@@ -34,7 +34,66 @@ public class ConversasController : ControllerBase
         await using var db = await AbrirEValidar(request);
         if (db is null) return Unauthorized(new { mensagem = "Usuário inválido para esta empresa." });
         if (await BancoChatCentral.Pronto(_configuration)) return await ContatosCentrais(db, request);
+        return await ContatosTenant(db, request);
+    }
 
+    [HttpPost("contatos-web")]
+    public async Task<IActionResult> ContatosWeb([FromBody] ContatosWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        if (request.EmpresaId <= 0) return BadRequest(new { mensagem = "Empresa inválida." });
+        var bearer = Request.Headers.Authorization.ToString();
+        if (!bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(new { mensagem = "Sessão Supabase ausente. Entre novamente." });
+
+        var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        Guid authUid;
+        using (var authRequest = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/user"))
+        {
+            authRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            authRequest.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(bearer);
+            using var authResponse = await clients.CreateClient().SendAsync(authRequest);
+            if (!authResponse.IsSuccessStatusCode) return Unauthorized(new { mensagem = "Sessão Supabase inválida ou expirada. Entre novamente." });
+            using var authJson = System.Text.Json.JsonDocument.Parse(await authResponse.Content.ReadAsStringAsync());
+            if (!authJson.RootElement.TryGetProperty("id", out var authIdElement) ||
+                !Guid.TryParse(authIdElement.GetString(), out authUid))
+                return Unauthorized(new { mensagem = "Não foi possível identificar a sessão Supabase." });
+        }
+
+        if (!await BancoChatCentral.Pronto(_configuration))
+            return StatusCode(503, new { mensagem = "O chat central ainda não está disponível." });
+
+        long usuarioId;
+        await using (var central = await BancoChatCentral.Abrir(_configuration))
+        await using (var cmd = new NpgsqlCommand("SELECT usuario_id FROM chat.usuario_auth WHERE auth_uid=@authUid AND empresa_id=@empresaId AND ativo=TRUE LIMIT 1;", central))
+        {
+            cmd.Parameters.AddWithValue("authUid", authUid);
+            cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            var value = await cmd.ExecuteScalarAsync();
+            if (value is not long id) return Unauthorized(new { mensagem = "Esta conta não está vinculada a um usuário ativo da empresa." });
+            usuarioId = id;
+        }
+
+        string connectionString;
+        try { connectionString = await _resolver.ObterConnectionString(request.EmpresaId); }
+        catch { return StatusCode(503, new { mensagem = "Configuração do banco da empresa incompleta ou inválida." }); }
+
+        await using var empresaDb = new NpgsqlConnection(connectionString);
+        await empresaDb.OpenAsync();
+        const string validarUsuario = "SELECT EXISTS (SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId AND COALESCE(aprovado,TRUE)=TRUE AND COALESCE(excluido,FALSE)=FALSE AND COALESCE(bloqueado_por_master,FALSE)=FALSE);";
+        await using (var validarCmd = new NpgsqlCommand(validarUsuario, empresaDb))
+        {
+            validarCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            validarCmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            if (await validarCmd.ExecuteScalarAsync() is not true)
+                return StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." });
+        }
+
+        return await ContatosCentrais(empresaDb, new IdentidadeConversaRequest { EmpresaId = request.EmpresaId, UsuarioId = usuarioId });
+    }
+
+    private static async Task<IActionResult> ContatosTenant(NpgsqlConnection db, IdentidadeConversaRequest request)
+    {
         const string sql = """
             SELECT u.id, COALESCE(a.apelido, u.nome), u.nome,
                    COALESCE(m.texto, CASE WHEN m.foto IS NOT NULL THEN '[Foto]' ELSE '' END) AS ultima_mensagem,
@@ -62,7 +121,7 @@ public class ConversasController : ControllerBase
         var result = new List<object>();
         while (await reader.ReadAsync())
             result.Add(new { id = reader.GetInt64(0), nome = reader.GetString(1), nomeOriginal = reader.GetString(2), ultimaMensagem = reader.GetString(3), dataUltimaMensagem = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4), naoLidas = reader.GetInt32(5) });
-        return Ok(result);
+        return new OkObjectResult(result);
     }
 
     [HttpPost("apelido")]

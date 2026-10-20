@@ -6,6 +6,11 @@ public class IdentidadeConversaRequest
     public long UsuarioId { get; set; }
 }
 
+public sealed class ContatosWebRequest
+{
+    public long EmpresaId { get; set; }
+}
+
 public class ConversaRequest : IdentidadeConversaRequest
 {
     public long ContatoId { get; set; }
