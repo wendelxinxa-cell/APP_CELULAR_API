@@ -16,8 +16,8 @@ app.UseAntiforgery();
 app.MapGet("/version.json", () => Results.Json(new
 {
     version = "0.0.001",
-    build = 41,
-    release = "0.0.001-build41"
+    build = 42,
+    release = "0.0.001-build42"
 })).AllowAnonymous();
 
 // Only the browser-safe Supabase URL and publishable key are exposed. All chat,
