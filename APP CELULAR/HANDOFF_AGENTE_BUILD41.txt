@@ -2,7 +2,7 @@ CATCHAT — HANDOFF PARA OUTRO AGENTE
 Atualizado: 2026-10-20
 
 OBJETIVO / REGRA DE CONTINUIDADE
-- Continuar o projeto a partir da versão 0.0.001, build 41. Não voltar para 1.1.0.
+- Continuar o projeto a partir da versão 0.0.001, build 42. Não voltar para 1.1.0.
 - Antes de editar ou publicar, conferir os commits, branches, arquivos locais e deploy remoto para evitar duplicação ou sobrescrever trabalho.
 - Não colocar tokens, senhas, chaves privadas ou secrets neste arquivo. Segredos do Supabase/Render devem ficar nas configurações seguras do ambiente.
 
@@ -116,3 +116,16 @@ MAPA DOS PROJETOS SUPABASE — FONTE DE VERDADE (2026-10-20)
 - O projeto exibido no dashboard não é “o projeto errado” em termos gerais: `kznts...` é o banco operacional correto da empresa 1. Para depurar o catálogo, o login/chat web e `chat.usuario_auth`, selecionar `zuq...`. Para usuários operacionais, produtos e compras, selecionar `kznts...`.
 - Novas empresas são cadastradas no catálogo central e recebem IDs próprios. Cada ID é roteado pela API para a conexão tenant definida para essa empresa; no ambiente atual, não existe empresa de teste além da ID 1. O código também aceita configuração Render `Empresas:1` como conexão única de compatibilidade; confirmar a configuração do serviço antes de inferir que empresas futuras usarão bancos fisicamente separados.
 - Corrige a orientação dada anteriormente: não chamar `kznts...` de projeto incorreto; para dados operacionais ele é o projeto certo. A URL `zuq...` continua sendo a origem atual do login/chat direto do Razor.
+
+
+PUBLICAÇÃO MAIS RECENTE — BUILD 42 (2026-10-20)
+- Versão publicada: 0.0.001, build 42; Android versionCode 45.
+- Correção: APK usa autenticação central do projeto Supabase `zuqwlupzxfjqswfseuat`, via a mesma função `master-user-invite` e RPC `chat.obter_identidade` do Razor. O fallback de login legado foi removido do APK.
+- API existente `APP_CELULAR_API.git`, branch `master`: commit `61c85c7` publicado com cabeçalhos de schema `chat` no RPC e APK build 42 no manifesto estático.
+- Razor existente `APP_CELULAR.git`, branch de deploy `codex/blazor-render-preview`: commit `f1406a7` publica metadados e cache do build 42.
+- APK canônico local: `C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\artifacts\releases\CATCHAT_0.0.001_build_42.apk`.
+- SHA-256 APK: `FE93CE3BF1E978F259CCC33C14F49B80136D194F11C9E1574AC675B9BA14C347`.
+- Link Razor: https://catchat-razor-test.onrender.com/ (validar `/version.json` até reportar build 42).
+- Download APK: https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo
+- Manifesto: https://app-celular-api-test.onrender.com/api/app/atualizacao
+- Repositórios existentes foram reutilizados; não foi criado repositório novo. Confirmar a conclusão dos deploys Render pelos endpoints antes de considerar a publicação entregue.
