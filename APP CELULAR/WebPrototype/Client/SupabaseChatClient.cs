@@ -155,6 +155,13 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
         return [.. contatosSessao];
     }
 
+    public async Task<List<ContatoConversa>> AtualizarContatosAsync()
+    {
+        contatosSessao = await supabase.ObterContatosAsync();
+        contatosCarregados = true;
+        return [.. contatosSessao];
+    }
+
     public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId, long depoisDoId = 0) => supabase.ObterMensagensAsync(contatoId, depoisDoId);
     public Task<string> UploadMidiaAsync(long contatoId, Guid id, string inputId, string nome, string tipo) => supabase.UploadMidiaAsync(contatoId, id, inputId, nome, tipo);
     public Task<UrlMidiaResponse> CriarUrlLeituraAsync(string caminho) => supabase.CriarUrlLeituraAsync(caminho);

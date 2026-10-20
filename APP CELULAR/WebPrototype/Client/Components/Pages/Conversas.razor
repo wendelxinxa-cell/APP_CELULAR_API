@@ -29,7 +29,7 @@ else
 
         <div class="messaging-layout">
             <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
-                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true)" disabled="@carregandoContatos">Atualizar</button></div>
+                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true, atualizar: true)" disabled="@carregandoContatos">Atualizar</button></div>
                 <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
                 <div class="contact-list">
                     @if (carregandoContatos && contatos.Count == 0)
@@ -38,7 +38,7 @@ else
                     }
                     else if (!ContatosFiltrados.Any())
                     {
-                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhum outro usuário ativo encontrado na empresa {Portal.Sessao!.EmpresaId}. Peça ao Zeus para conferir se os usuários estão aprovados, ativos e vinculados a essa mesma empresa; depois atualize." : "Nenhuma pessoa encontrada.")</div>
+                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhuma conversa com mensagens encontrada na empresa {Portal.Sessao!.EmpresaId}." : "Nenhuma pessoa encontrada.")</div>
                     }
                     else
                     {
@@ -385,7 +385,7 @@ else
         catch (JSException) { }
     }
 
-    private async Task CarregarContatosAsync(bool exibirErro)
+    private async Task CarregarContatosAsync(bool exibirErro, bool atualizar = false)
     {
         if (carregandoContatos || !Portal.Autenticado)
             return;
@@ -393,7 +393,7 @@ else
         carregandoContatos = true;
         try
         {
-            var atualizados = await Portal.ObterContatosAsync();
+            var atualizados = atualizar ? await Portal.AtualizarContatosAsync() : await Portal.ObterContatosAsync();
             contatos.Clear();
             contatos.AddRange(atualizados);
             erro = null;

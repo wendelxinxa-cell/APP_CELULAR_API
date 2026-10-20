@@ -4,9 +4,9 @@
     const fail = (error) => { if (error) throw new Error(error.message || String(error)); };
     const row = (data) => Array.isArray(data) ? data[0] : data;
     const normalizeContact = (value) => ({
-        id: value.id, nome: value.nome, nomeOriginal: value.nome_original ?? value.nome,
-        ultimaMensagem: value.ultima_mensagem ?? "", dataUltimaMensagem: value.data_ultima_mensagem,
-        naoLidas: value.nao_lidas ?? 0
+        id: value.id, nome: value.nome, nomeOriginal: value.nome_original ?? value.nomeOriginal ?? value.nome,
+        ultimaMensagem: value.ultima_mensagem ?? value.ultimaMensagem ?? "", dataUltimaMensagem: value.data_ultima_mensagem ?? value.dataUltimaMensagem,
+        naoLidas: value.nao_lidas ?? value.naoLidas ?? 0
     });
     const normalizeMessage = (value) => ({
         id: value.id, clienteMensagemId: value.cliente_mensagem_id,
@@ -287,9 +287,19 @@
     };
 
     api.listContacts = async () => {
-        const { data, error } = await getClient().schema("chat").rpc("listar_contatos", { p_empresa_id: state.empresaId });
-        fail(error);
-        return (data || []).map(normalizeContact);
+        const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
+        fail(sessionError);
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
+        const response = await fetch(`${state.apiBaseUrl}/api/conversas/contatos-web`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ empresaId: state.empresaId })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `Não foi possível carregar os contatos (${response.status}).`);
+        // O APK mostra conversas com mensagens já registradas. Mantém a mesma regra no Razor.
+        return (result || []).filter(contact => contact.dataUltimaMensagem ?? contact.data_ultima_mensagem).map(normalizeContact);
     };
 
     api.listMessages = async (contactId, afterId) => {
