@@ -269,6 +269,99 @@ public class ConversasController : ControllerBase
         });
     }
 
+    [HttpPost("enviar-web")]
+    public async Task<IActionResult> EnviarWeb([FromBody] ConversaWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        var (db, usuarioId, error) = await AbrirEmpresaWebAsync(request.EmpresaId, clients);
+        if (error is not null) return error;
+        await using var empresaDb = db!;
+        if (request.ContatoId <= 0 || request.ContatoId == usuarioId || !await ContatoValido(empresaDb, request.EmpresaId, request.ContatoId))
+            return BadRequest(new { mensagem = "Contato indisponível nesta empresa." });
+        if (request.ClienteMensagemId == Guid.Empty) return BadRequest(new { mensagem = "Identificador da mensagem inválido." });
+        var texto = request.Texto?.Trim() ?? "";
+        if (texto.Length is 0 or > 4000) return BadRequest(new { mensagem = "A mensagem deve conter texto de até 4.000 caracteres." });
+
+        var conversa = new ConversaRequest { EmpresaId = request.EmpresaId, UsuarioId = usuarioId, ContatoId = request.ContatoId };
+        const string sql = """
+            INSERT INTO app.mensagem_conversa (empresa_id,remetente_id,destinatario_id,texto,cliente_mensagem_id)
+            VALUES (@empresaId,@usuarioId,@contatoId,@texto,@clienteMensagemId)
+            ON CONFLICT (empresa_id,remetente_id,cliente_mensagem_id) WHERE cliente_mensagem_id IS NOT NULL
+            DO UPDATE SET cliente_mensagem_id=EXCLUDED.cliente_mensagem_id
+            RETURNING id,enviada_em;
+            """;
+        long id; DateTime enviadaEm;
+        await using (var cmd = new NpgsqlCommand(sql, empresaDb))
+        {
+            AddIdentity(cmd, conversa);
+            cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+            cmd.Parameters.AddWithValue("texto", texto);
+            cmd.Parameters.AddWithValue("clienteMensagemId", request.ClienteMensagemId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            id = reader.GetInt64(0); enviadaEm = reader.GetDateTime(1);
+        }
+        await _realtime.NotificarNovaMensagemAsync(request.EmpresaId, request.ContatoId, usuarioId);
+        return Ok(new { id, clienteMensagemId = request.ClienteMensagemId, remetenteId = usuarioId, remetenteNome = "", destinatarioId = request.ContatoId, texto, foto = (byte[]?)null, fotoNome = (string?)null, fotoTipo = (string?)null, enviadaEm, lidaEm = (DateTime?)null });
+    }
+
+    [HttpPost("marcar-lidas-web")]
+    public async Task<IActionResult> MarcarLidasWeb([FromBody] ConversaWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        var (db, usuarioId, error) = await AbrirEmpresaWebAsync(request.EmpresaId, clients);
+        if (error is not null) return error;
+        await using var empresaDb = db!;
+        if (request.ContatoId <= 0 || request.ContatoId == usuarioId || !await ContatoValido(empresaDb, request.EmpresaId, request.ContatoId))
+            return BadRequest(new { mensagem = "Contato indisponível nesta empresa." });
+        const string sql = "UPDATE app.mensagem_conversa SET lida_em=NOW() WHERE empresa_id=@empresaId AND remetente_id=@contatoId AND destinatario_id=@usuarioId AND lida_em IS NULL;";
+        await using var cmd = new NpgsqlCommand(sql, empresaDb);
+        cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+        await cmd.ExecuteNonQueryAsync();
+        return Ok(new { sucesso = true });
+    }
+
+    private async Task<(NpgsqlConnection? Db, long UsuarioId, IActionResult? Error)> AbrirEmpresaWebAsync(long empresaId, IHttpClientFactory clients)
+    {
+        if (empresaId <= 0) return (null, 0, BadRequest(new { mensagem = "Empresa inválida." }));
+        var bearer = Request.Headers.Authorization.ToString();
+        if (!bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return (null, 0, Unauthorized(new { mensagem = "Sessão Supabase ausente. Entre novamente." }));
+        var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        long usuarioId;
+        using (var identityRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/rpc/obter_identidade"))
+        {
+            identityRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            identityRequest.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(bearer);
+            identityRequest.Headers.TryAddWithoutValidation("Accept-Profile", "chat");
+            identityRequest.Headers.TryAddWithoutValidation("Content-Profile", "chat");
+            identityRequest.Content = System.Net.Http.Json.JsonContent.Create(new { p_empresa_id = empresaId });
+            using var response = await clients.CreateClient().SendAsync(identityRequest);
+            if (!response.IsSuccessStatusCode)
+                return (null, 0, Unauthorized(new { mensagem = "Sessão inválida ou usuário sem vínculo ativo com esta empresa." }));
+            using var json = await System.Text.Json.JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+            var identity = json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array && json.RootElement.GetArrayLength() > 0 ? json.RootElement[0] : json.RootElement;
+            if (identity.ValueKind != System.Text.Json.JsonValueKind.Object || !identity.TryGetProperty("usuario_id", out var userId) || !userId.TryGetInt64(out usuarioId))
+                return (null, 0, Unauthorized(new { mensagem = "Esta conta não está vinculada a um usuário ativo da empresa." }));
+        }
+        string connectionString;
+        try { connectionString = await _resolver.ObterConnectionString(empresaId); }
+        catch { return (null, 0, StatusCode(503, new { mensagem = "Configuração do banco da empresa incompleta ou inválida." })); }
+        var db = new NpgsqlConnection(connectionString);
+        await db.OpenAsync();
+        const string validar = "SELECT EXISTS (SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId AND COALESCE(aprovado,TRUE)=TRUE AND COALESCE(excluido,FALSE)=FALSE AND COALESCE(bloqueado_por_master,FALSE)=FALSE);";
+        await using var cmd = new NpgsqlCommand(validar, db);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        if (await cmd.ExecuteScalarAsync() is not true)
+        {
+            await db.DisposeAsync();
+            return (null, usuarioId, StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." }));
+        }
+        return (db, usuarioId, null);
+    }
+
     private async Task<IActionResult> ListarTenant(NpgsqlConnection db, ConversaRequest request)
     {
 

@@ -604,6 +604,97 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         }
     }
 
+    [HttpDelete("chat/empresas/{empresaId:long}/usuarios/{usuarioId:long}/contatos/{contatoId:long}")]
+    public async Task<IActionResult> ExcluirConversaChatMaster(long empresaId, long usuarioId, long contatoId)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (empresaId <= 0 || usuarioId <= 0 || contatoId <= 0 || usuarioId == contatoId)
+            return BadRequest(new { mensagem = "Chat inválido." });
+
+        try
+        {
+            int mensagensEmpresa;
+            await using (var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId)))
+            {
+                await db.OpenAsync();
+                const string validar = "SELECT COUNT(*)=2 FROM app.usuario WHERE empresa_id=@empresaId AND id=ANY(@usuarios) AND COALESCE(excluido,FALSE)=FALSE;";
+                await using (var cmd = new NpgsqlCommand(validar, db))
+                {
+                    cmd.Parameters.AddWithValue("empresaId", empresaId);
+                    cmd.Parameters.AddWithValue("usuarios", new[] { usuarioId, contatoId });
+                    if (await cmd.ExecuteScalarAsync() is not true)
+                        return NotFound(new { mensagem = "Um dos usuários não pertence a esta empresa." });
+                }
+
+                const string apagarTenant = "DELETE FROM app.mensagem_conversa WHERE empresa_id=@empresaId AND ((remetente_id=@usuarioId AND destinatario_id=@contatoId) OR (remetente_id=@contatoId AND destinatario_id=@usuarioId));";
+                await using var apagar = new NpgsqlCommand(apagarTenant, db);
+                apagar.Parameters.AddWithValue("empresaId", empresaId);
+                apagar.Parameters.AddWithValue("usuarioId", usuarioId);
+                apagar.Parameters.AddWithValue("contatoId", contatoId);
+                mensagensEmpresa = await apagar.ExecuteNonQueryAsync();
+            }
+
+            int mensagensCentrais = 0;
+            if (await BancoChatCentral.Pronto(_configuration))
+            {
+                await using var central = await BancoChatCentral.Abrir(_configuration);
+                const string buscarConversa = "SELECT id FROM chat.conversa WHERE empresa_id=@empresaId AND tipo='DIRETA' AND usuario_menor_id=LEAST(@usuarioId,@contatoId) AND usuario_maior_id=GREATEST(@usuarioId,@contatoId);";
+                Guid? conversaId;
+                await using (var buscar = new NpgsqlCommand(buscarConversa, central))
+                {
+                    buscar.Parameters.AddWithValue("empresaId", empresaId);
+                    buscar.Parameters.AddWithValue("usuarioId", usuarioId);
+                    buscar.Parameters.AddWithValue("contatoId", contatoId);
+                    var id = await buscar.ExecuteScalarAsync();
+                    conversaId = id is Guid value ? value : null;
+                }
+                if (conversaId is not null)
+                {
+                    await using var transaction = await central.BeginTransactionAsync();
+                    const string recibos = "DELETE FROM chat.recibo_mensagem WHERE empresa_id=@empresaId AND mensagem_id IN (SELECT id FROM chat.mensagem WHERE empresa_id=@empresaId AND conversa_id=@conversaId);";
+                    await using (var apagarRecibos = new NpgsqlCommand(recibos, central, transaction))
+                    {
+                        apagarRecibos.Parameters.AddWithValue("empresaId", empresaId);
+                        apagarRecibos.Parameters.AddWithValue("conversaId", conversaId.Value);
+                        await apagarRecibos.ExecuteNonQueryAsync();
+                    }
+                    const string mensagens = "DELETE FROM chat.mensagem WHERE empresa_id=@empresaId AND conversa_id=@conversaId;";
+                    await using (var apagarMensagens = new NpgsqlCommand(mensagens, central, transaction))
+                    {
+                        apagarMensagens.Parameters.AddWithValue("empresaId", empresaId);
+                        apagarMensagens.Parameters.AddWithValue("conversaId", conversaId.Value);
+                        mensagensCentrais = await apagarMensagens.ExecuteNonQueryAsync();
+                    }
+                    const string participantes = "DELETE FROM chat.participante WHERE empresa_id=@empresaId AND conversa_id=@conversaId;";
+                    await using (var apagarParticipantes = new NpgsqlCommand(participantes, central, transaction))
+                    {
+                        apagarParticipantes.Parameters.AddWithValue("empresaId", empresaId);
+                        apagarParticipantes.Parameters.AddWithValue("conversaId", conversaId.Value);
+                        await apagarParticipantes.ExecuteNonQueryAsync();
+                    }
+                    const string conversa = "DELETE FROM chat.conversa WHERE empresa_id=@empresaId AND id=@conversaId;";
+                    await using (var apagarConversa = new NpgsqlCommand(conversa, central, transaction))
+                    {
+                        apagarConversa.Parameters.AddWithValue("empresaId", empresaId);
+                        apagarConversa.Parameters.AddWithValue("conversaId", conversaId.Value);
+                        await apagarConversa.ExecuteNonQueryAsync();
+                    }
+                    await transaction.CommitAsync();
+                }
+            }
+
+            if (mensagensEmpresa == 0 && mensagensCentrais == 0)
+                return NotFound(new { mensagem = "A conversa não contém mensagens para excluir." });
+            _logger.LogInformation("Zeus excluiu permanentemente a conversa da empresa {EmpresaId} entre {UsuarioId} e {ContatoId}; tenant={MensagensEmpresa}, central={MensagensCentrais} mensagens.", empresaId, usuarioId, contatoId, mensagensEmpresa, mensagensCentrais);
+            return Ok(new { sucesso = true, mensagensEmpresa, mensagensCentrais, mensagem = "Conversa excluída permanentemente do banco de dados." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Zeus não conseguiu excluir a conversa da empresa {EmpresaId} entre {UsuarioId} e {ContatoId}.", empresaId, usuarioId, contatoId);
+            return StatusCode(503, new { mensagem = "Não foi possível excluir a conversa do banco de dados." });
+        }
+    }
+
     [HttpPost("chat/empresas/{empresaId:long}/usuarios/{usuarioId:long}/contatos/{contatoId:long}/marcar-lidas")]
     public async Task<IActionResult> MarcarChatComoLidoMaster(long empresaId, long usuarioId, long contatoId)
     {
