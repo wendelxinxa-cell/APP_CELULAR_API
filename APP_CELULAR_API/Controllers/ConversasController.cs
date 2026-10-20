@@ -212,6 +212,66 @@ public class ConversasController : ControllerBase
         if (!await ContatoValido(db, request.EmpresaId, request.ContatoId)) return BadRequest(new { mensagem = "Contato inválido." });
         if (await BancoChatCentral.Pronto(_configuration)) return await ListarCentral(db, request);
 
+        return await ListarTenant(db, request);
+    }
+
+    [HttpPost("listar-web")]
+    public async Task<IActionResult> ListarWeb([FromBody] ContatosWebRequest request, [FromQuery] long contatoId, [FromQuery] long depoisDoId,
+        [FromServices] IHttpClientFactory clients)
+    {
+        if (request.EmpresaId <= 0 || contatoId <= 0) return BadRequest(new { mensagem = "Conversa inválida." });
+        var bearer = Request.Headers.Authorization.ToString();
+        if (!bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(new { mensagem = "Sessão Supabase ausente. Entre novamente." });
+
+        var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        long usuarioId;
+        using (var identityRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/rpc/obter_identidade"))
+        {
+            identityRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            identityRequest.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(bearer);
+            identityRequest.Headers.TryAddWithoutValidation("Accept-Profile", "chat");
+            identityRequest.Headers.TryAddWithoutValidation("Content-Profile", "chat");
+            identityRequest.Content = System.Net.Http.Json.JsonContent.Create(new { p_empresa_id = request.EmpresaId });
+            using var identityResponse = await clients.CreateClient().SendAsync(identityRequest);
+            if (!identityResponse.IsSuccessStatusCode)
+                return Unauthorized(new { mensagem = "Sessão inválida ou usuário sem vínculo ativo com esta empresa." });
+            using var identityJson = await System.Text.Json.JsonDocument.ParseAsync(await identityResponse.Content.ReadAsStreamAsync());
+            var identity = identityJson.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array && identityJson.RootElement.GetArrayLength() > 0
+                ? identityJson.RootElement[0] : identityJson.RootElement;
+            if (identity.ValueKind != System.Text.Json.JsonValueKind.Object ||
+                !identity.TryGetProperty("usuario_id", out var userIdElement) || !userIdElement.TryGetInt64(out usuarioId))
+                return Unauthorized(new { mensagem = "Esta conta não está vinculada a um usuário ativo da empresa." });
+        }
+
+        string connectionString;
+        try { connectionString = await _resolver.ObterConnectionString(request.EmpresaId); }
+        catch { return StatusCode(503, new { mensagem = "Configuração do banco da empresa incompleta ou inválida." }); }
+        await using var empresaDb = new NpgsqlConnection(connectionString);
+        await empresaDb.OpenAsync();
+        const string validarUsuario = "SELECT EXISTS (SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId AND COALESCE(aprovado,TRUE)=TRUE AND COALESCE(excluido,FALSE)=FALSE AND COALESCE(bloqueado_por_master,FALSE)=FALSE);";
+        await using (var validarCmd = new NpgsqlCommand(validarUsuario, empresaDb))
+        {
+            validarCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+            validarCmd.Parameters.AddWithValue("usuarioId", usuarioId);
+            if (await validarCmd.ExecuteScalarAsync() is not true)
+                return StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." });
+        }
+        if (usuarioId == contatoId || !await ContatoValido(empresaDb, request.EmpresaId, contatoId))
+            return BadRequest(new { mensagem = "Contato indisponível nesta empresa." });
+
+        // O app e o banco de empresa guardam o histórico operacional. O web usa esse
+        // mesmo histórico para não exigir uma cópia prévia do contato no banco central.
+        return await ListarTenant(empresaDb, new ConversaRequest
+        {
+            EmpresaId = request.EmpresaId, UsuarioId = usuarioId, ContatoId = contatoId, DepoisDoId = Math.Max(0, depoisDoId)
+        });
+    }
+
+    private async Task<IActionResult> ListarTenant(NpgsqlConnection db, ConversaRequest request)
+    {
+
         const string sql = """
             SELECT m.id, m.cliente_mensagem_id, m.remetente_id, COALESCE(a.apelido, r.nome), m.destinatario_id, m.texto,
                    m.foto, m.foto_nome, m.foto_tipo, m.enviada_em, m.lida_em
