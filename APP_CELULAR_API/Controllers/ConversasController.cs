@@ -47,7 +47,6 @@ public class ConversasController : ControllerBase
 
         var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
         var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
-        Guid authUid;
         using (var authRequest = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/user"))
         {
             authRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
@@ -56,19 +55,27 @@ public class ConversasController : ControllerBase
             if (!authResponse.IsSuccessStatusCode) return Unauthorized(new { mensagem = "Sessão Supabase inválida ou expirada. Entre novamente." });
             using var authJson = System.Text.Json.JsonDocument.Parse(await authResponse.Content.ReadAsStringAsync());
             if (!authJson.RootElement.TryGetProperty("id", out var authIdElement) ||
-                !Guid.TryParse(authIdElement.GetString(), out authUid))
+                !Guid.TryParse(authIdElement.GetString(), out var authUid) || authUid == Guid.Empty)
                 return Unauthorized(new { mensagem = "Não foi possível identificar a sessão Supabase." });
         }
 
         long usuarioId;
-        await using (var central = await BancoChatCentral.Abrir(_configuration))
-        await using (var cmd = new NpgsqlCommand("SELECT usuario_id FROM chat.usuario_auth WHERE auth_uid=@authUid AND empresa_id=@empresaId AND ativo=TRUE LIMIT 1;", central))
+        using (var identityRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/rpc/obter_identidade"))
         {
-            cmd.Parameters.AddWithValue("authUid", authUid);
-            cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
-            var value = await cmd.ExecuteScalarAsync();
-            if (value is not long id) return Unauthorized(new { mensagem = "Esta conta não está vinculada a um usuário ativo da empresa." });
-            usuarioId = id;
+            identityRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
+            identityRequest.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(bearer);
+            identityRequest.Headers.TryAddWithoutValidation("Accept-Profile", "chat");
+            identityRequest.Headers.TryAddWithoutValidation("Content-Profile", "chat");
+            identityRequest.Content = System.Net.Http.Json.JsonContent.Create(new { p_empresa_id = request.EmpresaId });
+            using var identityResponse = await clients.CreateClient().SendAsync(identityRequest);
+            if (!identityResponse.IsSuccessStatusCode)
+                return StatusCode(502, new { mensagem = "O Supabase não conseguiu validar o vínculo deste usuário." });
+            using var identityJson = await System.Text.Json.JsonDocument.ParseAsync(await identityResponse.Content.ReadAsStreamAsync());
+            var identity = identityJson.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array && identityJson.RootElement.GetArrayLength() > 0
+                ? identityJson.RootElement[0] : identityJson.RootElement;
+            if (identity.ValueKind != System.Text.Json.JsonValueKind.Object ||
+                !identity.TryGetProperty("usuario_id", out var userIdElement) || !userIdElement.TryGetInt64(out usuarioId))
+                return Unauthorized(new { mensagem = "Esta conta não está vinculada a um usuário ativo da empresa." });
         }
 
         string connectionString;
