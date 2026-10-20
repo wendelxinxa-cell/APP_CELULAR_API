@@ -18,7 +18,7 @@ else
 {
     <div class="messaging-shell">
         <header class="messaging-topbar">
-            <a class="wordmark chatcat-wordmark" href="/main"><img src="app-icon-512.png" alt="" /> CATCHAT</a>
+            <a class="wordmark chatcat-wordmark" href="/main"><img src="catchat_official.png" alt="" /> CATCHAT</a>
             <div class="messaging-account"><span class="avatar">@Portal.Sessao!.Usuario[..1].ToUpperInvariant()</span><span>@Portal.Sessao.Usuario · Empresa @Portal.Sessao.EmpresaId</span><button class="logout-button" @onclick="SairAsync">Sair <span aria-hidden="true">↗</span></button></div>
         </header>
 
@@ -29,7 +29,7 @@ else
 
         <div class="messaging-layout">
             <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
-                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span></div>
+                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true)" disabled="@carregandoContatos">Atualizar</button></div>
                 <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
                 <div class="contact-list">
                     @if (carregandoContatos && contatos.Count == 0)
@@ -38,7 +38,7 @@ else
                     }
                     else if (!ContatosFiltrados.Any())
                     {
-                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? "Nenhum contato disponível." : "Nenhuma pessoa encontrada.")</div>
+                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhum outro usuário ativo encontrado na empresa {Portal.Sessao!.EmpresaId}. Peça ao Zeus para conferir se os usuários estão aprovados, ativos e vinculados a essa mesma empresa; depois atualize." : "Nenhuma pessoa encontrada.")</div>
                     }
                     else
                     {
@@ -52,7 +52,7 @@ else
                         }
                     }
                 </div>
-                <p class="chat-sync-note">Usuários carregados no início da sessão · mensagens em tempo real</p>
+                <p class="chat-sync-note">Contatos ativos da empresa · atualize após uma liberação</p>
             </aside>
 
             <main class="conversation-panel @(ContatoId.HasValue ? "chat-on-mobile" : "")">

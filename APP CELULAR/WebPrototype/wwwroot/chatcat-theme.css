@@ -22,7 +22,7 @@ body{background:var(--cat-bg);color:var(--cat-text)}
 .messaging-shell{background:var(--cat-bg);color:var(--cat-text)}
 .messaging-topbar,.conversation-sidebar,.conversation-panel,.message-composer{background:var(--cat-surface);border-color:var(--cat-border)}
 .chatcat-wordmark{gap:8px;color:var(--cat-yellow)}
-.chatcat-wordmark img{width:34px;height:34px;object-fit:contain;border-radius:10px;background:#00c5b3;padding:3px}
+.chatcat-wordmark img{width:34px;height:34px;object-fit:contain;border-radius:10px;background:#140723;padding:0}
 .chatcat-wordmark small{font-size:10px;letter-spacing:.04em;color:var(--cat-muted)}
 .sidebar-title h1,.active-contact strong,.contact-copy strong,.conversation-welcome h2{color:var(--cat-text)}
 .contact-count,.welcome-icon{background:#2a1540;color:var(--cat-yellow)}

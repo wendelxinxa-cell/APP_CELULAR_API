@@ -1,0 +1,81 @@
+CATCHAT — HANDOFF PARA OUTRO AGENTE
+Atualizado: 2026-10-20
+
+OBJETIVO / REGRA DE CONTINUIDADE
+- Continuar o projeto a partir da versão 0.0.001, build 41. Não voltar para 1.1.0.
+- Antes de editar ou publicar, conferir os commits, branches, arquivos locais e deploy remoto para evitar duplicação ou sobrescrever trabalho.
+- Não colocar tokens, senhas, chaves privadas ou secrets neste arquivo. Segredos do Supabase/Render devem ficar nas configurações seguras do ambiente.
+
+CAMINHOS NO PC
+- Projeto MAUI canônico (APK Android):
+  C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR
+- Projeto Razor/Blazor (web):
+  C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\WebPrototype
+- API de atualização Android (checkout local separado):
+  C:\PROJETO_WENDEL\APP CELULAR\APP_CELULAR_API
+- Checkout de trabalho gerenciado que contém worktrees antigos:
+  C:\Users\PESSONI\.codex\worktrees\blazor-render-preview\APP CELULAR
+  Inspecionar antes de usar; há material antigo/duplicado. Não apagar worktrees ou diretórios sem confirmar o estado e o conteúdo.
+
+GIT / PUBLICAÇÃO
+- Repositório GitHub do app MAUI e Razor:
+  https://github.com/wendelxinxa-cell/APP_CELULAR.git
+  Remote local chamado `app-celular`; branch canônica `main`.
+- Commits importantes já enviados para `app-celular/main`:
+  bb03e33 — restaura o app completo e alinha build 41
+  93958c8 — merge das alterações de main
+  6904321 — metadados do build 41
+  082141e — endpoint /version.json
+- Tag de release APK: apk-0.0.001-build41-test
+- Atenção: `origin` neste checkout local aponta para outro repositório (API), APP_CELULAR_API.git. Não confundir `origin/main` com `app-celular/main`; o `git status` pode mostrar divergência por essa configuração.
+- Repositório da API de atualização:
+  https://github.com/wendelxinxa-cell/APP_CELULAR_API.git
+  A publicação da API foi feita no branch master pelo checkout api-release-worktree. Commit reportado: 6844060.
+- Serviço web Razor no Render:
+  https://catchat-razor-test.onrender.com/
+- API Android de teste no Render:
+  https://app-celular-api-test.onrender.com/
+
+VERSÃO / APK PUBLICADA
+- Versão: 0.0.001
+- Build exibido: 41
+- Android versionCode: 43
+- Pacote: com.companyname.appcelular
+- APK release:
+  https://github.com/wendelxinxa-cell/APP_CELULAR/releases/download/apk-0.0.001-build41-test/APP-CELULAR-Android-0.0.001-build41.apk
+- Cópia local canônica:
+  C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR\artifacts\releases\CATCHAT_0.0.001_build_41.apk
+- SHA-256 esperado:
+  8312781E0242E26235B2DFE2C6C02F2AE80D9B817942639806D2D37CB259E19E
+- A API de atualizações já respondeu com build 41, código 43 e esse SHA-256 em /api/app/atualizacao.
+
+PENDÊNCIA CRÍTICA — RENDER / RAZOR
+- O código Razor em `app-celular/main` contém GET `/version.json` com versão 0.0.001/build 41.
+- No último acesso, https://catchat-razor-test.onrender.com/version.json retornou 404. O hash WASM servido pelo Render também não coincidia com o publish local atual. Portanto, o deploy do Razor não foi confirmado e o site pode estar servindo uma publicação anterior.
+- Próximo agente: identificar no Render qual serviço, repositório, branch, root directory e comando de build/publicação alimentam `catchat-razor-test`; conferir os logs e disparar/reparar o deploy do commit 082141e (ou sucessor) no serviço correto. Depois verificar `/version.json`, `_framework/blazor.boot.json` e a aplicação carregada. Não afirmar que o Razor está atualizado até essas verificações passarem.
+- O acesso automatizado ao dashboard Render não foi concluído no turno anterior por bloqueio da ferramenta de controle de navegador. Usar acesso autorizado disponível no novo turno; não inventar deploy hook ou credenciais.
+
+CONSTRUÇÃO / CONTEÚDO
+- O app MAUI completo foi consolidado no projeto canônico. Preservar todas as telas e funcionalidades, inclusive fluxos de login; identidade visual escura #140723 e destaque #00C5B3.
+- Publicação local do APK foi validada como 0.0.001 / versionCode 43. O certificado SHA-256 confere com a release anterior, então a instalação deve permitir atualização sobre a build anterior.
+- Razor publish usado: `dotnet publish .\WebPrototype\WebPrototype.csproj -c Release` a partir da raiz do projeto.
+- APK publish usado: `dotnet publish .\APP_CELULAR.csproj -f net9.0-android -c Release -p:AndroidPackageFormat=apk`.
+
+LIMPEZA / DUPLICATAS
+- A release errada `1.1.0 build 2` foi removida do GitHub e o APK oficial build 41 foi publicado.
+- Permaneceram cópias antigas de APK dentro de `artifacts/test` e `bin\Debug/Release\...\publish`. `dotnet clean` foi executado, mas não removeu todas. A limpeza local ficou pendente; antes de excluir, revisar os caminhos exatos e manter somente a release necessária em `artifacts\releases`.
+- Existe uma pasta `APP_CELULAR_API` não rastreada relativamente ao checkout MAUI (é outro projeto/repositório local). Não removê-la como se fosse lixo.
+- Existem worktrees antigos no caminho gerenciado acima; não apagar manualmente nem presumir que estão sem alterações.
+
+ATUALIZAÇÃO LOCAL POSTERIOR (AINDA NÃO PUBLICADA)
+- O usuário forneceu a imagem oficial do gato em `C:\Users\PESSONI\Downloads\ChatGPT Image 1 de out. de 2026, 20_22_29.png`. Foi preservado o desenho e recolorido o traço para #00C5B3 com fundo #140723.
+- Referências visuais atualizadas no código: `Resources\AppIcon\appicon.png` (launcher), `Resources\Images\catchat_login.png` (login e tela do gato) e `WebPrototype\wwwroot\catchat_official.png` (Razor, login, favicon e manifest). As cópias servem os formatos/pacotes de cada target; a imagem visual deve permanecer idêntica.
+- Login web agora indica “Nome ou e-mail”; pedido de acesso indica “Nome”. `master-user-invite` resolve nome por `chat.usuario_auth.nome` de usuário ativo na empresa e depois autentica com o e-mail Supabase associado. O fluxo de login não exige a coluna `username`.
+- A versão/build configurada continua 0.0.001 / 41; as alterações acima são locais e ainda não foram enviadas ao GitHub, implantadas no Supabase/Render ou publicadas como APK.
+- Razor recompilou com sucesso (permanece aviso NU1903 no pacote `Microsoft.AspNetCore.Components.WebAssembly.Server` 8.0.28). O build Android confirmou geração dos recursos do novo ícone, mas foi interrompido durante a etapa D8 para evitar longa otimização; ainda não existe validação final do APK dessas alterações.
+
+COMANDOS DE CONFERÊNCIA SUGERIDOS
+- `git -C "C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR" status --short --branch`
+- `git -C "C:\PROJETO_WENDEL\APP CELULAR\APP CELULAR" ls-remote app-celular refs/heads/main`
+- `Invoke-WebRequest https://catchat-razor-test.onrender.com/version.json`
+- `Invoke-WebRequest https://app-celular-api-test.onrender.com/api/app/atualizacao`

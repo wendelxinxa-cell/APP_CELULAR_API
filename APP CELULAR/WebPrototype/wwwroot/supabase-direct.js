@@ -89,7 +89,7 @@
             data = result;
         } else {
             const result = await invokeMasterInvite({ action: "signIn", identificador: email.trim(), senha: password, empresaId: state.empresaId });
-            if (!result.session?.access_token || !result.session?.refresh_token) throw new Error("Não foi possível iniciar a sessão com esse apelido.");
+            if (!result.session?.access_token || !result.session?.refresh_token) throw new Error("Não foi possível iniciar a sessão com esse nome.");
             const { data: sessionData, error } = await client.auth.setSession({ access_token: result.session.access_token, refresh_token: result.session.refresh_token });
             fail(error);
             data = sessionData;
@@ -155,7 +155,8 @@
         fail(error);
         return (data || []).map(item => ({
             authUid: item.auth_uid, email: item.email, nome: item.nome,
-            criadaEm: item.criada_em, status: item.status
+            criadaEm: item.criada_em, status: item.status, empresaId: item.empresa_id,
+            dispositivoId: item.dispositivo_id, nomeDispositivo: item.nome_dispositivo
         }));
     };
 
@@ -221,9 +222,9 @@
         }
     };
 
-    api.approveAccessRequest = async (authUid, userId) => {
+    api.approveAccessRequest = async request => {
         const { error } = await getClient().schema("chat").rpc("aprovar_solicitacao_acesso", {
-            p_auth_uid: authUid, p_usuario_id: userId
+            p_auth_uid: request.authUid, p_empresa_id: request.empresaId, p_tipo_negocio: request.tipoNegocio || "comercial"
         });
         fail(error);
     };

@@ -151,7 +151,7 @@
             </Border>
             <Grid x:Name="LedGatoAnimado" WidthRequest="176" HeightRequest="176" HorizontalOptions="Center" VerticalOptions="Center"
                   AnchorX="0.5" AnchorY="0.5" TranslationX="0" TranslationY="0" Opacity="0" Scale="0.72">
-                <Image x:Name="LedGato" Source="chatcat_logo.png" WidthRequest="132" HeightRequest="132"
+                <Image x:Name="LedGato" Source="catchat_login.png" WidthRequest="132" HeightRequest="132"
                        Aspect="AspectFit" HorizontalOptions="Center" VerticalOptions="Center" />
             </Grid>
         </Grid>

@@ -21,7 +21,7 @@
         else
         {
             <EditForm Model="form" OnValidSubmit="EnviarAsync">
-                <div class="field"><label for="request-name">Apelido para entrar</label><input id="request-name" @bind="form.Nome" autocomplete="nickname" maxlength="120" required /></div>
+                <div class="field"><label for="request-name">Nome</label><input id="request-name" @bind="form.Nome" autocomplete="name" maxlength="120" required /></div>
                 <div class="field"><label for="request-email">E-mail</label><input id="request-email" type="email" @bind="form.Email" autocomplete="email" required /></div>
                 @if (!string.IsNullOrWhiteSpace(erro)) { <div class="notice error" role="alert">@erro</div> }
                 <button class="primary-button login-submit" type="submit" disabled="@enviando">@(enviando ? "Enviando…" : "Enviar solicitação")</button>

@@ -48,22 +48,36 @@ Deno.serve(async (request: Request) => {
     if (action === "signIn") {
       const identificador = String(body.identificador ?? "").trim();
       const senha = String(body.senha ?? "");
-      if (!identificador || !senha) return json({ message: "Informe apelido e senha." }, 400);
-      const { data: listed, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) return json({ message: "Não foi possível localizar a conta. Tente entrar pelo e-mail." }, 400);
+      if (!identificador || !senha) return json({ message: "Informe seu nome ou e-mail e a senha." }, 400);
       const companyId = Number(body.empresaId);
-      const matches = (listed?.users || []).filter(user => identificador.includes("@")
-        ? user.email?.toLowerCase() === identificador.toLowerCase()
-        : String(user.user_metadata?.nome ?? "").trim().toLowerCase() === identificador.toLowerCase()
-          && (user.user_metadata?.empresa_id == null || Number(user.user_metadata.empresa_id) === companyId));
-      if (matches.length !== 1 || !matches[0].email) return json({ message: matches.length > 1 ? "Esse apelido está associado a mais de uma conta. Entre com seu e-mail." : "Apelido não encontrado. Confira o cadastro ou entre com o e-mail." }, 401);
-      const { data: login, error: loginError } = await caller.auth.signInWithPassword({ email: matches[0].email, password: senha });
-      if (loginError || !login.session) return json({ message: "Apelido ou senha incorretos." }, 401);
+      let loginEmail = identificador;
+      if (!identificador.includes("@")) {
+        if (!Number.isInteger(companyId) || companyId <= 0) return json({ message: "Empresa inválida para localizar seu nome." }, 400);
+        // O nome do vínculo ativo é a fonte de identidade. O login não depende
+        // de uma coluna `username` no schema Supabase.
+        const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
+          .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
+        if (linkedError) return json({ message: "Não foi possível localizar seu nome na empresa." }, 400);
+        const normalizedName = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
+        const matches = (linkedUsers || []).filter(user =>
+          String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName);
+        const emails = await Promise.all(matches.map(async user => {
+          const { data, error } = await admin.auth.admin.getUserById(user.auth_uid);
+          return error ? null : data.user?.email?.trim().toLowerCase() ?? null;
+        }));
+        const uniqueEmails = [...new Set(emails.filter((value): value is string => !!value))];
+        if (uniqueEmails.length !== 1) return json({ message: uniqueEmails.length > 1
+          ? "Esse nome está associado a mais de uma conta. Entre com seu e-mail."
+          : "Nome não encontrado. Confira o cadastro ou entre com seu e-mail." }, 401);
+        loginEmail = uniqueEmails[0];
+      }
+      const { data: login, error: loginError } = await caller.auth.signInWithPassword({ email: loginEmail, password: senha });
+      if (loginError || !login.session) return json({ message: "Nome, e-mail ou senha incorretos." }, 401);
       return json({ session: { access_token: login.session.access_token, refresh_token: login.session.refresh_token } });
     }
     if (action === "requestSignup") {
       const empresaId = Number(body.empresaId);
-      if (!email.includes("@") || email.length > 254 || !nome || !Number.isInteger(empresaId) || empresaId <= 0) return json({ message: "Informe apelido, e-mail e ID da empresa válidos." }, 400);
+      if (!email.includes("@") || email.length > 254 || !nome || !Number.isInteger(empresaId) || empresaId <= 0) return json({ message: "Informe nome, e-mail e ID da empresa válidos." }, 400);
       const { data: existing, error: existingError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingError) return json({ message: `Não foi possível validar o e-mail: ${existingError.message}` }, 500);
       let signup: SignupRequestRow | null = null;
@@ -155,9 +169,9 @@ Deno.serve(async (request: Request) => {
     if (isZeus !== true) return json({ message: "Apenas Zeus pode convidar usuários." }, 403);
 
     if (action === "listSignupRequests") {
-      const { data, error } = await admin.schema("chat").from("solicitacao_cadastro").select("id,email,nome,empresa_id,criada_em,email_verificado_em").eq("status", "PENDENTE").not("email_verificado_em", "is", null).order("criada_em");
+      const { data, error } = await admin.schema("chat").from("solicitacao_cadastro").select("id,email,nome,empresa_id,criada_em,email_verificado_em").eq("status", "PENDENTE").order("criada_em");
       if (error) return json({ message: `Não foi possível listar pedidos: ${error.message}` }, 400);
-      return json({ requests: (data || []).map(row => ({ id: row.id, email: row.email, nome: row.nome, empresaId: row.empresa_id, criadaEm: row.criada_em })) });
+      return json({ requests: (data || []).map(row => ({ id: row.id, email: row.email, nome: row.nome, empresaId: row.empresa_id, criadaEm: row.criada_em, emailVerificado: Boolean(row.email_verificado_em) })) });
     }
     if (action === "rejectSignupRequest") {
       const { error } = await admin.schema("chat").rpc("recusar_cadastro_pendente", { p_request_id: Number(body.requestId), p_admin_uid: authResult.user.id });

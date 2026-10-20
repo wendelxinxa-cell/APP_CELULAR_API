@@ -54,7 +54,7 @@ public sealed class SupabaseChatClient(IJSRuntime js)
 
     public Task<bool> EhZeusAsync() => InvokeAsync<bool>("appCelular.supabase.isZeus");
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => InvokeAsync<List<SolicitacaoAcesso>>("appCelular.supabase.listAccessRequests");
-    public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", authUid, usuarioId);
+    public Task AprovarSolicitacaoAsync(SolicitacaoAcesso request) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", request);
     public Task RecusarSolicitacaoAsync(string authUid) => InvokeVoidAsync("appCelular.supabase.rejectAccessRequest", authUid);
     public Task<List<AprovacaoUsuarioAparelho>> ListarUsuariosAparelhosPendentesAsync() => InvokeAsync<List<AprovacaoUsuarioAparelho>>("appCelular.supabase.listPendingUserDevices");
     public Task AprovarUsuarioAparelhoAsync(AprovacaoUsuarioAparelho request) => InvokeVoidAsync("appCelular.supabase.approvePendingUserDevice", request);
@@ -161,7 +161,7 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task SolicitarAcessoAsync(string email, string nome) => supabase.SolicitarAcessoAsync(email, nome);
     public Task ConfirmarEmailCadastroAsync() => supabase.ConfirmarEmailCadastroAsync();
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => supabase.ListarSolicitacoesAsync();
-    public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => supabase.AprovarSolicitacaoAsync(authUid, usuarioId);
+    public Task AprovarSolicitacaoAsync(SolicitacaoAcesso request) => supabase.AprovarSolicitacaoAsync(request);
     public Task RecusarSolicitacaoAsync(string authUid) => supabase.RecusarSolicitacaoAsync(authUid);
     public Task<List<AprovacaoUsuarioAparelho>> ListarUsuariosAparelhosPendentesAsync() => supabase.ListarUsuariosAparelhosPendentesAsync();
     public Task AprovarUsuarioAparelhoAsync(AprovacaoUsuarioAparelho request) => supabase.AprovarUsuarioAparelhoAsync(request);
@@ -205,6 +205,10 @@ public sealed class SolicitacaoAcesso
     public string Email { get; set; } = "";
     public string Nome { get; set; } = "";
     public string Status { get; set; } = "PENDENTE";
+    public long EmpresaId { get; set; }
+    public long? DispositivoId { get; set; }
+    public string NomeDispositivo { get; set; } = "";
+    public string TipoNegocio { get; set; } = "comercial";
     public DateTimeOffset CriadaEm { get; set; }
 }
 
@@ -215,6 +219,7 @@ public sealed class CadastroPendente
     public string Email { get; set; } = "";
     public long EmpresaId { get; set; }
     public DateTimeOffset CriadaEm { get; set; }
+    public bool EmailVerificado { get; set; }
     public long UsuarioIdSelecionado { get; set; }
 }
 

@@ -69,7 +69,7 @@ public partial class LoginPage : ContentPage
         {
             await DisplayAlert(
                 "Login",
-                "Informe o usuário.",
+                "Informe seu nome ou e-mail.",
                 "OK");
 
             UsernameEntry.Focus();

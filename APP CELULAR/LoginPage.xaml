@@ -7,7 +7,7 @@
     <ScrollView>
         <VerticalStackLayout Spacing="20" Padding="28,34" VerticalOptions="Center">
             <!-- Ícone e título -->
-            <Image Source="catchat_mark.svg"
+            <Image Source="catchat_login.png"
                    HeightRequest="84"
                    HorizontalOptions="Center" />
             <Label Text="Bem-vindo!"
@@ -20,14 +20,14 @@
             <!-- Campos de entrada -->
             <Frame x:Name="UsernameFrame" CornerRadius="15" BackgroundColor="#20112E" BorderColor="#3A2850" Padding="10">
                 <Entry x:Name="UsernameEntry"
-                       Placeholder="Digite seu usuário"
+                       Placeholder="Digite seu nome ou e-mail"
                        PlaceholderColor="#B6A9C3"
                        TextColor="#FFFFFF" BackgroundColor="Transparent" />
             </Frame>
 
             <Frame x:Name="UsuarioSalvoFrame" IsVisible="False" CornerRadius="15" BackgroundColor="#20112E" BorderColor="#3A2850" Padding="14,12">
                 <VerticalStackLayout Spacing="3">
-                    <Label Text="USUÁRIO DESTE APARELHO" FontSize="10" CharacterSpacing="1.2" TextColor="#B6A9C3" />
+                    <Label Text="CONTA DESTE APARELHO" FontSize="10" CharacterSpacing="1.2" TextColor="#B6A9C3" />
                     <Label x:Name="UsuarioSalvoLabel" FontSize="18" FontAttributes="Bold" TextColor="#FFFFFF" />
                 </VerticalStackLayout>
             </Frame>
@@ -67,7 +67,7 @@
                     CornerRadius="16" HeightRequest="50" FontAttributes="Bold"
                     Clicked="Biometria_Clicked" />
 
-            <Label x:Name="AlterarUsuarioLabel" Text="Alterar usuário" IsVisible="False"
+            <Label x:Name="AlterarUsuarioLabel" Text="Alterar conta" IsVisible="False"
                    TextColor="#00C5B3"
                    HorizontalOptions="Center">
                 <Label.GestureRecognizers>
