@@ -90,6 +90,10 @@ else if (Portal.Autenticado && Portal.EhZeus)
                             {
                                 <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(usuario, false)" disabled="@processando">Remover master</button>
                             }
+                            @if (!string.IsNullOrWhiteSpace(usuario.Email))
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => SolicitarRedefinicaoAsync(usuario.Email)" disabled="@processando">Redefinir senha</button>
+                            }
                         </article>
                     }
                 }
@@ -116,6 +120,10 @@ else if (Portal.Autenticado && Portal.EhZeus)
                             <span class="managed-user-role">@(usuario.Bloqueado ? "BLOQUEADO" : usuario.Aprovado ? "LIBERADO" : "PENDENTE")</span>
                             <button class="secondary-button" type="button" @onclick="() => IniciarEdicao(usuario)" disabled="@processando">Editar</button>
                             <button class="@(usuario.Bloqueado ? "primary-button" : "danger-button")" type="button" @onclick="() => AlterarUsuarioEmpresaAtivoAsync(usuario, !usuario.Bloqueado)" disabled="@processando">@(usuario.Bloqueado ? "Ativar" : "Desativar")</button>
+                            @if (!string.IsNullOrWhiteSpace(usuario.Email))
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => SolicitarRedefinicaoAsync(usuario.Email)" disabled="@processando">Redefinir senha</button>
+                            }
                             @if (editandoId == usuario.Id)
                             {
                                 <EditForm Model="edicao" OnValidSubmit="SalvarEdicaoAsync" @key="usuario.Id">
@@ -283,6 +291,14 @@ else if (Portal.Autenticado && Portal.EhZeus)
         var acao = ativo ? "ativar" : "desativar";
         if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} o usuário {usuario.Nome}?")) return;
         await ProcessarAsync(async () => await Portal.DefinirUsuarioEmpresaAtivoAsync(usuario.EmpresaId, usuario.Id, ativo), ativo ? "Usuário ativado." : "Usuário desativado.");
+    }
+
+    private async Task SolicitarRedefinicaoAsync(string emailInformado)
+    {
+        var email = emailInformado.Trim();
+        if (string.IsNullOrWhiteSpace(email)) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Enviar para {email} um link seguro para definir uma nova senha?")) return;
+        await ProcessarAsync(async () => await Portal.SolicitarRedefinicaoSenhaAsync(email), $"Link para redefinir a senha enviado para {email}.");
     }
 
     private sealed class UsuarioEmpresaEdicao
