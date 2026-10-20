@@ -40,18 +40,30 @@ public sealed class SupabaseChatClient(IJSRuntime js)
         await InvokeVoidAsync("appCelular.supabase.updatePassword", senha);
     }
 
-    public async Task SolicitarAcessoAsync(string email, string senha, string username)
+    public async Task SolicitarAcessoAsync(string email, string nome)
     {
         await InicializarAsync();
-        await InvokeVoidAsync("appCelular.supabase.signUp", email.Trim(), senha, username.Trim());
+        await InvokeVoidAsync("appCelular.supabase.requestSignup", email.Trim(), nome.Trim());
+    }
+
+    public async Task ConfirmarEmailCadastroAsync()
+    {
+        await InicializarAsync();
+        await InvokeVoidAsync("appCelular.supabase.confirmSignupEmail");
     }
 
     public Task<bool> EhZeusAsync() => InvokeAsync<bool>("appCelular.supabase.isZeus");
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => InvokeAsync<List<SolicitacaoAcesso>>("appCelular.supabase.listAccessRequests");
-    public Task AprovarSolicitacaoAsync(string authUid, long empresaId, string tipoNegocio) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", authUid, empresaId, tipoNegocio);
+    public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveAccessRequest", authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => InvokeVoidAsync("appCelular.supabase.rejectAccessRequest", authUid);
+    public Task<List<AprovacaoUsuarioAparelho>> ListarUsuariosAparelhosPendentesAsync() => InvokeAsync<List<AprovacaoUsuarioAparelho>>("appCelular.supabase.listPendingUserDevices");
+    public Task AprovarUsuarioAparelhoAsync(AprovacaoUsuarioAparelho request) => InvokeVoidAsync("appCelular.supabase.approvePendingUserDevice", request);
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() =>
         InvokeAsync<List<UsuarioAuthGerenciavel>>("appCelular.supabase.listManagedUsers");
+    public Task<List<CadastroPendente>> ListarCadastrosPendentesAsync() => InvokeAsync<List<CadastroPendente>>("appCelular.supabase.listSignupRequests");
+    public Task AprovarCadastroAsync(long requestId, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveSignupRequest", requestId, usuarioId);
+    public Task RecusarCadastroAsync(long requestId) => InvokeVoidAsync("appCelular.supabase.rejectSignupRequest", requestId);
+    public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => InvokeAsync<List<UsuarioEmpresaDisponivel>>("appCelular.supabase.listCompanyUsers");
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) =>
         InvokeVoidAsync("appCelular.supabase.setManagedUserMaster", authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) =>
@@ -146,11 +158,18 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task MarcarComoLidasAsync(long contatoId) => supabase.MarcarComoLidasAsync(contatoId);
     public Task EnviarAcaoVisualAsync(long contatoId, string tipo, string simbolo) => supabase.EnviarAcaoVisualAsync(contatoId, tipo, simbolo);
     public Task<List<AcaoVisualConversa>> ObterAcoesVisuaisAsync(long contatoId) => supabase.ObterAcoesVisuaisAsync(contatoId);
-    public Task SolicitarAcessoAsync(string email, string senha, string username) => supabase.SolicitarAcessoAsync(email, senha, username);
+    public Task SolicitarAcessoAsync(string email, string nome) => supabase.SolicitarAcessoAsync(email, nome);
+    public Task ConfirmarEmailCadastroAsync() => supabase.ConfirmarEmailCadastroAsync();
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => supabase.ListarSolicitacoesAsync();
-    public Task AprovarSolicitacaoAsync(string authUid, long empresaId, string tipoNegocio) => supabase.AprovarSolicitacaoAsync(authUid, empresaId, tipoNegocio);
+    public Task AprovarSolicitacaoAsync(string authUid, long usuarioId) => supabase.AprovarSolicitacaoAsync(authUid, usuarioId);
     public Task RecusarSolicitacaoAsync(string authUid) => supabase.RecusarSolicitacaoAsync(authUid);
+    public Task<List<AprovacaoUsuarioAparelho>> ListarUsuariosAparelhosPendentesAsync() => supabase.ListarUsuariosAparelhosPendentesAsync();
+    public Task AprovarUsuarioAparelhoAsync(AprovacaoUsuarioAparelho request) => supabase.AprovarUsuarioAparelhoAsync(request);
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() => supabase.ListarUsuariosGerenciaveisAsync();
+    public Task<List<CadastroPendente>> ListarCadastrosPendentesAsync() => supabase.ListarCadastrosPendentesAsync();
+    public Task AprovarCadastroAsync(long requestId, long usuarioId) => supabase.AprovarCadastroAsync(requestId, usuarioId);
+    public Task RecusarCadastroAsync(long requestId) => supabase.RecusarCadastroAsync(requestId);
+    public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => supabase.ListarUsuariosEmpresaAsync();
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) => supabase.DefinirUsuarioMasterAsync(authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) => supabase.DefinirUsuarioAtivoAsync(authUid, ativo);
     public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
@@ -184,13 +203,47 @@ public sealed class SolicitacaoAcesso
 {
     public string AuthUid { get; set; } = "";
     public string Email { get; set; } = "";
-    public string Username { get; set; } = "";
     public string Nome { get; set; } = "";
-    public long EmpresaId { get; set; }
-    public long? DispositivoId { get; set; }
-    public string NomeDispositivo { get; set; } = "";
     public string Status { get; set; } = "PENDENTE";
     public DateTimeOffset CriadaEm { get; set; }
+}
+
+public sealed class CadastroPendente
+{
+    public long Id { get; set; }
+    public string Nome { get; set; } = "";
+    public string Email { get; set; } = "";
+    public long EmpresaId { get; set; }
+    public DateTimeOffset CriadaEm { get; set; }
+    public long UsuarioIdSelecionado { get; set; }
+}
+
+public sealed class UsuarioEmpresaDisponivel
+{
+    public long Id { get; set; }
+    public long EmpresaId { get; set; }
+    public string Empresa { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public string Funcao { get; set; } = "";
+    public string Email { get; set; } = "";
+    public bool Aprovado { get; set; }
+    public bool Bloqueado { get; set; }
+    public bool AparelhoPendente { get; set; }
+    public string TipoNegocio { get; set; } = "sucata";
+}
+
+public sealed class AprovacaoUsuarioAparelho
+{
+    public long EmpresaId { get; set; }
+    public string Empresa { get; set; } = "";
+    public long? DispositivoId { get; set; }
+    public long? UsuarioId { get; set; }
+    public long? UsuarioPendenteId { get; set; }
+    public string Usuario { get; set; } = "";
+    public string Dispositivo { get; set; } = "";
+    public string Tipo { get; set; } = "";
+    public DateTimeOffset? CriadoEm { get; set; }
+    public bool SemDispositivo { get; set; }
 }
 
 public sealed class UsuarioAuthGerenciavel
