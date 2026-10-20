@@ -128,4 +128,6 @@ PUBLICAÇÃO MAIS RECENTE — BUILD 42 (2026-10-20)
 - Link Razor: https://catchat-razor-test.onrender.com/ (validar `/version.json` até reportar build 42).
 - Download APK: https://app-celular-api-test.onrender.com/api/app/atualizacao/arquivo
 - Manifesto: https://app-celular-api-test.onrender.com/api/app/atualizacao
-- Repositórios existentes foram reutilizados; não foi criado repositório novo. Confirmar a conclusão dos deploys Render pelos endpoints antes de considerar a publicação entregue.
+- Publicação confirmada nos domínios existentes: `/version.json` respondeu HTTP 200 com build 42; a página Razor respondeu HTTP 200 com os metadados +42 e script central-auth.
+- API/manifesto respondeu online com build 42, `codigoVersao=45` e o SHA-256 acima. O download respondeu HTTP 206 e `Content-Range: bytes 0-0/34672382`.
+- Repositórios existentes foram reutilizados; não foi criado repositório novo. Commit API `61c85c7`; commit branch Razor `f1406a7`.
