@@ -14,6 +14,8 @@
         destinatarioId: value.destinatario_id, texto: value.texto ?? "",
         midiaChave: value.midia_chave, midiaNome: value.midia_nome,
         midiaTipo: value.midia_tipo, midiaTamanhoBytes: value.midia_tamanho_bytes,
+        foto: value.foto, fotoNome: value.foto_nome ?? value.fotoNome,
+        fotoTipo: value.foto_tipo ?? value.fotoTipo,
         enviadaEm: value.enviada_em, lidaEm: value.lida_em, fotoUrl: null
     });
     const toSession = (authSession, identity) => {
@@ -303,11 +305,18 @@
     };
 
     api.listMessages = async (contactId, afterId) => {
-        const { data, error } = await getClient().schema("chat").rpc("listar_mensagens", {
-            p_contato_id: contactId, p_depois_do_id: afterId || 0, p_empresa_id: state.empresaId
+        const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
+        fail(sessionError);
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
+        const response = await fetch(`/api/chat/messages?contatoId=${encodeURIComponent(contactId)}&depoisDoId=${encodeURIComponent(afterId || 0)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ empresaId: state.empresaId })
         });
-        fail(error);
-        return (data || []).map(normalizeMessage);
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `Não foi possível carregar as mensagens (${response.status}).`);
+        return (result || []).map(normalizeMessage);
     };
 
     api.uploadMessageMedia = async (contactId, clientMessageId, inputId, fileName, contentType) => {
