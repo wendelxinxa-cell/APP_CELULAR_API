@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.EditarUsuarioZeusPage"
+             Title="Alterar usuário"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="18">
+            <Label x:Name="NomeLabel" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+            <Label x:Name="StatusLabel" FontSize="13" TextColor="{DynamicResource BrandMuted}" />
+            <Border Padding="14" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Tipo de negócio deste usuário" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                    <Picker x:Name="TipoNegocioPicker" Title="Selecione o tipo">
+                        <Picker.Items><x:String>Sucata</x:String><x:String>Chat</x:String></Picker.Items>
+                    </Picker>
+                </VerticalStackLayout>
+            </Border>
+            <Button x:Name="SalvarButton" Text="Salvar alteração" Clicked="Salvar_Clicked" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+            <Button x:Name="BloqueioButton" Clicked="Bloqueio_Clicked" BackgroundColor="#D1242F" TextColor="White" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

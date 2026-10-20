@@ -30,4 +30,18 @@ public class ItemCompra
 
     // Impede lançar a mesma entrada no estoque duas vezes
     public bool EstoqueLancado { get; set; } = false;
+
+    public int? IdServidor { get; set; }
+
+    public long EmpresaId { get; set; } = 1;
+
+    public long DispositivoId { get; set; } = 1;
+
+    public DateTime DataAlteracao { get; set; } = DateTime.Now;
+
+    public string StatusSincronizacao { get; set; } = "PENDENTE";
+
+    public string MensagemErro { get; set; } = "";
+
+    public bool Excluido { get; set; } = false;
 }

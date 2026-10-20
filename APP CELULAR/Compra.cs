@@ -19,11 +19,17 @@ public class Compra
 
     public string Observacao { get; set; } = "";
 
-    public string Status { get; set; } = "ABERTA";
+    public string Status { get; set; } = "PENDENTE";
 
     public string StatusSincronizacao { get; set; } = "PENDENTE";
 
     public string MensagemErro { get; set; } = "";
 
-  
+    public DateTime DataAlteracao { get; set; } = DateTime.Now;
+
+    public long EmpresaId { get; set; } = 1;
+
+    public long DispositivoId { get; set; } = 1;
+
+    public bool Excluido { get; set; } = false;
 }

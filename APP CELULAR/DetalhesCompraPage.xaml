@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.DetalhesCompraPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     NavigationPage.HasNavigationBar="False">
 
     <Grid RowDefinitions="Auto,*">
@@ -13,14 +13,14 @@
         <Grid
             Grid.Row="0"
             Padding="16,14"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             ColumnDefinitions="Auto,*,Auto">
 
             <Button
                 Grid.Column="0"
                 Text="‹"
                 FontSize="34"
-                TextColor="White"
+                TextColor="{DynamicResource BrandOnPrimary}"
                 BackgroundColor="Transparent"
                 Padding="0"
                 WidthRequest="45"
@@ -37,12 +37,14 @@
                     Text="Compra"
                     FontSize="21"
                     FontAttributes="Bold"
-                    TextColor="White" />
+                    TextColor="{DynamicResource BrandOnPrimary}" />
 
                 <Label
                     Text="Detalhes da entrada"
                     FontSize="13"
-                    TextColor="#D9D7F2" />
+                    TextColor="{DynamicResource BrandOnPrimary}" />
+
+                <Label x:Name="UsuarioLogadoLabel" FontSize="10" TextColor="{DynamicResource BrandOnPrimary}" />
 
             </VerticalStackLayout>
 
@@ -64,8 +66,8 @@
 
                 <!-- INFORMAÇÕES DA COMPRA -->
                 <Border
-                    BackgroundColor="White"
-                    Stroke="#E5E5EA"
+                    BackgroundColor="{DynamicResource BrandSurface}"
+                    Stroke="{DynamicResource BrandBorder}"
                     StrokeThickness="1"
                     Padding="16">
 
@@ -83,14 +85,14 @@
                                     Text="COMPRA"
                                     FontSize="11"
                                     FontAttributes="Bold"
-                                    TextColor="#8A8A94" />
+                                    TextColor="{DynamicResource BrandMuted}" />
 
                                 <Label
                                     x:Name="NumeroCompraLabel"
                                     Text="Compra #000"
                                     FontSize="22"
                                     FontAttributes="Bold"
-                                    TextColor="#2E2A6A" />
+                                    TextColor="{DynamicResource BrandPrimary}" />
 
                             </VerticalStackLayout>
 
@@ -99,7 +101,7 @@
                                 Grid.Column="1"
                                 Padding="12,7"
                                 VerticalOptions="Center"
-                                BackgroundColor="#DDEBFF">
+                                BackgroundColor="{DynamicResource BrandSoft}">
 
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
@@ -118,7 +120,7 @@
 
                         <BoxView
                             HeightRequest="1"
-                            BackgroundColor="#EEEEF2" />
+                            BackgroundColor="{DynamicResource BrandSoft}" />
 
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
 
@@ -127,7 +129,7 @@
                                 Grid.Column="0"
                                 Text="Fornecedor:"
                                 FontSize="13"
-                                TextColor="#888891" />
+                                TextColor="{DynamicResource BrandMuted}" />
 
                             <Label
                                 x:Name="FornecedorLabel"
@@ -135,7 +137,7 @@
                                 Grid.Column="1"
                                 FontSize="14"
                                 FontAttributes="Bold"
-                                TextColor="#33333A"
+                                TextColor="{DynamicResource BrandText}"
                                 HorizontalTextAlignment="End" />
 
                             <Label
@@ -143,14 +145,14 @@
                                 Grid.Column="0"
                                 Text="Data:"
                                 FontSize="13"
-                                TextColor="#888891" />
+                                TextColor="{DynamicResource BrandMuted}" />
 
                             <Label
                                 x:Name="DataLabel"
                                 Grid.Row="1"
                                 Grid.Column="1"
                                 FontSize="14"
-                                TextColor="#33333A"
+                                TextColor="{DynamicResource BrandText}"
                                 HorizontalTextAlignment="End" />
 
                             <Label
@@ -158,7 +160,7 @@
                                 Grid.Column="0"
                                 Text="Total:"
                                 FontSize="13"
-                                TextColor="#888891" />
+                                TextColor="{DynamicResource BrandMuted}" />
 
                             <Label
                                 x:Name="TotalLabel"
@@ -166,7 +168,7 @@
                                 Grid.Column="1"
                                 FontSize="16"
                                 FontAttributes="Bold"
-                                TextColor="#2E2A6A"
+                                TextColor="{DynamicResource BrandPrimary}"
                                 HorizontalTextAlignment="End" />
 
                         </Grid>
@@ -178,18 +180,18 @@
 
                             <BoxView
                                 HeightRequest="1"
-                                BackgroundColor="#EEEEF2" />
+                                BackgroundColor="{DynamicResource BrandSoft}" />
 
                             <Label
                                 Text="Observação"
                                 FontSize="11"
                                 FontAttributes="Bold"
-                                TextColor="#8A8A94" />
+                                TextColor="{DynamicResource BrandMuted}" />
 
                             <Label
                                 x:Name="ObservacaoLabel"
                                 FontSize="14"
-                                TextColor="#44444D" />
+                                TextColor="{DynamicResource BrandText}" />
 
                         </VerticalStackLayout>
 
@@ -209,13 +211,13 @@
                             Text="Materiais"
                             FontSize="19"
                             FontAttributes="Bold"
-                            TextColor="#2E2A6A" />
+                            TextColor="{DynamicResource BrandPrimary}" />
 
                         <Label
                             x:Name="OrientacaoLabel"
                             Text="Informe a perda de cada material"
                             FontSize="12"
-                            TextColor="#888891" />
+                            TextColor="{DynamicResource BrandMuted}" />
 
                     </VerticalStackLayout>
 
@@ -223,7 +225,7 @@
                         x:Name="QuantidadeItensLabel"
                         Grid.Column="1"
                         FontSize="13"
-                        TextColor="#777780"
+                        TextColor="{DynamicResource BrandMuted}"
                         VerticalOptions="Center" />
 
                 </Grid>
@@ -237,8 +239,8 @@
 
                 <!-- RESUMO -->
                 <Border
-                    BackgroundColor="White"
-                    Stroke="#E5E5EA"
+                    BackgroundColor="{DynamicResource BrandSurface}"
+                    Stroke="{DynamicResource BrandBorder}"
                     StrokeThickness="1"
                     Padding="16">
 
@@ -252,21 +254,21 @@
                             Text="Resumo da entrada"
                             FontSize="16"
                             FontAttributes="Bold"
-                            TextColor="#2E2A6A" />
+                            TextColor="{DynamicResource BrandPrimary}" />
 
                         <Grid ColumnDefinitions="*,Auto">
 
                             <Label
                                 Text="Peso bruto:"
                                 FontSize="13"
-                                TextColor="#777780" />
+                                TextColor="{DynamicResource BrandMuted}" />
 
                             <Label
                                 x:Name="PesoBrutoLabel"
                                 Grid.Column="1"
                                 FontSize="14"
                                 FontAttributes="Bold"
-                                TextColor="#33333A" />
+                                TextColor="{DynamicResource BrandText}" />
 
                         </Grid>
 
@@ -288,7 +290,7 @@
 
                         <BoxView
                             HeightRequest="1"
-                            BackgroundColor="#EEEEF2" />
+                            BackgroundColor="{DynamicResource BrandSoft}" />
 
                         <Grid ColumnDefinitions="*,Auto">
 
@@ -296,7 +298,7 @@
                                 Text="Quantidade líquida:"
                                 FontSize="15"
                                 FontAttributes="Bold"
-                                TextColor="#33333A" />
+                                TextColor="{DynamicResource BrandText}" />
 
                             <Label
                                 x:Name="QuantidadeLiquidaLabel"

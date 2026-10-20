@@ -454,6 +454,7 @@ public partial class NovaCompraPage : ContentPage
             int compraId =
                 await _database.SalvarCompra(compra);
 
+
             foreach (var item in _itens)
             {
                 item.CompraId = compraId;
@@ -464,7 +465,10 @@ public partial class NovaCompraPage : ContentPage
                 item.QuantidadeLiquida = 0;
                 item.EstoqueLancado = false;
 
+               
+
                 await _database.SalvarItemCompra(item);
+
             }
 
             await DisplayAlert(

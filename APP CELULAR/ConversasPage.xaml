@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.ConversasPage"
+             Title="Chat"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <Grid RowDefinitions="Auto,*" Padding="18">
+        <VerticalStackLayout Spacing="3">
+            <Label Text="Conversas" FontSize="26" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" />
+            <Label Text="Aqui aparecem somente conversas iniciadas." FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+            <Border Margin="0,8,0,0" Padding="10,6" BackgroundColor="{DynamicResource BrandSoft}" StrokeThickness="0" HorizontalOptions="Start">
+                <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                <Label x:Name="UsuarioLogadoLabel" FontSize="11" TextColor="{DynamicResource BrandPrimary}" LineBreakMode="TailTruncation" />
+            </Border>
+        </VerticalStackLayout>
+
+        <CollectionView x:Name="ContatosList" Grid.Row="1" Margin="0,14,0,0" SelectionMode="None">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Label Text="Nenhuma conversa iniciada" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource BrandPrimary}" HorizontalTextAlignment="Center" />
+                    <Label Text="Use Novo chat para começar a conversar." FontSize="13" TextColor="{DynamicResource BrandMuted}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <SwipeView Margin="0,0,0,10">
+                        <SwipeView.RightItems>
+                            <SwipeItems Mode="Reveal">
+                                <!-- Mantive SwipeItemView; largura/control está no Grid interno -->
+                                <SwipeItemView CommandParameter="{Binding .}" Invoked="ExcluirConversa_Clicked">
+                                    <Grid BackgroundColor="#E53935" WidthRequest="96" HorizontalOptions="Fill" VerticalOptions="Center">
+                                        <Label Text="🗑️ Excluir"
+                                               TextColor="White"
+                                               FontSize="16"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" />
+                                    </Grid>
+                                </SwipeItemView>
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+                        <!-- conteúdo do item permanece igual -->
+                        <Border Padding="14" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+                            <Border.GestureRecognizers><TapGestureRecognizer Tapped="Contato_Tapped" CommandParameter="{Binding .}" /></Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Text="{Binding Nome}" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource BrandText}" />
+                                <Label Grid.Row="1" Text="{Binding UltimaMensagem}" LineBreakMode="TailTruncation" TextColor="{DynamicResource BrandMuted}" FontSize="13" />
+                                <Button Grid.Row="2" Text="✎ Alterar apelido" Clicked="DefinirApelido_Clicked" CommandParameter="{Binding .}" FontSize="12" Padding="0,5" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="{DynamicResource BrandPrimary}" />
+                                <Border Grid.Column="1" Grid.RowSpan="2" IsVisible="{Binding TemNaoLidas}" BackgroundColor="{DynamicResource BrandPrimary}" Padding="9,4" VerticalOptions="Center">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                                    <Label Text="{Binding NaoLidas}" TextColor="{DynamicResource BrandText}" FontSize="12" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <ActivityIndicator x:Name="Carregando" Grid.Row="1" IsRunning="True" IsVisible="False" Color="{DynamicResource BrandPrimary}" VerticalOptions="Start" />
+        <VerticalStackLayout Grid.Row="1" HorizontalOptions="End" VerticalOptions="End" Margin="0,0,6,12" Spacing="10">
+            <Button Text="＋ Novo chat" Clicked="NovoChat_Clicked" HeightRequest="52" Padding="18,0"
+                    CornerRadius="26" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" FontAttributes="Bold">
+                <Button.Shadow><Shadow Brush="#33000000" Offset="0,4" Radius="10" Opacity="0.25" /></Button.Shadow>
+            </Button>
+            <Button Text="👥  Usuários" Clicked="ListarUsuarios_Clicked" HeightRequest="48" Padding="16,0"
+                    CornerRadius="24" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandPrimary}" FontAttributes="Bold"
+                    BorderColor="{DynamicResource BrandBorder}" BorderWidth="1">
+                <Button.Shadow><Shadow Brush="#22000000" Offset="0,3" Radius="8" Opacity="0.18" /></Button.Shadow>
+            </Button>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

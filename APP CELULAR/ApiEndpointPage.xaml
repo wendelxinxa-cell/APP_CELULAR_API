@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.ApiEndpointPage"
+             Title="Servidor da API"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <VerticalStackLayout Padding="24" Spacing="16" VerticalOptions="Center">
+        <Label Text="Endereço da API" FontSize="24" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" />
+        <Label Text="Informe o endereço HTTPS permanente da API publicada. Essa configuração fica salva neste dispositivo." TextColor="{DynamicResource BrandMuted}" />
+        <Entry x:Name="EnderecoEntry" Placeholder="https://api.suaempresa.com" Keyboard="Url" BackgroundColor="{DynamicResource BrandSurface}" />
+        <Label Text="Código da empresa no servidor" TextColor="{DynamicResource BrandMuted}" />
+        <Entry x:Name="EmpresaEntry" Placeholder="1" Keyboard="Numeric" BackgroundColor="{DynamicResource BrandSurface}" />
+        <Button Text="Salvar e testar conexão" Clicked="SalvarTestar_Clicked" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+        <Button Text="Voltar" Clicked="Voltar_Clicked" BackgroundColor="Transparent" TextColor="{DynamicResource BrandPrimary}" />
+    </VerticalStackLayout>
+</ContentPage>

@@ -267,7 +267,7 @@ public partial class DetalhesVendaPage : ContentPage
                 FontAttributes =
                     FontAttributes.Bold,
                 TextColor =
-                    Color.FromArgb("#2E2A6A"),
+                    PaletasAppService.CorAtual("BrandPrimary", Color.FromArgb("#2E2A6A")),
                 HorizontalTextAlignment =
                     TextAlignment.End,
                 VerticalOptions =

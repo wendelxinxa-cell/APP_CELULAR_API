@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.AprovacoesAcessoPage"
+             Title="Aprovações"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" Padding="18,14" BackgroundColor="{DynamicResource BrandPrimary}" ColumnDefinitions="Auto,*">
+            <Button Text="‹" FontSize="32" TextColor="{DynamicResource BrandOnPrimary}" BackgroundColor="Transparent" WidthRequest="42" Padding="0" Clicked="Voltar_Clicked" />
+            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label Text="APROVAÇÕES DE ACESSO" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource BrandOnPrimary}" />
+                <Label Text="Cada liberação vale para um usuário e um aparelho" FontSize="12" TextColor="{DynamicResource BrandOnPrimary}" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <RefreshView x:Name="RefreshAprovacoes" Grid.Row="1" Refreshing="Atualizar_Refreshing">
+            <CollectionView x:Name="Solicitacoes" SelectionMode="None" ItemsLayout="VerticalList">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="30" Spacing="10" VerticalOptions="Center">
+                        <Label Text="✓" FontSize="42" HorizontalOptions="Center" TextColor="{DynamicResource BrandPrimary}" />
+                        <Label Text="Nenhuma solicitação pendente." FontSize="16" TextColor="{DynamicResource BrandMuted}" HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="14,7" Padding="14" BackgroundColor="{DynamicResource BrandSurface}" Stroke="#F28C28" StrokeThickness="1.5">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="5" VerticalOptions="Center">
+                                    <Label Text="{Binding Tipo}" FontSize="11" FontAttributes="Bold" TextColor="#F28C28" />
+                                    <Label Text="{Binding UsuarioExibicao}" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" LineBreakMode="WordWrap" />
+                                    <Label Text="{Binding DispositivoExibicao}" FontSize="14" TextColor="{DynamicResource BrandText}" LineBreakMode="WordWrap" />
+                                    <Label Text="{Binding Contexto}" FontSize="12" TextColor="{DynamicResource BrandMuted}" LineBreakMode="WordWrap" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="{Binding Acao}" Clicked="Aprovar_Clicked" BackgroundColor="#238636" TextColor="White" CornerRadius="18" Padding="12,6" VerticalOptions="Center" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+</ContentPage>

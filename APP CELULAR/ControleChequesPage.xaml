@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="APP_CELULAR.ControleChequesPage"
+    Title="Controle de Cheques">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <SearchBar
+            x:Name="PesquisaSearchBar"
+            Placeholder="Pesquisar cliente"
+            TextChanged="PesquisaSearchBar_TextChanged"/>
+
+        <CollectionView
+            Grid.Row="1"
+            x:Name="ClientesCollection"
+            SelectionChanged="ClientesCollection_SelectionChanged">
+
+            <CollectionView.ItemTemplate>
+
+                <DataTemplate>
+
+
+                    <Frame
+                        Margin="10,5"
+                        Padding="12"
+                        BorderColor="{DynamicResource BrandBorder}">
+
+                        <VerticalStackLayout>
+
+                            <Label
+                                Text="{Binding ClienteNome}"
+                                FontSize="18"
+                                FontAttributes="Bold"/>
+
+                            <Label
+                                Text="{Binding QuantidadeTexto}"
+                                FontSize="13"/>
+
+                            <Label
+                                Text="{Binding TotalTexto}"
+                                FontSize="13"
+                                TextColor="Green"/>
+
+                        </VerticalStackLayout>
+
+                    </Frame>
+
+                </DataTemplate>
+
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+
+
+
+    </Grid>
+  </ContentPage>

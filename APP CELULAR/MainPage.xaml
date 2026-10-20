@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="APP_CELULAR.MainPage"
     Shell.NavBarIsVisible="False"
-    BackgroundColor="#F5F6FA">
+    BackgroundColor="{DynamicResource BrandBackground}">
     <Grid RowDefinitions="Auto,*">
 
         <!-- ================================================= -->
@@ -13,7 +13,7 @@
         <!-- ================================================= -->
 
         <Border Grid.Row="0"
-                BackgroundColor="#2E2A6A"
+                BackgroundColor="{DynamicResource BrandPrimary}"
                 StrokeThickness="0"
                 Padding="22,18,22,22">
 
@@ -30,14 +30,14 @@
                                      Grid.Column="0"
                                      Spacing="2">
 
-                    <Label Text="APP CELULAR"
-                           TextColor="White"
+                    <Label Text="CATCHAT"
+                           TextColor="{DynamicResource BrandOnPrimary}"
                            FontSize="13"
                            FontAttributes="Bold"
                            CharacterSpacing="1.5" />
 
-                    <Label Text="Painel principal"
-                           TextColor="#DAD8FF"
+                    <Label x:Name="PainelSubtitleLabel" Text="Painel principal"
+                           TextColor="{DynamicResource BrandOnPrimary}"
                            FontSize="13" />
 
                 </VerticalStackLayout>
@@ -47,22 +47,42 @@
                                        Grid.Column="1"
                                        Spacing="8">
 
-                    <Border WidthRequest="44"
-                            HeightRequest="44"
-                            BackgroundColor="#B4B3B4"
-                            StrokeThickness="0">
-
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="14" />
-                        </Border.StrokeShape>
-
-                        <Label Text="🔔"
-                               FontSize="18"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center" />
-
-                    </Border>
-
+                    <Grid WidthRequest="44" HeightRequest="44">
+                        <Border BackgroundColor="#B4B3B4" StrokeThickness="0">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="14" />
+                            </Border.StrokeShape>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="Notificacoes_Clicked" />
+                            </Border.GestureRecognizers>
+                            <Label Text="🔔"
+                                   FontSize="18"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+                        <Border x:Name="NotificacaoBadge"
+                                IsVisible="False"
+                                WidthRequest="19"
+                                HeightRequest="19"
+                                Padding="0"
+                                HorizontalOptions="End"
+                                VerticalOptions="Start"
+                                BackgroundColor="#D1242F"
+                                Stroke="White"
+                                StrokeThickness="1">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="10" />
+                            </Border.StrokeShape>
+                            <Label x:Name="NotificacaoContagemLabel"
+                                   Text="1"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource BrandText}"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+                    </Grid>
+                    
                     <Border WidthRequest="44"
                             HeightRequest="44"
                             BackgroundColor="#B4B3B4"
@@ -78,7 +98,7 @@
 
                         <Label Text="⏻"
                                FontSize="22"
-                               TextColor="White"
+                               TextColor="{DynamicResource BrandText}"
                                HorizontalOptions="Center"
                                VerticalOptions="Center" />
 
@@ -92,13 +112,14 @@
                                      Grid.ColumnSpan="2"
                                      Spacing="4">
 
-                    <Label Text="Olá, seja bem-vindo! 👋"
-                           TextColor="White"
+                    <Label x:Name="UsuarioLogadoLabel"
+                           Text="Olá, seja bem-vindo! 👋"
+                           TextColor="{DynamicResource BrandText}"
                            FontSize="25"
                            FontAttributes="Bold" />
 
                     <Label Text="Acesse rapidamente as funções do sistema."
-                           TextColor="#DAD8FF"
+                           TextColor="{DynamicResource BrandOnPrimary}"
                            FontSize="14" />
 
                 </VerticalStackLayout>
@@ -106,8 +127,7 @@
             </Grid>
 
         </Border>
-
-
+        
         <!-- ================================================= -->
         <!-- CONTEÚDO -->
         <!-- ================================================= -->
@@ -122,12 +142,12 @@
                 <!-- RESUMO -->
                 <!-- ================================================= -->
 
-                <Grid ColumnDefinitions="*,*"
+                <Grid x:Name="ResumoGrid" ColumnDefinitions="*,*"
                       ColumnSpacing="12">
 
                     <!-- Clientes -->
                     <Border Grid.Column="0"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -140,18 +160,18 @@
                             <Label Text="CLIENTES"
                                    FontSize="11"
                                    FontAttributes="Bold"
-                                   TextColor="#888888"
+                                   TextColor="{DynamicResource BrandMuted}"
                                    CharacterSpacing="1" />
 
                             <Label x:Name="ClientesResumoLabel"
                                    Text="--"
                                    FontSize="25"
                                    FontAttributes="Bold"
-                                   TextColor="#2E2A6A" />
+                                   TextColor="{DynamicResource BrandPrimary}" />
 
                             <Label Text="Cadastrados"
                                    FontSize="12"
-                                   TextColor="#999999" />
+                                   TextColor="{DynamicResource BrandMuted}" />
 
                         </VerticalStackLayout>
 
@@ -160,7 +180,7 @@
 
                     <!-- Vendas -->
                     <Border Grid.Column="1"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -173,18 +193,18 @@
                             <Label Text="VENDAS"
                                    FontSize="11"
                                    FontAttributes="Bold"
-                                   TextColor="#888888"
+                                   TextColor="{DynamicResource BrandMuted}"
                                    CharacterSpacing="1" />
 
                             <Label x:Name="VendasResumoLabel"
                                    Text="R$ --"
                                    FontSize="25"
                                    FontAttributes="Bold"
-                                   TextColor="#007AFF" />
+                                   TextColor="{DynamicResource BrandPrimary}" />
 
                             <Label Text="Hoje"
                                    FontSize="12"
-                                   TextColor="#999999" />
+                                   TextColor="{DynamicResource BrandMuted}" />
 
                         </VerticalStackLayout>
 
@@ -197,18 +217,18 @@
                 <!-- TÍTULO MÓDULOS -->
                 <!-- ================================================= -->
 
-                <Grid ColumnDefinitions="*,Auto">
+                <Grid x:Name="ModulosHeaderGrid" ColumnDefinitions="*,Auto">
 
                     <Label Grid.Column="0"
                            Text="Módulos"
                            FontSize="21"
                            FontAttributes="Bold"
-                           TextColor="#292929" />
+                           TextColor="{DynamicResource BrandText}" />
 
                     <Label Grid.Column="1"
                            Text="Todos"
                            FontSize="13"
-                           TextColor="#007AFF"
+                           TextColor="{DynamicResource BrandPrimary}"
                            VerticalOptions="Center" />
 
                 </Grid>
@@ -219,15 +239,15 @@
                 <!-- ================================================= -->
 
                 <Grid ColumnDefinitions="*,*"
-                      RowDefinitions="Auto,Auto,Auto,Auto"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                       ColumnSpacing="14"
                       RowSpacing="14">
 
 
                     <!-- COMPRAS -->
-                    <Border Grid.Row="2"
+                    <Border x:Name="ComprasCard" Grid.Row="2"
                             Grid.Column="0"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -243,7 +263,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#F0ECFF"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -263,11 +283,11 @@
                                 <Label Text="Compras"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Entrada de Mercadorias"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -277,9 +297,9 @@
 
 
                     <!-- VENDAS -->
-                    <Border Grid.Row="1"
+                    <Border x:Name="VendasCard" Grid.Row="1"
                             Grid.Column="0"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -315,11 +335,11 @@
                                 <Label Text="Vendas"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Pedidos"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -328,9 +348,9 @@
                     </Border>
                     
                     <!-- PESSOAS -->
-                    <Border Grid.Row="0"
+                    <Border x:Name="PessoasCard" Grid.Row="0"
                             Grid.Column="0"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -346,7 +366,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#EEEAFE"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -366,11 +386,11 @@
                                 <Label Text="Clientes/Fornecedores"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Cadastros"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -380,9 +400,9 @@
 
 
                     <!-- PRODUTOS -->
-                    <Border Grid.Row="0"
+                    <Border x:Name="ProdutosCard" Grid.Row="0"
                             Grid.Column="1"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -398,7 +418,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#E8F3FF"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -418,11 +438,11 @@
                                 <Label Text="Produtos"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Estoque"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -431,9 +451,9 @@
                     </Border>
 
                     <!-- FINANCEIRO -->
-                    <Border Grid.Row="1"
+                    <Border x:Name="FinanceiroCard" Grid.Row="1"
                             Grid.Column="1"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -469,11 +489,11 @@
                                 <Label Text="Financeiro"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Contas"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -482,9 +502,9 @@
                     </Border>
 
                     <!-- CONFIGURAÇÕES -->
-                    <Border Grid.Row="2"
+                    <Border x:Name="ConfiguracoesCard" Grid.Row="2"
                             Grid.Column="1"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -500,7 +520,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#F1F1F1"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -520,11 +540,11 @@
                                 <Label Text="Configurações"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
-                                <Label Text="Preferências"
+                                <Label Text="Paleta de cores"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -534,9 +554,10 @@
 
 
                     <!-- USUÁRIOS -->
-                    <Border Grid.Row="3"
+                    <Border x:Name="AdministracaoCard"
+                            Grid.Row="3"
                             Grid.Column="0"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -552,7 +573,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#EDEFFF"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -560,7 +581,7 @@
                                     <RoundRectangle CornerRadius="16" />
                                 </Border.StrokeShape>
 
-                                <Label Text="🔐"
+                                <Label Text="👥"
                                        FontSize="25"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center" />
@@ -569,14 +590,16 @@
 
                             <VerticalStackLayout Spacing="3">
 
-                                <Label Text="Usuários"
+                                <Label x:Name="AdministracaoTituloLabel"
+                                       Text="Usuários"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
-                                <Label Text="Permissões"
+                                <Label x:Name="AdministracaoSubtituloLabel"
+                                       Text="Permissões"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -585,10 +608,42 @@
                     </Border>
 
 
+                    <!-- EMPRESAS: cadastro exclusivo do Administrador Master -->
+                    <Border x:Name="EmpresasCard" Grid.Row="4" Grid.Column="1" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0" Padding="16" IsVisible="False">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="Empresas_Clicked" /></Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="12">
+                            <Border WidthRequest="52" HeightRequest="52" BackgroundColor="{DynamicResource BrandSoft}" StrokeThickness="0" HorizontalOptions="Start">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+                                <Label Text="🏢" FontSize="25" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <VerticalStackLayout Spacing="3">
+                                <Label Text="Empresas" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                                <Label Text="Cadastro e aprovações" FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- CHAT -->
+                    <Border x:Name="ConversasCard" Grid.Row="4" Grid.Column="0" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0" Padding="16">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="Chat_Clicked" /></Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="12">
+                            <Border WidthRequest="52" HeightRequest="52" BackgroundColor="{DynamicResource BrandSoft}" StrokeThickness="0" HorizontalOptions="Start">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+                                <Label Text="💬" FontSize="25" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <VerticalStackLayout Spacing="3">
+                                <Label Text="Chat" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                                <Label Text="Mensagens e fotos" FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+
                     <!-- OUTROS -->
-                    <Border Grid.Row="3"
+                    <Border x:Name="OutrosCard" Grid.Row="3"
                             Grid.Column="1"
-                            BackgroundColor="White"
+                            BackgroundColor="{DynamicResource BrandSurface}"
                             StrokeThickness="0"
                             Padding="16">
 
@@ -604,7 +659,7 @@
 
                             <Border WidthRequest="52"
                                     HeightRequest="52"
-                                    BackgroundColor="#E8F3FF"
+                                    BackgroundColor="{DynamicResource BrandSoft}"
                                     StrokeThickness="0"
                                     HorizontalOptions="Start">
 
@@ -614,7 +669,7 @@
 
                                 <Label Text="＋"
                                        FontSize="30"
-                                       TextColor="#007AFF"
+                                       TextColor="{DynamicResource BrandPrimary}"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center" />
 
@@ -625,11 +680,11 @@
                                 <Label Text="Outros"
                                        FontSize="16"
                                        FontAttributes="Bold"
-                                       TextColor="#292929" />
+                                       TextColor="{DynamicResource BrandText}" />
 
                                 <Label Text="Mais funções"
                                        FontSize="12"
-                                       TextColor="#999999" />
+                                       TextColor="{DynamicResource BrandMuted}" />
 
                             </VerticalStackLayout>
 
@@ -641,9 +696,9 @@
 
 
                 <!-- RODAPÉ -->
-                <Label Text="APP CELULAR • Sistema de gestão"
+                <Label Text="CATCHAT • Sistema de gestão"
                        FontSize="11"
-                       TextColor="#AAAAAA"
+                       TextColor="{DynamicResource BrandMuted}"
                        HorizontalOptions="Center"
                        Margin="0,5,0,0" />
 
@@ -654,3 +709,4 @@
     </Grid>
 
 </ContentPage>
+

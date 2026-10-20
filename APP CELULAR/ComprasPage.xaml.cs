@@ -32,7 +32,7 @@ public partial class ComprasPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-
+        UsuarioLogadoLabel.Text = "Usuário | " + (SessaoUsuario.UsuarioAtual?.Nome ?? "");
         await CarregarCompras();
     }
 

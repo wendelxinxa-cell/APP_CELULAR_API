@@ -3,21 +3,21 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="APP_CELULAR.UsuariosPage"
-             BackgroundColor="#F5F5F7"
+             BackgroundColor="{DynamicResource BrandBackground}"
              Title="Usuários">
 
     <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- CABEÇALHO -->
         <Grid Grid.Row="0"
-              BackgroundColor="#2E2A6A"
+              BackgroundColor="{DynamicResource BrandPrimary}"
               Padding="20,18"
               ColumnDefinitions="Auto,*">
 
             <Button Grid.Column="0"
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     BackgroundColor="Transparent"
                     WidthRequest="45"
                     HeightRequest="45"
@@ -31,12 +31,12 @@
                 <Label Text="USUÁRIOS"
                        FontSize="24"
                        FontAttributes="Bold"
-                       TextColor="White" />
+                       TextColor="{DynamicResource BrandOnPrimary}" />
 
                 <Label x:Name="SubtituloLabel"
                        Text="Usuários cadastrados"
                        FontSize="13"
-                       TextColor="#D9D7F5" />
+                       TextColor="{DynamicResource BrandOnPrimary}" />
 
             </VerticalStackLayout>
 
@@ -49,8 +49,7 @@
                      Refreshing="RefreshUsuarios_Refreshing">
 
             <CollectionView x:Name="UsuariosCollection"
-                            SelectionMode="Single"
-                            SelectionChanged="Usuario_Selecionado">
+                            SelectionMode="None">
 
                 <CollectionView.EmptyView>
                     <VerticalStackLayout Padding="30"
@@ -64,7 +63,7 @@
                         <Label Text="Nenhum usuário cadastrado."
                                FontSize="18"
                                FontAttributes="Bold"
-                               TextColor="#555"
+                               TextColor="{DynamicResource BrandMuted}"
                                HorizontalOptions="Center" />
 
                     </VerticalStackLayout>
@@ -78,7 +77,10 @@
                                Padding="0"
                                CornerRadius="16"
                                HasShadow="True"
-                               BackgroundColor="White">
+                               BackgroundColor="{DynamicResource BrandSurface}">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="Usuario_Tocado" />
+                            </Frame.GestureRecognizers>
 
                             <Grid Padding="16"
                                   ColumnDefinitions="Auto,*,Auto"
@@ -89,7 +91,7 @@
                                         WidthRequest="52"
                                         HeightRequest="52"
                                         StrokeThickness="0"
-                                        BackgroundColor="#ECEBFA"
+                                        BackgroundColor="{DynamicResource BrandSoft}"
                                         StrokeShape="RoundRectangle 26">
 
                                     <Label Text="👤"
@@ -108,17 +110,35 @@
                                     <Label Text="{Binding Nome}"
                                            FontSize="17"
                                            FontAttributes="Bold"
-                                           TextColor="#222"
+                                           TextColor="{DynamicResource BrandText}"
                                            LineBreakMode="TailTruncation" />
 
                                     <Label Text="{Binding Funcao}"
                                            FontSize="13"
-                                           TextColor="#666" />
+                                           TextColor="{DynamicResource BrandMuted}" />
+
+                                    <Label Text="{Binding Email}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource BrandMuted}"
+                                           LineBreakMode="TailTruncation" />
+
+                                    <Label Text="{Binding EmpresaExibida}"
+                                           FontSize="13"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource BrandPrimary}"
+                                           LineBreakMode="TailTruncation" />
+
+                                    <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                        <Border WidthRequest="10" HeightRequest="10" BackgroundColor="{Binding CorStatusAcesso}" StrokeThickness="0" VerticalOptions="Center">
+                                            <Border.StrokeShape><RoundRectangle CornerRadius="5" /></Border.StrokeShape>
+                                        </Border>
+                                        <Label Text="{Binding StatusAcesso}" FontSize="11" FontAttributes="Bold" TextColor="{Binding CorStatusAcesso}" LineBreakMode="WordWrap" />
+                                    </HorizontalStackLayout>
 
                                     <Label Text="ADMINISTRADOR MASTER"
                                            FontSize="11"
                                            FontAttributes="Bold"
-                                           TextColor="#2E2A6A"
+                                           TextColor="{DynamicResource BrandPrimary}"
                                            IsVisible="{Binding EhMaster}" />
 
                                 </VerticalStackLayout>
@@ -128,7 +148,7 @@
                                 <Label Grid.Column="2"
                                        Text="›"
                                        FontSize="30"
-                                       TextColor="#999"
+                                       TextColor="{DynamicResource BrandMuted}"
                                        VerticalOptions="Center" />
 
                             </Grid>
@@ -144,21 +164,29 @@
 
 
         <!-- BOTÃO NOVO -->
-        <Grid Grid.Row="2"
-              Padding="16,10,16,18"
-              BackgroundColor="#F5F5F7">
-
+        <VerticalStackLayout Grid.Row="2"
+                             Padding="16,8,16,16"
+                             Spacing="8"
+                             BackgroundColor="{DynamicResource BrandBackground}">
+            <Button x:Name="BtnAprovacoes"
+                    Text="APROVAR USUÁRIOS E APARELHOS"
+                    FontSize="14"
+                    FontAttributes="Bold"
+                    BackgroundColor="{DynamicResource BrandSoft}"
+                    TextColor="{DynamicResource BrandPrimary}"
+                    CornerRadius="22"
+                    HeightRequest="46"
+                    Clicked="Aprovacoes_Clicked" />
             <Button x:Name="BtnNovoUsuario"
                     Text="+  NOVO USUÁRIO"
                     FontSize="16"
                     FontAttributes="Bold"
-                    BackgroundColor="#007AFF"
-                    TextColor="White"
+                    BackgroundColor="{DynamicResource BrandPrimary}"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     CornerRadius="25"
                     HeightRequest="52"
                     Clicked="NovoUsuario_Clicked" />
-
-        </Grid>
+        </VerticalStackLayout>
 
     </Grid>
 

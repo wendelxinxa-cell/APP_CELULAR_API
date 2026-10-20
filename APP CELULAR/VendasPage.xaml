@@ -4,7 +4,7 @@
     x:Class="APP_CELULAR.VendasPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    BackgroundColor="#F5F6FA"
+    BackgroundColor="{DynamicResource BrandBackground}"
     Title="Vendas">
 
     <Grid RowDefinitions="Auto,*">
@@ -12,7 +12,7 @@
         <!-- CABEÇALHO -->
         <Border
             Grid.Row="0"
-            BackgroundColor="#2E2A6A"
+            BackgroundColor="{DynamicResource BrandPrimary}"
             Padding="18,16">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -20,7 +20,7 @@
                 <Button
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandOnPrimary}"
                     BackgroundColor="Transparent"
                     Padding="0"
                     Clicked="Voltar_Clicked"/>
@@ -34,12 +34,12 @@
                         Text="Vendas"
                         FontSize="23"
                         FontAttributes="Bold"
-                        TextColor="White"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                     <Label
                         Text="Pedidos e movimentações"
                         FontSize="12"
-                        TextColor="#D8D7F5"/>
+                        TextColor="{DynamicResource BrandOnPrimary}"/>
 
                 </VerticalStackLayout>
 
@@ -66,7 +66,7 @@
 
                     <!-- DATA -->
                     <Border
-                        BackgroundColor="White"
+                        BackgroundColor="{DynamicResource BrandSurface}"
                         StrokeThickness="0"
                         Padding="10">
 
@@ -88,7 +88,7 @@
                                 Grid.Column="1"
                                 Format="dd/MM/yyyy"
                                 FontSize="16"
-                                TextColor="#222"
+                                TextColor="{DynamicResource BrandText}"
                                 HorizontalOptions="Fill"
                                 VerticalOptions="Center"
                                 DateSelected="DataFiltro_DateSelected"/>
@@ -97,7 +97,7 @@
                                 Grid.Column="2"
                                 Text="⌄"
                                 FontSize="24"
-                                TextColor="#555"
+                                TextColor="{DynamicResource BrandMuted}"
                                 VerticalOptions="Center"/>
 
                         </Grid>
@@ -158,7 +158,7 @@
                         Text="Todos os pedidos"
                         FontSize="14"
                         FontAttributes="Bold"
-                        TextColor="#555"
+                        TextColor="{DynamicResource BrandMuted}"
                         Margin="2,4,0,0"/>
 
 
@@ -171,7 +171,7 @@
                         <CollectionView.EmptyView>
 
                             <Border
-                                BackgroundColor="White"
+                                BackgroundColor="{DynamicResource BrandSurface}"
                                 StrokeThickness="0"
                                 Padding="30"
                                 Margin="0,10">
@@ -193,13 +193,13 @@
                                         Text="Nenhum pedido encontrado"
                                         FontSize="16"
                                         FontAttributes="Bold"
-                                        TextColor="#555"
+                                        TextColor="{DynamicResource BrandMuted}"
                                         HorizontalOptions="Center"/>
 
                                     <Label
                                         Text="Não existem vendas para esta data."
                                         FontSize="13"
-                                        TextColor="#888"
+                                        TextColor="{DynamicResource BrandMuted}"
                                         HorizontalOptions="Center"/>
 
                                 </VerticalStackLayout>
@@ -214,7 +214,7 @@
                             <DataTemplate>
 
                                 <Border
-                                    BackgroundColor="White"
+                                    BackgroundColor="{DynamicResource BrandSurface}"
                                     StrokeThickness="0"
                                     Padding="13"
                                     Margin="0,0,0,8">
@@ -232,7 +232,7 @@
                                             Text="{Binding NumeroPedido}"
                                             FontSize="15"
                                             FontAttributes="Bold"
-                                            TextColor="#1F2A44"/>
+                                            TextColor="{DynamicResource BrandText}"/>
 
                                         <!-- STATUS -->
                                         <Border
@@ -249,7 +249,7 @@
                                                 Text="{Binding StatusTexto}"
                                                 FontSize="11"
                                                 FontAttributes="Bold"
-                                                TextColor="White"/>
+                                                TextColor="{DynamicResource BrandText}"/>
 
                                         </Border>
 
@@ -259,7 +259,7 @@
                                             Grid.Row="1"
                                             Text="{Binding Cliente}"
                                             FontSize="14"
-                                            TextColor="#555"
+                                            TextColor="{DynamicResource BrandMuted}"
                                             Margin="0,4,0,0"/>
 
 
@@ -268,7 +268,7 @@
                                             Grid.Row="2"
                                             Text="{Binding DataHora}"
                                             FontSize="12"
-                                            TextColor="#8A8A8A"
+                                            TextColor="{DynamicResource BrandMuted}"
                                             Margin="0,2,0,0"/>
 
 
@@ -279,7 +279,7 @@
                                             Text="{Binding Valor}"
                                             FontSize="15"
                                             FontAttributes="Bold"
-                                            TextColor="#2E2A6A"
+                                            TextColor="{DynamicResource BrandPrimary}"
                                             HorizontalTextAlignment="End"
                                             VerticalOptions="End"/>
 
@@ -290,7 +290,7 @@
                                             Grid.Row="1"
                                             Text="›"
                                             FontSize="25"
-                                            TextColor="#777"
+                                            TextColor="{DynamicResource BrandMuted}"
                                             HorizontalTextAlignment="End"
                                             VerticalOptions="Center"/>
 
@@ -316,7 +316,7 @@
                 Margin="0,0,18,18"
                 WidthRequest="58"
                 HeightRequest="58"
-                BackgroundColor="#5335B8"
+                BackgroundColor="{DynamicResource BrandPrimary}"
                 StrokeThickness="0">
 
                 <Border.StrokeShape>
@@ -326,7 +326,7 @@
                 <Label
                     Text="+"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandText}"
                     HorizontalTextAlignment="Center"
                     VerticalTextAlignment="Center"/>
 

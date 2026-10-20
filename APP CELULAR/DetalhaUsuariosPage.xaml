@@ -3,21 +3,21 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="APP_CELULAR.DetalhaUsuariosPage"
-             BackgroundColor="#F5F5F7"
+             BackgroundColor="{DynamicResource BrandBackground}"
              Title="Detalhes do Usuário">
 
     <Grid RowDefinitions="Auto,*">
 
         <!-- CABEÇALHO -->
         <Grid Grid.Row="0"
-              BackgroundColor="#2E2A6A"
+              BackgroundColor="{DynamicResource BrandPrimary}"
               Padding="20,18"
               ColumnDefinitions="Auto,*">
 
             <Button Grid.Column="0"
                     Text="‹"
                     FontSize="34"
-                    TextColor="White"
+                    TextColor="{DynamicResource BrandText}"
                     BackgroundColor="Transparent"
                     WidthRequest="45"
                     HeightRequest="45"
@@ -31,12 +31,12 @@
                 <Label Text="DETALHES DO USUÁRIO"
                        FontSize="21"
                        FontAttributes="Bold"
-                       TextColor="White" />
+                       TextColor="{DynamicResource BrandText}" />
 
                 <Label x:Name="SubtituloLabel"
                        Text="Editar usuário"
                        FontSize="13"
-                       TextColor="#D9D7F5" />
+                       TextColor="{DynamicResource BrandOnPrimary}" />
 
             </VerticalStackLayout>
 
@@ -53,14 +53,14 @@
                        IsVisible="False"
                        Padding="14"
                        CornerRadius="12"
-                       BackgroundColor="#ECEBFA"
+                       BackgroundColor="{DynamicResource BrandSoft}"
                        HasShadow="False">
 
                     <HorizontalStackLayout Spacing="10">
 
                         <Label Text="★"
                                FontSize="24"
-                               TextColor="#2E2A6A"
+                               TextColor="{DynamicResource BrandPrimary}"
                                VerticalOptions="Center" />
 
                         <VerticalStackLayout Spacing="2">
@@ -68,11 +68,11 @@
                             <Label Text="ADMINISTRADOR MASTER"
                                    FontSize="14"
                                    FontAttributes="Bold"
-                                   TextColor="#2E2A6A" />
+                                   TextColor="{DynamicResource BrandPrimary}" />
 
                             <Label Text="Conta protegida do sistema"
                                    FontSize="12"
-                                   TextColor="#666" />
+                                   TextColor="{DynamicResource BrandMuted}" />
 
                         </VerticalStackLayout>
 
@@ -84,7 +84,7 @@
                 <!-- NOME -->
                 <Frame Padding="14,8"
                        CornerRadius="12"
-                       BackgroundColor="White"
+                       BackgroundColor="{DynamicResource BrandSurface}"
                        HasShadow="True">
 
                     <VerticalStackLayout Spacing="3">
@@ -92,12 +92,12 @@
                         <Label Text="NOME"
                                FontSize="12"
                                FontAttributes="Bold"
-                               TextColor="#666" />
+                               TextColor="{DynamicResource BrandMuted}" />
 
                         <Entry x:Name="NomeEntry"
                                FontSize="16"
-                               TextColor="#222"
-                               PlaceholderColor="#999" />
+                               TextColor="{DynamicResource BrandText}"
+                               PlaceholderColor="{DynamicResource BrandMuted}" />
 
                     </VerticalStackLayout>
 
@@ -107,7 +107,7 @@
                 <!-- SENHA -->
                 <Frame Padding="14,8"
                        CornerRadius="12"
-                       BackgroundColor="White"
+                       BackgroundColor="{DynamicResource BrandSurface}"
                        HasShadow="True">
 
                     <VerticalStackLayout Spacing="3">
@@ -116,14 +116,14 @@
                                Text="NOVA SENHA"
                                FontSize="12"
                                FontAttributes="Bold"
-                               TextColor="#666" />
+                               TextColor="{DynamicResource BrandMuted}" />
 
                         <Entry x:Name="SenhaEntry"
                                Placeholder="Deixe em branco para manter a senha atual"
                                IsPassword="True"
                                FontSize="16"
-                               TextColor="#222"
-                               PlaceholderColor="#999" />
+                               TextColor="{DynamicResource BrandText}"
+                               PlaceholderColor="{DynamicResource BrandMuted}" />
 
                     </VerticalStackLayout>
 
@@ -133,7 +133,7 @@
                 <!-- CONFIRMAR SENHA -->
                 <Frame Padding="14,8"
                        CornerRadius="12"
-                       BackgroundColor="White"
+                       BackgroundColor="{DynamicResource BrandSurface}"
                        HasShadow="True">
 
                     <VerticalStackLayout Spacing="3">
@@ -141,14 +141,14 @@
                         <Label Text="CONFIRMAR NOVA SENHA"
                                FontSize="12"
                                FontAttributes="Bold"
-                               TextColor="#666" />
+                               TextColor="{DynamicResource BrandMuted}" />
 
                         <Entry x:Name="ConfirmarSenhaEntry"
                                Placeholder="Confirme a nova senha"
                                IsPassword="True"
                                FontSize="16"
-                               TextColor="#222"
-                               PlaceholderColor="#999" />
+                               TextColor="{DynamicResource BrandText}"
+                               PlaceholderColor="{DynamicResource BrandMuted}" />
 
                     </VerticalStackLayout>
 
@@ -158,7 +158,7 @@
                 <!-- FUNÇÃO -->
                 <Frame Padding="14,8"
                        CornerRadius="12"
-                       BackgroundColor="White"
+                       BackgroundColor="{DynamicResource BrandSurface}"
                        HasShadow="True">
 
                     <VerticalStackLayout Spacing="3">
@@ -166,11 +166,11 @@
                         <Label Text="FUNÇÃO"
                                FontSize="12"
                                FontAttributes="Bold"
-                               TextColor="#666" />
+                               TextColor="{DynamicResource BrandMuted}" />
 
                         <Picker x:Name="FuncaoPicker"
                                 FontSize="16"
-                                TextColor="#222"
+                                TextColor="{DynamicResource BrandText}"
                                 Title="Selecione a função">
 
                             <Picker.Items>
@@ -184,6 +184,15 @@
 
                 </Frame>
 
+
+                <Frame Padding="14,8" CornerRadius="12" BackgroundColor="{DynamicResource BrandSurface}" HasShadow="True">
+                    <VerticalStackLayout Spacing="3">
+                        <Label Text="TIPO DE NEGÓCIO" FontSize="12" FontAttributes="Bold" TextColor="{DynamicResource BrandMuted}" />
+                        <Picker x:Name="TipoNegocioPicker" FontSize="16" TextColor="{DynamicResource BrandText}" Title="Selecione o tipo">
+                            <Picker.Items><x:String>Sucata</x:String><x:String>Chat</x:String></Picker.Items>
+                        </Picker>
+                    </VerticalStackLayout>
+                </Frame>
 
                 <!-- SALVAR -->
                 <Button x:Name="BtnSalvar"

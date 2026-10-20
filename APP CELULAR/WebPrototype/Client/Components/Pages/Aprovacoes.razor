@@ -17,7 +17,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
         <section class="home-content">
             <p class="eyebrow">ADMINISTRAÇÃO</p>
             <h1>Solicitações de acesso</h1>
-            <p class="home-intro">Confira o cadastro, informe o ID correspondente do usuário CATCHAT e aprove.</p>
+            <p class="home-intro">Confira username, e-mail e aparelho. O ID será gerado pelo banco; selecione a modalidade para aprovar.</p>
             @if (!string.IsNullOrWhiteSpace(aviso)) { <div class="notice @(falha ? "error" : "success")" role="status">@aviso</div> }
             @if (solicitacoes.Count == 0)
             {
@@ -28,9 +28,15 @@ else if (Portal.Autenticado && Portal.EhZeus)
                 @foreach (var item in solicitacoes)
                 {
                     <article class="access-request" @key="item.AuthUid">
-                        <div><strong>@item.Nome</strong><small>@item.Email</small><small>Enviada em @item.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
-                        <label class="request-user-id">ID do usuário APP CELULAR<input type="number" min="1" @bind="userIds[item.AuthUid]" /></label>
-                        <div class="request-actions"><button class="primary-button" @onclick="() => AprovarAsync(item)" disabled="@processando">Aprovar</button><button class="danger-button" @onclick="() => RecusarAsync(item)" disabled="@processando">Recusar</button></div>
+                        <div><strong>@item.Username</strong><small>@item.Email</small><small>Empresa @item.EmpresaId · Aparelho: @item.NomeDispositivo</small><small>Enviada em @item.CriadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
+                        <label class="request-user-id">Tipo de empresa
+                            <select @bind="tiposNegocio[item.AuthUid]">
+                                <option value="comercial">Comercial</option>
+                                <option value="chat">Chat</option>
+                            </select>
+                        </label>
+                        @if (item.DispositivoId is null) { <small class="notice error">Este pedido antigo não tem aparelho vinculado; solicite um novo acesso pelo aparelho.</small> }
+                        <div class="request-actions"><button class="primary-button" @onclick="() => AprovarAsync(item)" disabled="@(processando || item.DispositivoId is null)">Aprovar</button><button class="danger-button" @onclick="() => RecusarAsync(item)" disabled="@processando">Recusar</button></div>
                     </article>
                 }
             }
@@ -40,7 +46,7 @@ else if (Portal.Autenticado && Portal.EhZeus)
 
 @code {
     private List<SolicitacaoAcesso> solicitacoes = [];
-    private readonly Dictionary<string, long> userIds = [];
+    private readonly Dictionary<string, string> tiposNegocio = [];
     private bool carregando = true;
     private bool processando;
     private bool falha;
@@ -67,16 +73,20 @@ else if (Portal.Autenticado && Portal.EhZeus)
     private async Task AtualizarAsync()
     {
         solicitacoes = await Portal.ListarSolicitacoesAsync();
-        foreach (var item in solicitacoes) userIds.TryAdd(item.AuthUid, 0);
+        foreach (var item in solicitacoes) tiposNegocio.TryAdd(item.AuthUid, "comercial");
     }
 
     private async Task AprovarAsync(SolicitacaoAcesso item)
     {
-        if (!userIds.TryGetValue(item.AuthUid, out var userId) || userId <= 0)
+        if (item.DispositivoId is null)
         {
-            falha = true; aviso = "Informe o ID válido do usuário APP CELULAR antes de aprovar."; return;
+            falha = true; aviso = "Esse pedido não tem aparelho vinculado. Peça ao usuário para enviar uma nova solicitação."; return;
         }
-        await ProcessarAsync(async () => await Portal.AprovarSolicitacaoAsync(item.AuthUid, userId), "Acesso aprovado.");
+        if (!tiposNegocio.TryGetValue(item.AuthUid, out var tipoNegocio) || tipoNegocio is not ("comercial" or "chat"))
+        {
+            falha = true; aviso = "Selecione comercial ou chat antes de aprovar."; return;
+        }
+        await ProcessarAsync(async () => await Portal.AprovarSolicitacaoAsync(item.AuthUid, item.EmpresaId, tipoNegocio), "Usuário e aparelho aprovados.");
     }
 
     private Task RecusarAsync(SolicitacaoAcesso item) => ProcessarAsync(() => Portal.RecusarSolicitacaoAsync(item.AuthUid), "Solicitação recusada.");

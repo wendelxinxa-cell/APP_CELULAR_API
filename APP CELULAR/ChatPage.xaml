@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.ChatPage"
+             Title="Chat"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="14">
+        <Border Grid.Row="0" Margin="0,0,0,10" Padding="10,7" BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" StrokeThickness="1">
+            <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <VerticalStackLayout Spacing="2">
+                <Label x:Name="ContatoLabel" FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" LineBreakMode="TailTruncation" />
+                <Label x:Name="UsuarioLogadoLabel" FontSize="10" TextColor="{DynamicResource BrandMuted}" LineBreakMode="TailTruncation" />
+            </VerticalStackLayout>
+                <Picker x:Name="StatusPicker" Grid.Column="1" Title="Status" FontSize="11" WidthRequest="105" SelectedIndexChanged="StatusPicker_Changed" />
+            </Grid>
+        </Border>
+        <VerticalStackLayout Grid.Row="1" Spacing="4">
+        <Border x:Name="FigurinhasPanel" IsVisible="False" BackgroundColor="{DynamicResource BrandSoft}" StrokeThickness="0" Padding="8">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Figurinhas" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" />
+                <FlexLayout Direction="Row" Wrap="Wrap">
+                    <Button Text="😺" Clicked="Figurinha_Clicked" CommandParameter="😺" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="😂" Clicked="Figurinha_Clicked" CommandParameter="😂" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="😍" Clicked="Figurinha_Clicked" CommandParameter="😍" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="🙌" Clicked="Figurinha_Clicked" CommandParameter="🙌" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="👍" Clicked="Figurinha_Clicked" CommandParameter="👍" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="❤️" Clicked="Figurinha_Clicked" CommandParameter="❤️" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="🎉" Clicked="Figurinha_Clicked" CommandParameter="🎉" BackgroundColor="Transparent" FontSize="32" />
+                    <Button Text="🔥" Clicked="Figurinha_Clicked" CommandParameter="🔥" BackgroundColor="Transparent" FontSize="32" />
+                </FlexLayout>
+                <CollectionView x:Name="FigurinhasLocaisList" HeightRequest="94" IsVisible="False" SelectionMode="None" ItemsLayout="HorizontalList">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="3" Padding="3" WidthRequest="78" HeightRequest="78" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="10" /></Border.StrokeShape>
+                                <Image Source="{Binding Caminho}" Aspect="AspectFit">
+                                    <Image.GestureRecognizers><TapGestureRecognizer Tapped="FigurinhaLocal_Tapped" /></Image.GestureRecognizers>
+                                </Image>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                    <Button Text="🌐 myEmotes" Clicked="AbrirMyEmotes_Clicked" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandPrimary}" FontSize="11" Padding="5,3" />
+                    <Button Grid.Column="1" Text="＋ Importar" Clicked="FigurinhaArquivo_Clicked" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandPrimary}" FontSize="11" Padding="5,3" />
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+        <Border x:Name="WinksPanel" IsVisible="False" BackgroundColor="{DynamicResource BrandSoft}" StrokeThickness="0" Padding="8">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Mais ações da conversa" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" />
+                <FlexLayout Direction="Row" Wrap="Wrap">
+                    <Button Text="✨" CommandParameter="✨" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                    <Button Text="💥" CommandParameter="💥" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                    <Button Text="🎉" CommandParameter="🎉" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                    <Button Text="😺" CommandParameter="😺" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                    <Button Text="💫" CommandParameter="💫" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                    <Button Text="🚀" CommandParameter="🚀" Clicked="WinkItem_Clicked" BackgroundColor="Transparent" FontSize="25" />
+                </FlexLayout>
+                <Label Text="Ocultar mensagens neste aparelho" FontAttributes="Bold" FontSize="12" TextColor="{DynamicResource BrandPrimary}" />
+                <Label Text="Oculta todas as mensagens já carregadas nesta conversa, somente neste aparelho. O conteúdo continua no servidor." FontSize="10" TextColor="{DynamicResource BrandMuted}" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                    <Button x:Name="OcultarMensagensButton" Text="🔒 Ocultar mensagens" Clicked="CriptografarHistorico_Clicked" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandText}" FontSize="11" Padding="5,3" />
+                    <Button x:Name="ExibirMensagensButton" Grid.Column="1" Text="🔓 Exibir mensagens" Clicked="DescriptografarHistorico_Clicked" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandText}" FontSize="11" Padding="5,3" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Meu pacote" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" VerticalOptions="Center" />
+                    <Button Grid.Column="1" Text="＋ adicionar" Clicked="AdicionarWink_Clicked" BackgroundColor="{DynamicResource BrandSurface}" TextColor="{DynamicResource BrandPrimary}" FontSize="12" Padding="8,3" />
+                </Grid>
+                <FlexLayout x:Name="WinksUsuarioPanel" Direction="Row" Wrap="Wrap" />
+            </VerticalStackLayout>
+        </Border>
+        </VerticalStackLayout>
+        <CollectionView x:Name="MensagensList" Grid.Row="2" ItemsLayout="VerticalList" ItemsUpdatingScrollMode="KeepLastItemInView" VerticalOptions="Fill" HorizontalOptions="Fill" SelectionMode="None" Scrolled="MensagensList_Scrolled">
+            <CollectionView.EmptyView><Label Text="Envie a primeira mensagem." TextColor="{DynamicResource BrandMuted}" HorizontalOptions="Center" VerticalOptions="Center" /></CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,4" Padding="12" HorizontalOptions="{Binding Alinhamento}" MaximumWidthRequest="310" BackgroundColor="{Binding CorFundo}" StrokeThickness="0">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="Mensagem_Tapped" /></Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="{Binding Texto}" TextColor="{Binding CorTexto}" FontFamily="{Binding FamiliaFonte}" FontSize="{Binding TamanhoFonte}" HorizontalTextAlignment="Center" IsVisible="{Binding TemTexto}" />
+                            <Image Source="{Binding Foto}" IsVisible="{Binding TemFoto}" HeightRequest="190" Aspect="AspectFill">
+                                <Image.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="AbrirMidia_Tapped" />
+                                </Image.GestureRecognizers>
+                            </Image>
+                            <Border IsVisible="{Binding TemVideo}" HeightRequest="150" BackgroundColor="#202020" StrokeThickness="0">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="AbrirMidia_Tapped" />
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="4">
+                                    <Label Text="▶" FontSize="42" TextColor="White" HorizontalTextAlignment="Center" />
+                                    <Label Text="Abrir vídeo" FontSize="13" TextColor="White" HorizontalTextAlignment="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Label Text="{Binding Status}" IsVisible="{Binding TemStatus}" FontSize="10" TextColor="{DynamicResource BrandMuted}" HorizontalTextAlignment="End" />
+                            <Label Text="{Binding Reacao}" IsVisible="{Binding TemReacao}" FontSize="16" HorizontalTextAlignment="End" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <BoxView x:Name="MenuDismissLayer" Grid.Row="2" IsVisible="False" BackgroundColor="Transparent" ZIndex="5">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="Conversa_Tapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+        <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="5" RowSpacing="6" Padding="0,10,0,0">
+            <Button Text="＋" Clicked="Foto_Clicked" BackgroundColor="{DynamicResource BrandSoft}" TextColor="{DynamicResource BrandPrimary}" FontSize="23" Padding="12,0" />
+            <Button Grid.Column="1" Text="▧" SemanticProperties.Description="Abrir figurinhas" Clicked="FigurinhasToggle_Clicked" BackgroundColor="{DynamicResource BrandSoft}" TextColor="{DynamicResource BrandPrimary}" FontSize="22" Padding="8,0" />
+            <Button Grid.Column="2" Text="Aa" Clicked="Fonte_Clicked" BackgroundColor="{DynamicResource BrandSoft}" TextColor="{DynamicResource BrandPrimary}" FontSize="16" Padding="8,0" />
+            <Button Grid.Column="3" Text="⚡" SemanticProperties.Description="Chamar a atenção do contato" Clicked="ChamarAtencao_Clicked" BackgroundColor="{DynamicResource BrandSoft}" TextColor="{DynamicResource BrandPrimary}" FontSize="20" Padding="8,0" MinimumWidthRequest="42" />
+            <Button Grid.Column="4" Text="⋯" SemanticProperties.Description="Abrir mais ações" Clicked="WinksToggle_Clicked" BackgroundColor="{DynamicResource BrandSoft}" TextColor="{DynamicResource BrandPrimary}" FontSize="22" Padding="8,0" MinimumWidthRequest="42" />
+            <Border Grid.Row="1" Grid.ColumnSpan="6" Padding="10,2" BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" StrokeThickness="1" MinimumHeightRequest="52">
+                <Border.StrokeShape><RoundRectangle CornerRadius="18" /></Border.StrokeShape>
+                <Entry x:Name="TextoEntry" Placeholder="Mensagem" BackgroundColor="Transparent" TextColor="{DynamicResource BrandText}" PlaceholderColor="{DynamicResource BrandMuted}" MinimumHeightRequest="48" />
+            </Border>
+            <Button Grid.Row="1" Grid.Column="6" Text="Enviar" Clicked="Enviar_Clicked" BackgroundColor="{DynamicResource BrandPrimary}" TextColor="{DynamicResource BrandOnPrimary}" />
+        </Grid>
+        <Border x:Name="HistoricoOperacaoIndicador" Grid.Row="2" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Start" Margin="0,12,0,0" Padding="13,9" BackgroundColor="{DynamicResource BrandSurface}" Stroke="{DynamicResource BrandBorder}" StrokeThickness="1" ZIndex="6" InputTransparent="True">
+            <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+            <HorizontalStackLayout Spacing="9" VerticalOptions="Center">
+                <ActivityIndicator x:Name="HistoricoOperacaoAtividade" IsRunning="False" WidthRequest="18" HeightRequest="18" Color="{DynamicResource BrandPrimary}" />
+                <Label x:Name="HistoricoOperacaoTexto" Text="Processando mensagens…" FontSize="12" TextColor="{DynamicResource BrandText}" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Border>
+        <Grid x:Name="EfeitoWink" Grid.RowSpan="4" Margin="-14" IsVisible="False" BackgroundColor="Transparent" ZIndex="10" InputTransparent="True">
+            <Border x:Name="EfeitoNeon" Margin="4" Opacity="0" Stroke="#F4C400" StrokeThickness="7" BackgroundColor="Transparent" InputTransparent="True" ZIndex="11">
+                <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
+                <Border.Shadow><Shadow Brush="#F4C400" Offset="0,0" Radius="28" Opacity="0.95" /></Border.Shadow>
+            </Border>
+            <Label x:Name="EfeitoWinkIcone" Text="⭐" FontSize="112" HorizontalOptions="Center" VerticalOptions="Center" />
+            <Image x:Name="EfeitoWinkFigurinha" IsVisible="False" WidthRequest="190" HeightRequest="190" Aspect="AspectFit" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+        <Grid x:Name="LedNotificacao" Grid.RowSpan="4" Grid.ColumnSpan="1" Margin="-14" IsVisible="False"
+              HorizontalOptions="Fill" VerticalOptions="Fill" InputTransparent="True" ZIndex="12">
+            <Border x:Name="LedBordaBrilhante" Margin="0" BackgroundColor="Transparent" Stroke="#FFD400" StrokeThickness="3" Opacity="0">
+                <Border.StrokeShape><RoundRectangle CornerRadius="28" /></Border.StrokeShape>
+                <Border.Shadow><Shadow Brush="White" Offset="0,0" Radius="38" Opacity="1" /></Border.Shadow>
+            </Border>
+            <Border x:Name="LedBordaMedia" Margin="4" BackgroundColor="Transparent" Stroke="#FFD400" StrokeThickness="5" Opacity="0">
+                <Border.StrokeShape><RoundRectangle CornerRadius="26" /></Border.StrokeShape>
+                <Border.Shadow><Shadow Brush="White" Offset="0,0" Radius="30" Opacity="0.9" /></Border.Shadow>
+            </Border>
+            <Border x:Name="LedBordaDifusa" Margin="9" BackgroundColor="Transparent" Stroke="#FFD400" StrokeThickness="7" Opacity="0">
+                <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
+                <Border.Shadow><Shadow Brush="White" Offset="0,0" Radius="25" Opacity="0.75" /></Border.Shadow>
+            </Border>
+            <Grid x:Name="LedGatoAnimado" WidthRequest="176" HeightRequest="176" HorizontalOptions="Center" VerticalOptions="Center"
+                  AnchorX="0.5" AnchorY="0.5" TranslationX="0" TranslationY="0" Opacity="0" Scale="0.72">
+                <Image x:Name="LedGato" Source="chatcat_logo.png" WidthRequest="132" HeightRequest="132"
+                       Aspect="AspectFit" HorizontalOptions="Center" VerticalOptions="Center" />
+            </Grid>
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="APP_CELULAR.ConfiguracoesPage"
+             Title="Configurações"
+             BackgroundColor="{DynamicResource BrandBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="18">
+            <VerticalStackLayout Spacing="5">
+                <Label Text="Personalizar cores" FontSize="25" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                <Label Text="Escolha uma paleta para deixar o aplicativo com a sua cara." FontSize="14" TextColor="{DynamicResource BrandMuted}" />
+            </VerticalStackLayout>
+            <Border Padding="14" BackgroundColor="{DynamicResource BrandSurface}" StrokeThickness="0">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16" /></Border.StrokeShape>
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Sua preferência" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource BrandText}" />
+                    <Label Text="Salva para este usuário nesta empresa. As escolhas dos outros usuários não são alteradas." FontSize="12" TextColor="{DynamicResource BrandMuted}" />
+                </VerticalStackLayout>
+            </Border>
+            <Grid x:Name="PaletasGrid" ColumnDefinitions="*,*" RowSpacing="12" ColumnSpacing="12" />
+            <Label x:Name="StatusLabel" Text="A paleta é aplicada na hora." FontSize="12" TextColor="{DynamicResource BrandMuted}" HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

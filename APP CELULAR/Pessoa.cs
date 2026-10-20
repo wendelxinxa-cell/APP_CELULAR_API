@@ -32,4 +32,14 @@ public class Pessoa
     public string StatusSincronizacao { get; set; } = "PENDENTE";
 
     public string MensagemErro { get; set; } = "";
+
+    // ============================================================
+    // SINCRONIZAÇÃO
+    // ============================================================
+
+    public long EmpresaId { get; set; } = 1;
+
+    public long DispositivoId { get; set; } = 1;
+
+    public bool Excluido { get; set; } = false;
 }

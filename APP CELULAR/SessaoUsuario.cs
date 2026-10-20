@@ -5,6 +5,10 @@ namespace APP_CELULAR;
 public static class SessaoUsuario
 {
     public static Usuario? UsuarioAtual { get; set; }
+    public static string? ApiToken { get; set; }
+    public static DateTimeOffset ApiTokenExpiraEm { get; set; }
+    public static string? TokenMaster { get; set; }
+    public static long DispositivoId { get; set; } = 1;
 
     public static bool EhMaster
     {
@@ -18,7 +22,7 @@ public static class SessaoUsuario
     {
         get
         {
-            if (EhMaster)
+            if (EhMaster || EhDeus)
                 return true;
 
             return UsuarioAtual?.Funcao
@@ -37,6 +41,14 @@ public static class SessaoUsuario
 
     public static void Encerrar()
     {
+        SincronizacaoAutomaticaService.Parar();
         UsuarioAtual = null;
+        ApiToken = null;
+        ApiTokenExpiraEm = default;
+        TokenMaster = null;
+        DispositivoId = 1;
     }
+
+    public static bool EhDeus => UsuarioAtual?.Funcao?.Trim()
+        .Equals("Deus", StringComparison.OrdinalIgnoreCase) == true;
 }
