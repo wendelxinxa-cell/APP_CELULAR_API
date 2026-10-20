@@ -11,7 +11,7 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
     [HttpGet("atualizacao")]
     public IActionResult ObterAtualizacao()
     {
-        if (!TentarObterRelease(out var versao, out var build, out var codigoVersao, out var arquivo, out var caminho, out var hashEsperado))
+        if (!TentarObterRelease(out var versao, out var build, out var codigoVersao, out var arquivo, out var caminho, out var hashEsperado, out var notas))
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { mensagem = "Atualização não configurada ou arquivo publicado inválido." });
 
@@ -26,24 +26,25 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
             codigoVersao,
             url = $"{baseUrl.TrimEnd('/')}/api/app/atualizacao/arquivo",
             sha256 = hashEsperado,
-            notas = configuration["AppUpdate:Notes"] ?? "Atualização do aplicativo."
+            notas
         });
     }
 
     [HttpGet("atualizacao/arquivo")]
     public IActionResult BaixarAtualizacao()
     {
-        if (!TentarObterRelease(out _, out _, out _, out var arquivo, out var caminho, out _))
+        if (!TentarObterRelease(out _, out _, out _, out var arquivo, out var caminho, out _, out _))
             return NotFound();
 
         return PhysicalFile(caminho, "application/vnd.android.package-archive", arquivo, enableRangeProcessing: true);
     }
 
-    private bool TentarObterRelease(out string versao, out int build, out int codigoVersao, out string arquivo, out string caminho, out string hashEsperado)
+    private bool TentarObterRelease(out string versao, out int build, out int codigoVersao, out string arquivo, out string caminho, out string hashEsperado, out string notas)
     {
         versao = configuration["AppUpdate:Version"] ?? string.Empty;
         arquivo = configuration["AppUpdate:FileName"] ?? string.Empty;
         hashEsperado = configuration["AppUpdate:Sha256"] ?? string.Empty;
+        notas = configuration["AppUpdate:Notes"] ?? "Atualização do aplicativo.";
         caminho = string.Empty;
         build = 0;
         codigoVersao = 0;
@@ -60,6 +61,8 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
                 build = root.GetProperty("build").GetInt32();
                 arquivo = root.GetProperty("fileName").GetString() ?? string.Empty;
                 hashEsperado = root.GetProperty("sha256").GetString() ?? string.Empty;
+                if (root.TryGetProperty("notes", out var notes) && notes.ValueKind == JsonValueKind.String)
+                    notas = notes.GetString() ?? notas;
                 if (root.TryGetProperty("versionCode", out var versionCode) &&
                     versionCode.ValueKind == JsonValueKind.Number &&
                     versionCode.TryGetInt32(out var parsedVersionCode))
