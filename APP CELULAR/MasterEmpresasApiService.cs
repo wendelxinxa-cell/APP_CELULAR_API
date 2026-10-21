@@ -64,6 +64,15 @@ public sealed class MasterEmpresasApiService
     public Task<AprovacoesAcessoResponse> ObterAprovacoesPendentes(string token) =>
         EnviarAutorizado<AprovacoesAcessoResponse>(token, HttpMethod.Get, "api/administracao/acessos/pendentes");
 
+    public Task<List<CadastroPendente>> ListarCadastrosPendentes(string token) =>
+        EnviarAutorizado<List<CadastroPendente>>(token, HttpMethod.Get, "api/administracao/acessos/cadastros");
+
+    public Task AprovarCadastro(string token, long id, long empresaId, long usuarioId, string tipoNegocio) =>
+        EnviarAutorizado<object>(token, HttpMethod.Post, $"api/administracao/acessos/cadastros/{id}/aprovar", new { empresaId, usuarioId, tipoNegocio });
+
+    public Task RecusarCadastro(string token, long id) =>
+        EnviarAutorizado<object>(token, HttpMethod.Post, $"api/administracao/acessos/cadastros/{id}/recusar", new { });
+
     public Task<List<StatusUsuarioAcesso>> ObterStatusUsuarios(string token) =>
         EnviarAutorizado<List<StatusUsuarioAcesso>>(token, HttpMethod.Get, "api/administracao/acessos/usuarios");
 
@@ -142,4 +151,14 @@ public sealed class EmpresaCatalogoItem
     public string EmailResponsavel { get; set; } = "";
     public string Status { get; set; } = "PENDENTE";
     public DateTimeOffset CriadaEm { get; set; }
+}
+
+public sealed class CadastroPendente
+{
+    public long Id { get; set; }
+    public string Email { get; set; } = "";
+    public string Nome { get; set; } = "";
+    public long? EmpresaId { get; set; }
+    public DateTime CriadaEm { get; set; }
+    public bool EmailVerificado { get; set; }
 }

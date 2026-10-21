@@ -9,7 +9,7 @@
             <Button Text="‹" FontSize="32" TextColor="{DynamicResource BrandOnPrimary}" BackgroundColor="Transparent" WidthRequest="42" Padding="0" Clicked="Voltar_Clicked" />
             <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                 <Label Text="APROVAÇÕES DE ACESSO" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource BrandOnPrimary}" />
-                <Label Text="Cada liberação vale para um usuário e um aparelho" FontSize="12" TextColor="{DynamicResource BrandOnPrimary}" />
+                <Label Text="Cadastros e aparelhos aguardando aprovação do Zeus" FontSize="12" TextColor="{DynamicResource BrandOnPrimary}" />
             </VerticalStackLayout>
         </Grid>
 

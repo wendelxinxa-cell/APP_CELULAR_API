@@ -52,15 +52,23 @@ Deno.serve(async (request: Request) => {
       const companyId = Number(body.empresaId);
       let loginEmail = identificador;
       if (!identificador.includes("@")) {
-        if (!Number.isInteger(companyId) || companyId <= 0) return json({ message: "Empresa inválida para localizar seu nome." }, 400);
         // O nome do vínculo ativo é a fonte de identidade. O login não depende
         // de uma coluna `username` no schema Supabase.
-        const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
-          .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
-        if (linkedError) return json({ message: "Não foi possível localizar seu nome na empresa." }, 400);
         const normalizedName = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
-        const matches = (linkedUsers || []).filter(user =>
+        const { data: masterUsers, error: masterUsersError } = await admin.schema("chat").from("usuario_master")
+          .select("auth_uid,nome").eq("ativo", true);
+        if (masterUsersError) return json({ message: "Não foi possível localizar a conta Zeus." }, 400);
+        const masterMatches = (masterUsers || []).filter(user =>
           String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName);
+        let linkedMatches: typeof masterMatches = [];
+        if (Number.isInteger(companyId) && companyId > 0) {
+          const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
+            .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
+          if (linkedError) return json({ message: "Não foi possível localizar seu nome na empresa." }, 400);
+          linkedMatches = (linkedUsers || []).filter(user =>
+            String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName);
+        }
+        const matches = [...new Map([...linkedMatches, ...masterMatches].map(user => [user.auth_uid, user])).values()];
         const emails = await Promise.all(matches.map(async user => {
           const { data, error } = await admin.auth.admin.getUserById(user.auth_uid);
           return error ? null : data.user?.email?.trim().toLowerCase() ?? null;

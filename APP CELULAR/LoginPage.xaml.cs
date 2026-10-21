@@ -118,7 +118,6 @@ public partial class LoginPage : ContentPage
                 ? _empresaLembrada
                 : ApiEndpointSettings.GetEmpresaId();
             Usuario? usuarioEncontrado = null;
-            bool autenticadoSupabase = false;
             try
             {
                 var apiLogin = await _apiService.AutenticarSupabase(new LoginSupabaseApiRequest
@@ -135,51 +134,18 @@ public partial class LoginPage : ContentPage
                 };
                 AplicarLoginApi(remoto, apiLogin);
                 usuarioEncontrado = await _database.ImportarUsuarioAutenticado(remoto);
-                autenticadoSupabase = true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Login Supabase indisponível ou conta legada: {ex.Message}");
-            }
-
-            if (!autenticadoSupabase)
-            {
-                usuarioEncontrado = await _database.ValidarLogin(usuario, senha, empresaId);
-                if (usuarioEncontrado == null)
-                {
-                    // Mantém a autenticação legada para contas que ainda não foram
-                    // convertidas para o Supabase.
-                    var remoto = new Usuario { Nome = usuario, SenhaHash = _database.CriarHashSenha(senha), EmpresaId = empresaId };
-                    try
-                    {
-                        var apiLogin = await _apiService.Autenticar(new LoginApiRequest { EmpresaId = empresaId, Nome = remoto.Nome, SenhaHash = remoto.SenhaHash });
-                        AplicarLoginApi(remoto, apiLogin);
-                        usuarioEncontrado = await _database.ImportarUsuarioAutenticado(remoto);
-                    }
-                    catch (Exception ex)
-                    {
-                        await DisplayAlert("Acesso à empresa", ex.Message, "OK");
-                        PasswordEntry.Text = "";
-                        PasswordEntry.Focus();
-                        return;
-                    }
-                }
+                await DisplayAlert("Acesso à empresa", ex.Message, "OK");
+                PasswordEntry.Text = "";
+                PasswordEntry.Focus();
+                return;
             }
 
             // Guarda o usuário logado
             SessaoUsuario.UsuarioAtual =
                 usuarioEncontrado;
-
-            if (!autenticadoSupabase && !usuarioEncontrado.EhMaster && !SessaoUsuario.EhDeus)
-            {
-                string? erroApi = await AutenticarNaApi(usuarioEncontrado);
-                if (AcessoNegadoPelaApi(erroApi))
-                {
-                    SessaoUsuario.Encerrar();
-                    await DisplayAlert("Acesso à empresa", erroApi!, "OK");
-                    return;
-                }
-            }
 
             SalvarUsuarioLembrado(usuarioEncontrado.Nome, usuarioEncontrado.EmpresaId);
 
