@@ -64,7 +64,7 @@ public sealed class AdministracaoCadastrosController(
             {
                 await tenantDb.OpenAsync();
                 await using var userCmd = new NpgsqlCommand(
-                    "SELECT 1 FROM app.usuario WHERE id=@usuarioId AND empresa_id=@empresaId AND COALESCE(excluido,FALSE)=FALSE",
+                    "SELECT 1 FROM app.usuario WHERE id=@usuarioId AND empresa_id=@empresaId AND COALESCE(aprovado,FALSE)=TRUE AND COALESCE(excluido,FALSE)=FALSE",
                     tenantDb);
                 userCmd.Parameters.AddWithValue("usuarioId", request.UsuarioId);
                 userCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
