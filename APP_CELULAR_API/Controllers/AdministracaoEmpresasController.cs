@@ -207,6 +207,25 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     Status = reader.GetString(3),
                     CriadaEm = reader.GetFieldValue<DateTimeOffset>(4)
                 });
+
+            // Instalações antigas ainda têm empresas configuradas diretamente no Render,
+            // sem uma linha ativa no catálogo central. Mantém essa lista disponível para
+            // o Zeus selecionar a empresa ao aprovar um cadastro Web.
+            if (!empresas.Any(x => x.Status.Equals("ATIVA", StringComparison.OrdinalIgnoreCase)))
+            {
+                var legadas = new List<(long Id, string Nome)>();
+                AdicionarEmpresasLegadas(legadas);
+                foreach (var legada in legadas)
+                {
+                    if (empresas.Any(x => x.Id == legada.Id)) continue;
+                    empresas.Add(new EmpresaCatalogoResponse
+                    {
+                        Id = legada.Id,
+                        Nome = legada.Nome,
+                        Status = "ATIVA"
+                    });
+                }
+            }
             return Ok(empresas);
         }
         catch
