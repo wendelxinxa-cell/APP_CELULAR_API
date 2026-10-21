@@ -48,6 +48,7 @@ public class ConversasController : ControllerBase
 
         var supabaseUrl = (_configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
         var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        Guid authUid;
         using (var authRequest = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/user"))
         {
             authRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
@@ -56,7 +57,7 @@ public class ConversasController : ControllerBase
             if (!authResponse.IsSuccessStatusCode) return Unauthorized(new { mensagem = "Sessão Supabase inválida ou expirada. Entre novamente." });
             using var authJson = System.Text.Json.JsonDocument.Parse(await authResponse.Content.ReadAsStringAsync());
             if (!authJson.RootElement.TryGetProperty("id", out var authIdElement) ||
-                !Guid.TryParse(authIdElement.GetString(), out var authUid) || authUid == Guid.Empty)
+                !Guid.TryParse(authIdElement.GetString(), out authUid) || authUid == Guid.Empty)
                 return Unauthorized(new { mensagem = "Não foi possível identificar a sessão Supabase." });
         }
 
@@ -90,7 +91,8 @@ public class ConversasController : ControllerBase
         {
             validarCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
             validarCmd.Parameters.AddWithValue("usuarioId", usuarioId);
-            if (await validarCmd.ExecuteScalarAsync() is not true)
+            if (await validarCmd.ExecuteScalarAsync() is not true &&
+                !await RepararUsuarioWebAsync(empresaDb, request.EmpresaId, usuarioId, authUid))
                 return StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." });
         }
 
@@ -354,12 +356,86 @@ public class ConversasController : ControllerBase
         await using var cmd = new NpgsqlCommand(validar, db);
         cmd.Parameters.AddWithValue("empresaId", empresaId);
         cmd.Parameters.AddWithValue("usuarioId", usuarioId);
-        if (await cmd.ExecuteScalarAsync() is not true)
+        if (await cmd.ExecuteScalarAsync() is not true &&
+            !await RepararUsuarioWebAsync(db, empresaId, usuarioId, Guid.Empty))
         {
             await db.DisposeAsync();
             return (null, usuarioId, StatusCode(403, new { mensagem = "Este usuário aguarda liberação para acessar a empresa." }));
         }
         return (db, usuarioId, null);
+    }
+
+    private async Task<bool> RepararUsuarioWebAsync(NpgsqlConnection tenantDb, long empresaId, long usuarioId, Guid authUid)
+    {
+        // Não reativa registros existentes que Zeus tenha bloqueado ou deixado pendentes.
+        await using (var existing = new NpgsqlCommand(
+            "SELECT EXISTS (SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId);", tenantDb))
+        {
+            existing.Parameters.AddWithValue("empresaId", empresaId);
+            existing.Parameters.AddWithValue("usuarioId", usuarioId);
+            if (await existing.ExecuteScalarAsync() is true) return false;
+        }
+
+        if (!await BancoChatCentral.Pronto(_configuration)) return false;
+        await using var central = await BancoChatCentral.Abrir(_configuration);
+        string nome;
+        string tipoNegocio;
+        await using (var lookup = new NpgsqlCommand("""
+            SELECT nome,tipo_negocio FROM chat.usuario_auth
+            WHERE (@authUid='00000000-0000-0000-0000-000000000000'::uuid OR auth_uid=@authUid)
+              AND empresa_id=@empresaId AND usuario_id=@usuarioId AND ativo=TRUE
+            LIMIT 1;
+            """, central))
+        {
+            lookup.Parameters.AddWithValue("authUid", authUid);
+            lookup.Parameters.AddWithValue("empresaId", empresaId);
+            lookup.Parameters.AddWithValue("usuarioId", usuarioId);
+            await using var reader = await lookup.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return false;
+            nome = reader.IsDBNull(0) ? "Usuário Web" : reader.GetString(0);
+            tipoNegocio = reader.IsDBNull(1) ? "chat" : reader.GetString(1);
+        }
+
+        await using var transaction = await tenantDb.BeginTransactionAsync();
+        await using (var provision = new NpgsqlCommand("""
+            INSERT INTO app.usuario
+                (id,nome,senha_hash,funcao,tipo_negocio,eh_master,aprovado,empresa_id,status_sincronizacao,
+                 data_cadastro,data_alteracao,excluido)
+            VALUES
+                (@usuarioId,@nome,@senhaHash,'USUARIO',@tipoNegocio,FALSE,TRUE,@empresaId,'SINCRONIZADO',
+                 NOW(),NOW(),FALSE)
+            ON CONFLICT (id) DO NOTHING;
+            """, tenantDb, transaction))
+        {
+            provision.Parameters.AddWithValue("usuarioId", usuarioId);
+            provision.Parameters.AddWithValue("nome", nome);
+            provision.Parameters.AddWithValue("senhaHash", Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
+            provision.Parameters.AddWithValue("tipoNegocio", tipoNegocio);
+            provision.Parameters.AddWithValue("empresaId", empresaId);
+            await provision.ExecuteNonQueryAsync();
+        }
+
+        string? sequence;
+        await using (var sequenceCmd = new NpgsqlCommand("SELECT pg_get_serial_sequence('app.usuario','id');", tenantDb, transaction))
+            sequence = await sequenceCmd.ExecuteScalarAsync() as string;
+        if (!string.IsNullOrWhiteSpace(sequence))
+        {
+            await using var advance = new NpgsqlCommand("SELECT setval(@sequence::regclass, GREATEST((SELECT COALESCE(MAX(id),0) FROM app.usuario), @usuarioId), TRUE);", tenantDb, transaction);
+            advance.Parameters.AddWithValue("sequence", sequence);
+            advance.Parameters.AddWithValue("usuarioId", usuarioId);
+            await advance.ExecuteNonQueryAsync();
+        }
+        await transaction.CommitAsync();
+        _logger.LogInformation("Reparado vínculo Web do usuário {UsuarioId} na empresa {EmpresaId}.", usuarioId, empresaId);
+
+        await using var validate = new NpgsqlCommand("""
+            SELECT EXISTS (SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId
+                AND COALESCE(aprovado,TRUE)=TRUE AND COALESCE(excluido,FALSE)=FALSE
+                AND COALESCE(bloqueado_por_master,FALSE)=FALSE);
+            """, tenantDb);
+        validate.Parameters.AddWithValue("empresaId", empresaId);
+        validate.Parameters.AddWithValue("usuarioId", usuarioId);
+        return await validate.ExecuteScalarAsync() is true;
     }
 
     private async Task<IActionResult> ListarTenant(NpgsqlConnection db, ConversaRequest request)

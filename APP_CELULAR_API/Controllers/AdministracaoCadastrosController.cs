@@ -59,11 +59,16 @@ public sealed class AdministracaoCadastrosController(
 
         try
         {
-            try { _ = await resolver.ObterConnectionString(request.EmpresaId); }
+            string tenantConnection;
+            try { tenantConnection = await resolver.ObterConnectionString(request.EmpresaId); }
             catch (InvalidOperationException)
             {
                 return BadRequest(new { mensagem = "A empresa selecionada não está ativa ou configurada no sistema." });
             }
+
+            await using var tenantDb = new NpgsqlConnection(tenantConnection);
+            await tenantDb.OpenAsync();
+            await using var tenantTransaction = await tenantDb.BeginTransactionAsync();
 
             await using var db = await BancoChatCentral.Abrir(configuration);
             await using var transaction = await db.BeginTransactionAsync();
@@ -90,6 +95,25 @@ public sealed class AdministracaoCadastrosController(
                     return Conflict(new { mensagem = "O e-mail da conta autenticada não corresponde ao cadastro." });
             }
 
+            const string createTenantUserSql = """
+                INSERT INTO app.usuario
+                    (nome,senha_hash,funcao,tipo_negocio,eh_master,aprovado,empresa_id,status_sincronizacao,
+                     data_cadastro,data_alteracao,excluido,email)
+                VALUES
+                    (@nome,@senhaHash,'USUARIO',@tipoNegocio,FALSE,TRUE,@empresaId,'SINCRONIZADO',
+                     NOW(),NOW(),FALSE,@email)
+                RETURNING id;
+                """;
+            await using (var createTenantUser = new NpgsqlCommand(createTenantUserSql, tenantDb, tenantTransaction))
+            {
+                createTenantUser.Parameters.AddWithValue("nome", nome);
+                createTenantUser.Parameters.AddWithValue("senhaHash", Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
+                createTenantUser.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio);
+                createTenantUser.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                createTenantUser.Parameters.AddWithValue("email", email);
+                usuarioId = Convert.ToInt64(await createTenantUser.ExecuteScalarAsync());
+            }
+
             await using (var confirmCmd = new NpgsqlCommand(
                 "UPDATE auth.users SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW() WHERE id=@authUid AND lower(email)=lower(@email)",
                 db, transaction))
@@ -100,18 +124,18 @@ public sealed class AdministracaoCadastrosController(
             }
 
             const string insertUser = """
-                INSERT INTO chat.usuario_auth (auth_uid,empresa_id,nome,email,tipo_negocio,ativo)
-                VALUES (@authUid,@empresaId,@nome,@email,@tipoNegocio,TRUE)
-                RETURNING usuario_id;
+                INSERT INTO chat.usuario_auth (auth_uid,empresa_id,usuario_id,nome,email,tipo_negocio,ativo)
+                VALUES (@authUid,@empresaId,@usuarioId,@nome,@email,@tipoNegocio,TRUE);
                 """;
             await using (var createUserCmd = new NpgsqlCommand(insertUser, db, transaction))
             {
                 createUserCmd.Parameters.AddWithValue("authUid", authUid);
                 createUserCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                createUserCmd.Parameters.AddWithValue("usuarioId", usuarioId);
                 createUserCmd.Parameters.AddWithValue("nome", nome);
                 createUserCmd.Parameters.AddWithValue("email", email);
                 createUserCmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio);
-                usuarioId = Convert.ToInt64(await createUserCmd.ExecuteScalarAsync());
+                await createUserCmd.ExecuteNonQueryAsync();
             }
 
             const string approveRequest = """
@@ -131,6 +155,7 @@ public sealed class AdministracaoCadastrosController(
             }
 
             await transaction.CommitAsync();
+            await tenantTransaction.CommitAsync();
             return Ok(new { sucesso = true, usuarioId, mensagem = $"Novo cadastro de {nome} aprovado." });
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
