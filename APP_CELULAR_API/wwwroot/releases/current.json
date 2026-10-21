@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 43,
-  "fileName": "CATCHAT_0.0.001_build_43.apk",
-  "sha256": "0FC995557987397BBADA7BE5238015A4259112F5B747A164C0F4246DDE7D3795",
-  "notes": "CATCHAT build 43: pedidos de cadastro Web na tela de Aprovações Zeus, com liberação somente após confirmação do e-mail; login Zeus por nome no Web.",
-  "versionCode": 46
+  "build": 44,
+  "fileName": "CATCHAT_0.0.001_build_44.apk",
+  "sha256": "E506C973BE14F3F283513048532A0F911E938F754CAD75A28655921FCEA947FC",
+  "notes": "CATCHAT build 44: fila única de Aprovações Zeus para cadastros Web e dispositivos; falhas de uma fila não ocultam a outra; aprovação explícita obrigatória para liberar acesso.",
+  "versionCode": 47
 }
