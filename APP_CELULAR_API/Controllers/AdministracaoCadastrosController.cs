@@ -54,22 +54,15 @@ public sealed class AdministracaoCadastrosController(
     public async Task<IActionResult> Aprovar(long id, [FromBody] AprovarCadastroPendenteRequest request)
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao Administrador Master." });
-        if (id <= 0 || request.EmpresaId <= 0 || request.UsuarioId <= 0 || request.TipoNegocio is not ("chat" or "comercial"))
-            return BadRequest(new { mensagem = "Selecione empresa, tipo de negócio e usuário CATCHAT válidos." });
+        if (id <= 0 || request.EmpresaId <= 0 || request.TipoNegocio is not ("chat" or "comercial"))
+            return BadRequest(new { mensagem = "Selecione uma empresa e um tipo de negócio válidos." });
 
         try
         {
-            string tenantConnection = await resolver.ObterConnectionString(request.EmpresaId);
-            await using (var tenantDb = new NpgsqlConnection(tenantConnection))
+            try { _ = await resolver.ObterConnectionString(request.EmpresaId); }
+            catch (InvalidOperationException)
             {
-                await tenantDb.OpenAsync();
-                await using var userCmd = new NpgsqlCommand(
-                    "SELECT 1 FROM app.usuario WHERE id=@usuarioId AND empresa_id=@empresaId AND COALESCE(aprovado,FALSE)=TRUE AND COALESCE(excluido,FALSE)=FALSE",
-                    tenantDb);
-                userCmd.Parameters.AddWithValue("usuarioId", request.UsuarioId);
-                userCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
-                if (await userCmd.ExecuteScalarAsync() is null)
-                    return BadRequest(new { mensagem = "O usuário CATCHAT selecionado não existe ou está inativo na empresa." });
+                return BadRequest(new { mensagem = "A empresa selecionada não está ativa ou configurada no sistema." });
             }
 
             await using var db = await BancoChatCentral.Abrir(configuration);
@@ -77,6 +70,7 @@ public sealed class AdministracaoCadastrosController(
             Guid authUid;
             string email;
             string nome;
+            long usuarioId;
             await using (var requestCmd = new NpgsqlCommand("""
                 SELECT r.auth_uid,r.email,r.nome,u.email
                 FROM chat.solicitacao_cadastro r
@@ -96,43 +90,52 @@ public sealed class AdministracaoCadastrosController(
                     return Conflict(new { mensagem = "O e-mail da conta autenticada não corresponde ao cadastro." });
             }
 
-            await using (var companyCmd = new NpgsqlCommand(
-                "SELECT 1 FROM platform.empresa_catalogo WHERE id=@empresaId AND ativa=TRUE AND status='ATIVA'",
+            await using (var confirmCmd = new NpgsqlCommand(
+                "UPDATE auth.users SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW() WHERE id=@authUid AND lower(email)=lower(@email)",
                 db, transaction))
             {
-                companyCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
-                if (await companyCmd.ExecuteScalarAsync() is null)
-                    return BadRequest(new { mensagem = "A empresa selecionada não está ativa no catálogo." });
+                confirmCmd.Parameters.AddWithValue("authUid", authUid);
+                confirmCmd.Parameters.AddWithValue("email", email);
+                await confirmCmd.ExecuteNonQueryAsync();
             }
 
-            const string insert = """
-                UPDATE auth.users SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW()
-                WHERE id=@authUid AND lower(email)=lower(@email);
-                INSERT INTO chat.usuario_auth (auth_uid,empresa_id,usuario_id,nome,email,tipo_negocio,ativo)
-                VALUES (@authUid,@empresaId,@usuarioId,@nome,@email,@tipoNegocio,TRUE);
+            const string insertUser = """
+                INSERT INTO chat.usuario_auth (auth_uid,empresa_id,nome,email,tipo_negocio,ativo)
+                VALUES (@authUid,@empresaId,@nome,@email,@tipoNegocio,TRUE)
+                RETURNING usuario_id;
+                """;
+            await using (var createUserCmd = new NpgsqlCommand(insertUser, db, transaction))
+            {
+                createUserCmd.Parameters.AddWithValue("authUid", authUid);
+                createUserCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                createUserCmd.Parameters.AddWithValue("nome", nome);
+                createUserCmd.Parameters.AddWithValue("email", email);
+                createUserCmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio);
+                usuarioId = Convert.ToInt64(await createUserCmd.ExecuteScalarAsync());
+            }
+
+            const string approveRequest = """
                 UPDATE chat.solicitacao_cadastro
                 SET status='APROVADO',auth_uid=@authUid,usuario_id=@usuarioId,empresa_id=@empresaId,
                     tipo_negocio=@tipoNegocio,analisada_em=NOW()
                 WHERE id=@id AND status='PENDENTE';
                 """;
-            await using (var approveCmd = new NpgsqlCommand(insert, db, transaction))
+            await using (var approveCmd = new NpgsqlCommand(approveRequest, db, transaction))
             {
                 approveCmd.Parameters.AddWithValue("authUid", authUid);
                 approveCmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
-                approveCmd.Parameters.AddWithValue("usuarioId", request.UsuarioId);
-                approveCmd.Parameters.AddWithValue("nome", nome);
-                approveCmd.Parameters.AddWithValue("email", email);
+                approveCmd.Parameters.AddWithValue("usuarioId", usuarioId);
                 approveCmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio);
                 approveCmd.Parameters.AddWithValue("id", id);
                 await approveCmd.ExecuteNonQueryAsync();
             }
 
             await transaction.CommitAsync();
-            return Ok(new { sucesso = true, mensagem = $"Cadastro de {nome} aprovado." });
+            return Ok(new { sucesso = true, usuarioId, mensagem = $"Novo cadastro de {nome} aprovado." });
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
         {
-            return Conflict(new { mensagem = "A conta ou o usuário CATCHAT já está vinculado. Atualize a lista antes de tentar novamente." });
+            return Conflict(new { mensagem = "Esta conta já está vinculada a uma empresa. Atualize a lista antes de tentar novamente." });
         }
         catch (Exception ex)
         {
@@ -181,6 +184,5 @@ public sealed class CadastroPendenteResponse
 public sealed class AprovarCadastroPendenteRequest
 {
     public long EmpresaId { get; set; }
-    public long UsuarioId { get; set; }
     public string TipoNegocio { get; set; } = "";
 }

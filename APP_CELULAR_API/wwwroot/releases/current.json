@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 45,
-  "fileName": "CATCHAT_0.0.001_build_45.apk",
-  "sha256": "4580577365C686235F7039B353E08AF44A7D4527A0BFC63488984489A00073B9",
-  "notes": "CATCHAT build 45: Zeus pode aprovar cadastros diretamente, sem confirmação prévia de e-mail; senha escolhida no cadastro é mantida.",
-  "versionCode": 48
+  "build": 46,
+  "fileName": "CATCHAT_0.0.001_build_46.apk",
+  "sha256": "2E1587B7F016B69F771A25B9A72B4D0C1BBFD30DF20899D0D79E0D554282DD3C",
+  "notes": "CATCHAT build 46: Zeus aprova novos cadastros selecionando empresa e tipo de negócio; o sistema cria o novo usuário automaticamente.",
+  "versionCode": 49
 }
