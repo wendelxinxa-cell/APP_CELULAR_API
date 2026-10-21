@@ -194,7 +194,7 @@ Deno.serve(async (request: Request) => {
     if (action === "listSignupRequests") {
       const { data, error } = await admin.schema("chat").from("solicitacao_cadastro").select("id,email,nome,empresa_id,criada_em,email_verificado_em").eq("status", "PENDENTE").order("criada_em");
       if (error) return json({ message: `Não foi possível listar pedidos: ${error.message}` }, 400);
-      return json({ requests: (data || []).map(row => ({ id: row.id, email: row.email, nome: row.nome, empresaId: row.empresa_id, criadaEm: row.criada_em, emailVerificado: Boolean(row.email_verificado_em) })) });
+      return json({ requests: (data || []).map(row => ({ id: Number(row.id), email: row.email, nome: row.nome, empresaId: Number(row.empresa_id), criadaEm: row.criada_em, emailVerificado: Boolean(row.email_verificado_em) })) });
     }
     if (action === "rejectSignupRequest") {
       const { error } = await admin.schema("chat").rpc("recusar_cadastro_pendente", { p_request_id: Number(body.requestId), p_admin_uid: authResult.user.id });
