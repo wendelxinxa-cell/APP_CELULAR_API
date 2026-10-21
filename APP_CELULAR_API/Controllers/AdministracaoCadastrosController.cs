@@ -78,7 +78,7 @@ public sealed class AdministracaoCadastrosController(
             string email;
             string nome;
             await using (var requestCmd = new NpgsqlCommand("""
-                SELECT r.auth_uid,r.email,r.nome,r.email_verificado_em,u.email,u.email_confirmed_at
+                SELECT r.auth_uid,r.email,r.nome,u.email
                 FROM chat.solicitacao_cadastro r
                 LEFT JOIN auth.users u ON u.id=r.auth_uid
                 WHERE r.id=@id AND r.status='PENDENTE'
@@ -89,12 +89,10 @@ public sealed class AdministracaoCadastrosController(
                 await using var reader = await requestCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
                 if (reader.IsDBNull(0)) return Conflict(new { mensagem = "O cadastro ainda não está vinculado à conta de autenticação." });
-                if (reader.IsDBNull(3) || reader.IsDBNull(5))
-                    return Conflict(new { mensagem = "O usuário precisa confirmar o e-mail antes da aprovação." });
                 authUid = reader.GetGuid(0);
                 email = reader.GetString(1);
                 nome = reader.GetString(2);
-                if (reader.IsDBNull(4) || !string.Equals(reader.GetString(4), email, StringComparison.OrdinalIgnoreCase))
+                if (reader.IsDBNull(3) || !string.Equals(reader.GetString(3), email, StringComparison.OrdinalIgnoreCase))
                     return Conflict(new { mensagem = "O e-mail da conta autenticada não corresponde ao cadastro." });
             }
 
@@ -108,6 +106,8 @@ public sealed class AdministracaoCadastrosController(
             }
 
             const string insert = """
+                UPDATE auth.users SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW()
+                WHERE id=@authUid AND lower(email)=lower(@email);
                 INSERT INTO chat.usuario_auth (auth_uid,empresa_id,usuario_id,nome,email,tipo_negocio,ativo)
                 VALUES (@authUid,@empresaId,@usuarioId,@nome,@email,@tipoNegocio,TRUE);
                 UPDATE chat.solicitacao_cadastro
