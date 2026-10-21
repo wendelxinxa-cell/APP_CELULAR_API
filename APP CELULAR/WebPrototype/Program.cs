@@ -39,8 +39,8 @@ app.UseAntiforgery();
 app.MapGet("/version.json", () => Results.Json(new
 {
     version = "0.0.001",
-    build = 42,
-    release = "0.0.001-build42"
+    build = 43,
+    release = "0.0.001-build43"
 })).AllowAnonymous();
 
 app.MapPost("/api/chat/contacts", async (HttpRequest request, IHttpClientFactory clients, IConfiguration config) =>

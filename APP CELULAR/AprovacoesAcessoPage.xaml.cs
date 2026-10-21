@@ -23,12 +23,23 @@ public partial class AprovacoesAcessoPage : ContentPage
 
     private async Task Carregar()
     {
+        var erros = new List<string>();
+        _tokenZeus = SessaoUsuario.TokenMaster;
+        if (string.IsNullOrWhiteSpace(_tokenZeus))
+        {
+            await DisplayAlert("Aprovações", "Entre novamente como Administrador Master.", "OK");
+            return;
+        }
+
+        AprovacoesAcessoResponse pendentes = new();
+        List<CadastroPendente> cadastros = new();
+        try { pendentes = await _api.ObterAprovacoesPendentes(_tokenZeus); }
+        catch (Exception ex) { erros.Add($"Dispositivos: {ex.Message}"); }
+        try { cadastros = await _api.ListarCadastrosPendentes(_tokenZeus); }
+        catch (Exception ex) { erros.Add($"Cadastros Web: {ex.Message}"); }
+
         try
         {
-            _tokenZeus = SessaoUsuario.TokenMaster ?? throw new InvalidOperationException("Entre novamente como Administrador Master.");
-            var pendentes = await _api.ObterAprovacoesPendentes(_tokenZeus);
-            var cadastros = await _api.ListarCadastrosPendentes(_tokenZeus);
-
             var usuariosPendentes = pendentes.Usuarios.ToDictionary(x => (x.EmpresaId, x.Id));
             var linhas = pendentes.Dispositivos
                 .Where(x => x.UsuarioId.HasValue)
@@ -46,10 +57,12 @@ public partial class AprovacoesAcessoPage : ContentPage
                 .ToList();
             linhas.AddRange(cadastros.Select(c => SolicitacaoLinha.Cadastro(c)));
             Solicitacoes.ItemsSource = linhas.OrderBy(x => x.CriadoEm ?? DateTime.MinValue).ToList();
+            if (erros.Count > 0)
+                await DisplayAlert("Aprovações carregadas parcialmente", string.Join("\n\n", erros), "OK");
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Aprovações", $"Não foi possível carregar as solicitações. Confira se a API está atualizada e se o administrador está conectado.\n\n{ex.Message}", "OK");
+            await DisplayAlert("Aprovações", $"Não foi possível exibir as solicitações.\n\n{ex.Message}", "OK");
         }
     }
 

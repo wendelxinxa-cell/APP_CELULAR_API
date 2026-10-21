@@ -57,16 +57,26 @@ Deno.serve(async (request: Request) => {
         const normalizedName = identificador.normalize("NFKC").trim().toLocaleLowerCase("pt-BR");
         const { data: masterUsers, error: masterUsersError } = await admin.schema("chat").from("usuario_master")
           .select("auth_uid,nome").eq("ativo", true);
-        if (masterUsersError) return json({ message: "Não foi possível localizar a conta Zeus." }, 400);
+        if (masterUsersError) {
+          // A conta Zeus também pode ter um vínculo legado em usuario_auth.
+          // Não interrompa o login se a tabela global usuario_master não puder ser consultada.
+          console.error("Falha ao consultar chat.usuario_master durante login por nome:", masterUsersError);
+        }
         const masterMatches = (masterUsers || []).filter(user =>
           String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName);
         let linkedMatches: typeof masterMatches = [];
         if (Number.isInteger(companyId) && companyId > 0) {
           const { data: linkedUsers, error: linkedError } = await admin.schema("chat").from("usuario_auth")
-            .select("auth_uid,nome").eq("empresa_id", companyId).eq("ativo", true);
-          if (linkedError) return json({ message: "Não foi possível localizar seu nome na empresa." }, 400);
+            .select("auth_uid,nome,eh_zeus").eq("empresa_id", companyId).eq("ativo", true);
+          if (linkedError) {
+            console.error("Falha ao consultar chat.usuario_auth durante login por nome:", linkedError);
+            return json({ message: masterUsersError
+              ? "Não foi possível consultar a conta Zeus pelo nome. Entre com o e-mail cadastrado."
+              : "Não foi possível localizar seu nome na empresa. Entre com o e-mail cadastrado." }, 400);
+          }
           linkedMatches = (linkedUsers || []).filter(user =>
-            String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName);
+            String(user.nome ?? "").normalize("NFKC").trim().toLocaleLowerCase("pt-BR") === normalizedName &&
+            (!masterUsersError || user.eh_zeus === true));
         }
         const matches = [...new Map([...linkedMatches, ...masterMatches].map(user => [user.auth_uid, user])).values()];
         const emails = await Promise.all(matches.map(async user => {
