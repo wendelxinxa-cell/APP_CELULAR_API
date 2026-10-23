@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "bash vercel-build.sh",
+  "outputDirectory": "Client/publish/wwwroot",
+  "rewrites": [
+    {
+      "source": "/api/chat/contacts",
+      "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/conversas/contatos-web"
+    },
+    {
+      "source": "/api/administracao/:path*",
+      "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/administracao/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
