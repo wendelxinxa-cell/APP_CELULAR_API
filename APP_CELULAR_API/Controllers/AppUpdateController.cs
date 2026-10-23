@@ -19,12 +19,13 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
         var baseUrl = configuration["AppUpdate:PublicBaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
             baseUrl = $"https://{Request.Host.Value}";
+        var downloadUrl = ObterUrlDownload();
         return Ok(new
         {
             versao,
             build,
             codigoVersao,
-            url = $"{baseUrl.TrimEnd('/')}/api/app/atualizacao/arquivo",
+            url = downloadUrl ?? $"{baseUrl.TrimEnd('/')}/api/app/atualizacao/arquivo",
             sha256 = hashEsperado,
             notas
         });
@@ -33,6 +34,9 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
     [HttpGet("atualizacao/arquivo")]
     public IActionResult BaixarAtualizacao()
     {
+        if (ObterUrlDownload() is { } url)
+            return Redirect(url);
+
         if (!TentarObterRelease(out _, out _, out _, out var arquivo, out var caminho, out _, out _))
             return NotFound();
 
@@ -100,11 +104,21 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
             codigoVersao = checked((ciclo - 1) * 99 + build);
         }
 
+        if (ObterUrlDownload() is not null) return true;
+
         caminho = Path.Combine(environment.ContentRootPath, "wwwroot", "releases", arquivo);
         if (!System.IO.File.Exists(caminho)) return false;
 
         using var stream = System.IO.File.OpenRead(caminho);
         var hashReal = Convert.ToHexString(SHA256.HashData(stream));
         return string.Equals(hashReal, hashEsperado, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? ObterUrlDownload()
+    {
+        var configured = configuration["AppUpdate:DownloadUrl"];
+        return Uri.TryCreate(configured, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
+            ? uri.ToString().TrimEnd('/')
+            : null;
     }
 }

@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY APP_CELULAR_API.csproj ./
+RUN dotnet restore APP_CELULAR_API.csproj
+COPY . ./
+RUN dotnet publish APP_CELULAR_API.csproj --configuration Release --no-restore --output /out
+# Vercel Function responses are limited to 4.5 MB. APK downloads remain on Render.
+RUN rm -rf /out/wwwroot/releases
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+COPY --from=build /out ./
+ENTRYPOINT ["sh", "-c", "exec dotnet APP_CELULAR_API.dll --urls http://0.0.0.0:${PORT:-80}"]
