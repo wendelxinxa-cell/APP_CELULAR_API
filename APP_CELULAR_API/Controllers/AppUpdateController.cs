@@ -36,6 +36,7 @@ public sealed class AppUpdateController(IConfiguration configuration, IWebHostEn
         if (!TentarObterRelease(out _, out _, out _, out var arquivo, out var caminho, out _, out _))
             return NotFound();
 
+        Response.Headers.CacheControl = "no-store";
         return PhysicalFile(caminho, "application/vnd.android.package-archive", arquivo, enableRangeProcessing: true);
     }
 
