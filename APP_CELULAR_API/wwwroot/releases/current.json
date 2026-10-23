@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 46,
-  "fileName": "CATCHAT_0.0.001_build_46.apk",
-  "sha256": "2E1587B7F016B69F771A25B9A72B4D0C1BBFD30DF20899D0D79E0D554282DD3C",
-  "notes": "CATCHAT build 46: Zeus aprova novos cadastros selecionando empresa e tipo de negócio; o sistema cria o novo usuário automaticamente.",
-  "versionCode": 49
+  "build": 49,
+  "versionCode": 52,
+  "fileName": "CATCHAT_0.0.001_build_49.apk",
+  "sha256": "322690F32ABA9423CC2037FD6C9ED1F2A4C083DB8DEC81D316E52BCFFF912304",
+  "notes": "CATCHAT build 49: financeiro com contas a pagar e receber, grupos personalizados, balanço por período e lançamentos fixos ou variáveis."
 }
