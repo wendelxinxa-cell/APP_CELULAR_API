@@ -17,6 +17,13 @@ public sealed class ConversaWebRequest : ContatosWebRequest
     public long DepoisDoId { get; set; }
     public Guid ClienteMensagemId { get; set; }
     public string Texto { get; set; } = "";
+    public long MensagemId { get; set; }
+    public bool Ocultar { get; set; }
+}
+
+public sealed class PermissaoOcultarMensagensRequest
+{
+    public bool Permitido { get; set; }
 }
 
 public class ConversaRequest : IdentidadeConversaRequest

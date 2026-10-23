@@ -323,6 +323,108 @@ public class ConversasController : ControllerBase
         return Ok(new { sucesso = true });
     }
 
+    [HttpPost("permissao-ocultar-web")]
+    public async Task<IActionResult> PermissaoOcultarWeb([FromBody] ContatosWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        var (db, usuarioId, error) = await AbrirEmpresaWebAsync(request.EmpresaId, clients);
+        if (error is not null) return error;
+        await using var tenant = db!;
+        await GarantirOcultacoesAsync(tenant, false);
+        await using var cmd = new NpgsqlCommand("SELECT COALESCE(pode_ocultar_mensagens_alheias,FALSE) FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId;", tenant);
+        cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
+        cmd.Parameters.AddWithValue("usuarioId", usuarioId);
+        return Ok(new { permitido = await cmd.ExecuteScalarAsync() is true });
+    }
+
+    [HttpPost("ocultacoes-web")]
+    public async Task<IActionResult> OcultacoesWeb([FromBody] ConversaWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        var (db, usuarioId, error) = await AbrirEmpresaWebAsync(request.EmpresaId, clients);
+        if (error is not null) return error;
+        await using var tenant = db!;
+        if (request.ContatoId <= 0 || request.ContatoId == usuarioId || !await ContatoValido(tenant, request.EmpresaId, request.ContatoId))
+            return BadRequest(new { mensagem = "Contato indisponível nesta empresa." });
+        var mine = new List<long>();
+        var theirs = new List<long>();
+        if (await BancoChatCentral.Pronto(_configuration))
+        {
+            await using var central = await BancoChatCentral.Abrir(_configuration);
+            await GarantirOcultacoesAsync(central, true);
+            const string sql = "SELECT o.mensagem_id,o.usuario_alvo_id FROM chat.mensagem_ocultamento o JOIN chat.conversa c ON c.empresa_id=o.empresa_id AND c.id=o.conversa_id WHERE o.empresa_id=@empresaId AND c.tipo='DIRETA' AND c.usuario_menor_id=LEAST(@usuarioId,@contatoId) AND c.usuario_maior_id=GREATEST(@usuarioId,@contatoId) AND o.usuario_alvo_id IN (@usuarioId,@contatoId);";
+            await using var cmd = new NpgsqlCommand(sql, central);
+            cmd.Parameters.AddWithValue("empresaId", request.EmpresaId); cmd.Parameters.AddWithValue("usuarioId", usuarioId); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) (reader.GetInt64(1) == usuarioId ? mine : theirs).Add(reader.GetInt64(0));
+        }
+        else
+        {
+            await GarantirOcultacoesAsync(tenant, false);
+            const string sql = "SELECT mensagem_id,usuario_alvo_id FROM app.mensagem_ocultamento WHERE empresa_id=@empresaId AND usuario_alvo_id IN (@usuarioId,@contatoId);";
+            await using var cmd = new NpgsqlCommand(sql, tenant);
+            cmd.Parameters.AddWithValue("empresaId", request.EmpresaId); cmd.Parameters.AddWithValue("usuarioId", usuarioId); cmd.Parameters.AddWithValue("contatoId", request.ContatoId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) (reader.GetInt64(1) == usuarioId ? mine : theirs).Add(reader.GetInt64(0));
+        }
+        return Ok(new { ocultadasParaMim = mine, ocultadasParaContato = theirs });
+    }
+
+    [HttpPost("ocultar-web")]
+    public async Task<IActionResult> OcultarWeb([FromBody] ConversaWebRequest request, [FromServices] IHttpClientFactory clients)
+    {
+        var (db, usuarioId, error) = await AbrirEmpresaWebAsync(request.EmpresaId, clients);
+        if (error is not null) return error;
+        await using var tenant = db!;
+        if (request.ContatoId <= 0 || request.MensagemId <= 0 || request.ContatoId == usuarioId)
+            return BadRequest(new { mensagem = "Mensagem ou contato inválido." });
+        await GarantirOcultacoesAsync(tenant, false);
+        await using (var permission = new NpgsqlCommand("SELECT COALESCE(pode_ocultar_mensagens_alheias,FALSE) FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId;", tenant))
+        {
+            permission.Parameters.AddWithValue("empresaId", request.EmpresaId); permission.Parameters.AddWithValue("usuarioId", usuarioId);
+            if (await permission.ExecuteScalarAsync() is not true) return StatusCode(403, new { mensagem = "Zeus não liberou a permissão para ocultar mensagens alheias." });
+        }
+        if (await BancoChatCentral.Pronto(_configuration))
+        {
+            await using var central = await BancoChatCentral.Abrir(_configuration);
+            await GarantirOcultacoesAsync(central, true);
+            const string validate = "SELECT c.id FROM chat.conversa c JOIN chat.mensagem m ON m.empresa_id=c.empresa_id AND m.conversa_id=c.id WHERE c.empresa_id=@empresaId AND c.tipo='DIRETA' AND c.usuario_menor_id=LEAST(@usuarioId,@contatoId) AND c.usuario_maior_id=GREATEST(@usuarioId,@contatoId) AND m.id=@mensagemId LIMIT 1;";
+            await using var check = new NpgsqlCommand(validate, central);
+            check.Parameters.AddWithValue("empresaId", request.EmpresaId); check.Parameters.AddWithValue("usuarioId", usuarioId); check.Parameters.AddWithValue("contatoId", request.ContatoId); check.Parameters.AddWithValue("mensagemId", request.MensagemId);
+            var conversationId = await check.ExecuteScalarAsync();
+            if (conversationId is null) return NotFound(new { mensagem = "Mensagem não pertence a esta conversa." });
+            string sql = request.Ocultar
+                ? "INSERT INTO chat.mensagem_ocultamento(empresa_id,conversa_id,mensagem_id,usuario_alvo_id,ocultada_por_usuario_id) VALUES(@empresaId,@conversaId,@mensagemId,@contatoId,@usuarioId) ON CONFLICT(empresa_id,mensagem_id,usuario_alvo_id) DO UPDATE SET ocultada_por_usuario_id=EXCLUDED.ocultada_por_usuario_id,atualizada_em=NOW();"
+                : "DELETE FROM chat.mensagem_ocultamento WHERE empresa_id=@empresaId AND mensagem_id=@mensagemId AND usuario_alvo_id=@contatoId;";
+            await using var mutation = new NpgsqlCommand(sql, central);
+            mutation.Parameters.AddWithValue("empresaId", request.EmpresaId); mutation.Parameters.AddWithValue("mensagemId", request.MensagemId); mutation.Parameters.AddWithValue("contatoId", request.ContatoId); mutation.Parameters.AddWithValue("usuarioId", usuarioId);
+            if (request.Ocultar) mutation.Parameters.AddWithValue("conversaId", conversationId);
+            await mutation.ExecuteNonQueryAsync();
+        }
+        else
+        {
+            await GarantirOcultacoesAsync(tenant, false);
+            string validate = "SELECT EXISTS(SELECT 1 FROM app.mensagem_conversa WHERE empresa_id=@empresaId AND id=@mensagemId AND ((remetente_id=@usuarioId AND destinatario_id=@contatoId) OR (remetente_id=@contatoId AND destinatario_id=@usuarioId)));";
+            await using var check = new NpgsqlCommand(validate, tenant);
+            check.Parameters.AddWithValue("empresaId", request.EmpresaId); check.Parameters.AddWithValue("mensagemId", request.MensagemId); check.Parameters.AddWithValue("usuarioId", usuarioId); check.Parameters.AddWithValue("contatoId", request.ContatoId);
+            if (await check.ExecuteScalarAsync() is not true) return NotFound(new { mensagem = "Mensagem não pertence a esta conversa." });
+            string sql = request.Ocultar
+                ? "INSERT INTO app.mensagem_ocultamento(empresa_id,mensagem_id,usuario_alvo_id,ocultada_por_usuario_id) VALUES(@empresaId,@mensagemId,@contatoId,@usuarioId) ON CONFLICT(empresa_id,mensagem_id,usuario_alvo_id) DO UPDATE SET ocultada_por_usuario_id=EXCLUDED.ocultada_por_usuario_id,atualizada_em=NOW();"
+                : "DELETE FROM app.mensagem_ocultamento WHERE empresa_id=@empresaId AND mensagem_id=@mensagemId AND usuario_alvo_id=@contatoId;";
+            await using var mutation = new NpgsqlCommand(sql, tenant);
+            mutation.Parameters.AddWithValue("empresaId", request.EmpresaId); mutation.Parameters.AddWithValue("mensagemId", request.MensagemId); mutation.Parameters.AddWithValue("contatoId", request.ContatoId); mutation.Parameters.AddWithValue("usuarioId", usuarioId);
+            await mutation.ExecuteNonQueryAsync();
+        }
+        return Ok(new { sucesso = true, ocultada = request.Ocultar });
+    }
+
+    private static async Task GarantirOcultacoesAsync(NpgsqlConnection db, bool central)
+    {
+        string sql = central
+            ? "CREATE TABLE IF NOT EXISTS chat.mensagem_ocultamento(empresa_id BIGINT NOT NULL,conversa_id UUID NOT NULL,mensagem_id BIGINT NOT NULL,usuario_alvo_id BIGINT NOT NULL,ocultada_por_usuario_id BIGINT NOT NULL,atualizada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(empresa_id,mensagem_id,usuario_alvo_id));"
+            : "ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS pode_ocultar_mensagens_alheias BOOLEAN NOT NULL DEFAULT FALSE; CREATE TABLE IF NOT EXISTS app.mensagem_ocultamento(empresa_id BIGINT NOT NULL,mensagem_id BIGINT NOT NULL,usuario_alvo_id BIGINT NOT NULL,ocultada_por_usuario_id BIGINT NOT NULL,atualizada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(empresa_id,mensagem_id,usuario_alvo_id));";
+        await using var command = new NpgsqlCommand(sql, db);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private async Task<(NpgsqlConnection? Db, long UsuarioId, IActionResult? Error)> AbrirEmpresaWebAsync(long empresaId, IHttpClientFactory clients)
     {
         if (empresaId <= 0) return (null, 0, BadRequest(new { mensagem = "Empresa inválida." }));

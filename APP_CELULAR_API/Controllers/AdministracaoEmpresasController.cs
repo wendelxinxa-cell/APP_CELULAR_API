@@ -438,12 +438,15 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await db.OpenAsync();
                 await GarantirColunaTipoNegocio(db);
                 await GarantirColunasIdentidadeUsuario(db);
+                await using (var ensurePermission = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS pode_ocultar_mensagens_alheias BOOLEAN NOT NULL DEFAULT FALSE;", db))
+                    await ensurePermission.ExecuteNonQueryAsync();
                 etapa = "consulta de usuário e aparelho";
                 const string sql = """
                     SELECT u.id,u.id_local,u.nome,u.funcao,COALESCE(u.aprovado,FALSE),
                            (COALESCE(u.excluido,FALSE) OR COALESCE(u.bloqueado_por_master,FALSE)),
                            CASE WHEN COALESCE(u.tipo_negocio,'comercial')='sucata' THEN 'comercial' ELSE COALESCE(u.tipo_negocio,'comercial') END,
                            COALESCE(u.username,''),COALESCE(u.email,''),
+                           COALESCE(u.pode_ocultar_mensagens_alheias,FALSE),
                            EXISTS (SELECT 1 FROM app.dispositivo d WHERE d.empresa_id=u.empresa_id
                                AND (d.usuario_id=u.id OR d.usuario_id_solicitado=u.id)
                                AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL))
@@ -453,18 +456,18 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, string Username, string Email, bool AparelhoPendente)>();
+                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, string Username, string Email, bool PodeOcultar, bool AparelhoPendente)>();
                 while (await reader.ReadAsync())
                     linhas.Add((reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt32(1),
                         reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetBoolean(9)));
+                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetBoolean(9), reader.GetBoolean(10)));
                 await reader.CloseAsync();
 
                 var emails = await ObterEmailsVinculados(empresa.Id, linhas.Select(x => x.Id).ToArray());
                 foreach (var linha in linhas)
                     usuarios.Add(new { id = linha.Id, idLocal = linha.IdLocal, empresaId = empresa.Id, empresa = empresa.Nome,
                         nome = linha.Nome, funcao = linha.Funcao, aprovado = linha.Aprovado, bloqueado = linha.Bloqueado,
-                        tipoNegocio = linha.TipoNegocio, username = linha.Username, aparelhoPendente = linha.AparelhoPendente,
+                        tipoNegocio = linha.TipoNegocio, username = linha.Username, podeOcultarMensagensAlheias = linha.PodeOcultar, aparelhoPendente = linha.AparelhoPendente,
                         email = string.IsNullOrWhiteSpace(linha.Email) ? emails.GetValueOrDefault(linha.Id, "") : linha.Email });
             }
             return Ok(usuarios);
@@ -474,6 +477,29 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             _logger.LogError(ex, "Falha na lista de usuários. Etapa: {Etapa}; EmpresaId: {EmpresaId}.", etapa, empresaEmConsulta);
             string local = empresaEmConsulta.HasValue ? $"na empresa código {empresaEmConsulta.Value}" : "no catálogo central";
             return StatusCode(503, new { mensagem = $"Falha {local} durante {etapa}. Execute a migração 003 no banco único da Empresa 1 e confira a configuração do Render." });
+        }
+    }
+
+    [HttpPut("acessos/empresas/{empresaId:long}/usuarios/{id:long}/permissao-ocultar-mensagens")]
+    public async Task<IActionResult> DefinirPermissaoOcultarMensagens(long empresaId, long id, [FromBody] PermissaoOcultarMensagensRequest request)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        if (empresaId <= 0 || id <= 0) return BadRequest(new { mensagem = "Empresa ou usuário inválido." });
+        try
+        {
+            await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+            await db.OpenAsync();
+            await using (var ensure = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS pode_ocultar_mensagens_alheias BOOLEAN NOT NULL DEFAULT FALSE;", db))
+                await ensure.ExecuteNonQueryAsync();
+            await using var cmd = new NpgsqlCommand("UPDATE app.usuario SET pode_ocultar_mensagens_alheias=@permitir,data_alteracao=NOW() WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome;", db);
+            cmd.Parameters.AddWithValue("permitir", request.Permitido); cmd.Parameters.AddWithValue("id", id); cmd.Parameters.AddWithValue("empresaId", empresaId);
+            var nome = await cmd.ExecuteScalarAsync();
+            return nome is null ? NotFound(new { mensagem = "Usuário não encontrado ou protegido como Zeus." }) : Ok(new { sucesso = true, nome, permitido = request.Permitido });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao alterar permissão de ocultação do usuário {UsuarioId} na empresa {EmpresaId}.", id, empresaId);
+            return StatusCode(503, new { mensagem = "Não foi possível atualizar a permissão de ocultar mensagens." });
         }
     }
 
