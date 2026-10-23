@@ -9,14 +9,14 @@
         naoLidas: value.nao_lidas ?? value.naoLidas ?? 0
     });
     const normalizeMessage = (value) => ({
-        id: value.id ?? value.Id, clienteMensagemId: value.cliente_mensagem_id ?? value.clienteMensagemId ?? value.ClienteMensagemId,
-        remetenteId: value.remetente_id ?? value.remetenteId ?? value.RemetenteId, remetenteNome: value.remetente_nome ?? value.remetenteNome ?? value.RemetenteNome ?? "",
-        destinatarioId: value.destinatario_id ?? value.destinatarioId ?? value.DestinatarioId, texto: value.texto ?? value.Texto ?? "",
-        midiaChave: value.midia_chave ?? value.midiaChave ?? value.MidiaChave, midiaNome: value.midia_nome ?? value.midiaNome ?? value.MidiaNome,
-        midiaTipo: value.midia_tipo ?? value.midiaTipo ?? value.MidiaTipo, midiaTamanhoBytes: value.midia_tamanho_bytes ?? value.midiaTamanhoBytes ?? value.MidiaTamanhoBytes,
-        foto: value.foto ?? value.Foto, fotoNome: value.foto_nome ?? value.fotoNome ?? value.FotoNome,
-        fotoTipo: value.foto_tipo ?? value.fotoTipo ?? value.FotoTipo,
-        enviadaEm: value.enviada_em ?? value.enviadaEm ?? value.EnviadaEm, lidaEm: value.lida_em ?? value.lidaEm ?? value.LidaEm, fotoUrl: null
+        id: value.id, clienteMensagemId: value.cliente_mensagem_id,
+        remetenteId: value.remetente_id, remetenteNome: value.remetente_nome ?? "",
+        destinatarioId: value.destinatario_id, texto: value.texto ?? "",
+        midiaChave: value.midia_chave, midiaNome: value.midia_nome,
+        midiaTipo: value.midia_tipo, midiaTamanhoBytes: value.midia_tamanho_bytes,
+        ocultadaParaMim: value.ocultada_para_mim ?? value.ocultadaParaMim ?? false,
+        ocultadaParaContato: value.ocultada_para_contato ?? value.ocultadaParaContato ?? false,
+        enviadaEm: value.enviada_em, lidaEm: value.lida_em, fotoUrl: null
     });
     const toSession = (authSession, identity) => {
         if (!authSession?.user || !identity) return null;
@@ -78,8 +78,13 @@
         fail(error);
         if (state.passwordRecovery) return null;
         if (!data.session) return null;
-        try { return toSession(data.session, await getIdentity()); }
-        catch (error) { await client.auth.signOut({ scope: "local" }); throw error; }
+        try {
+            return toSession(data.session, await getIdentity());
+        }
+        catch (error) {
+            await client.auth.signOut({ scope: "local" });
+            throw error;
+        }
     };
 
     api.signIn = async (email, password) => {
@@ -96,7 +101,9 @@
             fail(error);
             data = sessionData;
         }
-        try { return toSession(data.session, await getIdentity()); }
+        try {
+            return toSession(data.session, await getIdentity());
+        }
         catch (error) { await client.auth.signOut({ scope: "local" }); throw error; }
     };
 
@@ -132,7 +139,7 @@
         return data;
     };
 
-    api.requestSignup = async (email, name, password) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, senha: password });
+    api.requestSignup = async (email, name) => await invokeMasterInvite({ action: "requestSignup", email, nome: name, empresaId: state.empresaId });
     api.confirmSignupEmail = async () => {
         const client = getClient();
         const { data, error } = await client.auth.getSession();
@@ -143,7 +150,7 @@
         return true;
     };
     api.listSignupRequests = async () => (await invokeMasterInvite({ action: "listSignupRequests" })).requests || [];
-    api.approveSignupRequest = async (requestId, userId, companyId, businessType) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId, empresaId: companyId, tipoNegocio: businessType }); };
+    api.approveSignupRequest = async (requestId, userId) => { await invokeMasterInvite({ action: "approveSignupRequest", requestId, usuarioId: userId }); };
     api.rejectSignupRequest = async requestId => { await invokeMasterInvite({ action: "rejectSignupRequest", requestId }); };
 
     api.isZeus = async () => {
@@ -178,23 +185,14 @@
         return state.masterApiToken;
     };
 
-    const masterApiFetch = async (path, method = "GET", body = null) => {
+    const masterApiFetch = async (path, method = "GET", body = undefined) => {
         const token = await getMasterApiToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const options = { method, headers };
-        if (body !== null) {
-            headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(body);
-        }
-        const response = await fetch(`${state.apiBaseUrl}${path}`, options);
+        if (body !== undefined) headers["Content-Type"] = "application/json";
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
         return result;
-    };
-
-    api.deleteConversationForZeus = async (empresaId, usuarioId, contatoId) => {
-        const path = `/api/administracao/chat/empresas/${encodeURIComponent(empresaId)}/usuarios/${encodeURIComponent(usuarioId)}/contatos/${encodeURIComponent(contatoId)}`;
-        return await masterApiFetch(path, "DELETE");
     };
 
     api.listPendingUserDevices = async () => {
@@ -222,19 +220,8 @@
 
     api.listCompanyUsers = async () => {
         const users = await masterApiFetch("/api/administracao/acessos/usuarios");
-        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, username: user.username || "", funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "comercial" }))
+        return (users || []).map(user => ({ id: user.id, empresaId: user.empresaId, empresa: user.empresa, nome: user.nome, funcao: user.funcao, email: user.email || "", aprovado: !!user.aprovado, bloqueado: !!user.bloqueado, aparelhoPendente: !!user.aparelhoPendente, tipoNegocio: user.tipoNegocio || "sucata", podeOcultarMensagensAlheias: !!user.podeOcultarMensagensAlheias }))
             .filter(user => Number.isInteger(Number(user.id)) && Number(user.id) > 0);
-    };
-
-    api.updateCompanyUser = async user => {
-        await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/identidade`, "PUT", {
-            username: user.username, email: user.email, nome: user.nome, tipoNegocio: user.tipoNegocio
-        });
-    };
-
-    api.setCompanyUserActive = async (user, active) => {
-        const result = await masterApiFetch(`/api/administracao/acessos/empresas/${user.empresaId}/usuarios/${user.id}/bloqueio`, "POST", { bloqueado: !active });
-        if (Boolean(result.bloqueado) === active) throw new Error(result.mensagem || "A API não confirmou o novo estado de acesso do usuário.");
     };
 
     api.approvePendingUserDevice = async request => {
@@ -285,8 +272,26 @@
         fail(error);
     };
 
-    api.setCompanyUserBusinessType = async (companyId, userId, businessType) => {
-        await masterApiFetch(`/api/administracao/acessos/empresas/${encodeURIComponent(companyId)}/usuarios/${encodeURIComponent(userId)}/tipo-negocio`, "PUT", { tipoNegocio: businessType });
+    api.setMessageHidePermission = async (companyId, userId, allowed) => {
+        await masterApiFetch(`/api/administracao/acessos/empresas/${companyId}/usuarios/${userId}/permissao-ocultar-mensagens`, "PUT", { permitido: !!allowed });
+    };
+
+    const conversationApiPost = async (route, body) => {
+        const { data, error } = await getClient().auth.getSession();
+        fail(error);
+        const token = data.session?.access_token;
+        if (!token) throw new Error("Entre novamente para continuar.");
+        const response = await fetch(`${state.apiBaseUrl}/api/conversas/${route}`, {
+            method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.mensagem || `A API recusou a operação (${response.status}).`);
+        return result;
+    };
+    api.canHideMessages = async () => !!(await conversationApiPost("permissao-ocultar-web", { empresaId: state.empresaId })).permitido;
+    api.listMessageHides = async contactId => await conversationApiPost("ocultacoes-web", { empresaId: state.empresaId, contatoId: contactId });
+    api.setMessageHide = async (contactId, messageId, hide) => {
+        await conversationApiPost("ocultar-web", { empresaId: state.empresaId, contatoId: contactId, mensagemId: messageId, ocultar: !!hide });
     };
 
     api.inviteManagedUser = async (email, name, isMaster, empresaId, usuarioId) => {
@@ -303,35 +308,57 @@
         }
     };
 
-    api.listContacts = async () => {
+    const fetchCompanyContacts = async () => {
         const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
         fail(sessionError);
         const accessToken = sessionData.session?.access_token;
         if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
-        const response = await fetch("/api/chat/contacts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ empresaId: state.empresaId })
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.mensagem || `Não foi possível carregar os contatos (${response.status}).`);
-        // O APK mostra conversas com mensagens já registradas. Mantém a mesma regra no Razor.
-        return (result || []).filter(contact => contact.dataUltimaMensagem ?? contact.data_ultima_mensagem).map(normalizeContact);
+        const limite = Date.now() + 60000;
+        const pausas = [2000, 4000, 7000, 10000, 12000, 12000];
+        let ultimaFalha;
+        for (let tentativa = 0; ; tentativa++) {
+            const restante = limite - Date.now();
+            if (restante <= 0) break;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), Math.min(12000, restante));
+            try {
+                const response = await fetch("/api/chat/contacts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                    body: JSON.stringify({ empresaId: state.empresaId }),
+                    signal: controller.signal
+                });
+                const result = await response.json().catch(() => ({}));
+                if (response.ok) return (result || []).map(normalizeContact);
+                if (![502, 503, 504].includes(response.status))
+                    throw new Error(result.mensagem || `Não foi possível carregar os contatos (${response.status}).`);
+                ultimaFalha = new Error(result.mensagem || `Servidor iniciando (${response.status}).`);
+            } catch (error) {
+                const transitório = error instanceof TypeError || error?.name === "AbortError";
+                if (!transitório) throw error;
+                ultimaFalha = error;
+            } finally {
+                clearTimeout(timeout);
+            }
+            const pausa = pausas[tentativa];
+            if (pausa === undefined || Date.now() + pausa >= limite) break;
+            await new Promise(resolve => setTimeout(resolve, pausa));
+        }
+        throw new Error("A API ainda está iniciando. Aguarde um pouco e toque em Atualizar para tentar novamente.", { cause: ultimaFalha });
     };
 
+    api.listContacts = async () => {
+        // O APK mostra conversas com mensagens já registradas. Mantém a mesma regra no Razor.
+        return (await fetchCompanyContacts()).filter(contact => contact.dataUltimaMensagem);
+    };
+    api.listCompanyContacts = fetchCompanyContacts;
+
     api.listMessages = async (contactId, afterId) => {
-        const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
-        fail(sessionError);
-        const accessToken = sessionData.session?.access_token;
-        if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
-        const response = await fetch(`/api/chat/messages?contatoId=${encodeURIComponent(contactId)}&depoisDoId=${encodeURIComponent(afterId || 0)}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ empresaId: state.empresaId })
+        const { data, error } = await getClient().schema("chat").rpc("listar_mensagens", {
+            p_contato_id: contactId, p_depois_do_id: afterId || 0, p_empresa_id: state.empresaId
         });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.mensagem || `Não foi possível carregar as mensagens (${response.status}).`);
-        return (result || []).map(normalizeMessage);
+        fail(error);
+        return (data || []).map(normalizeMessage);
     };
 
     api.uploadMessageMedia = async (contactId, clientMessageId, inputId, fileName, contentType) => {
@@ -356,20 +383,6 @@
     };
 
     api.sendMessage = async (contactId, text, clientMessageId, mediaPath, mediaName, mediaType, mediaSize) => {
-        if (!mediaPath) {
-            const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
-            fail(sessionError);
-            const accessToken = sessionData.session?.access_token;
-            if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
-            const response = await fetch("/api/chat/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-                body: JSON.stringify({ empresaId: state.empresaId, contatoId: contactId, clienteMensagemId: clientMessageId, texto: text || "" })
-            });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(result.mensagem || `Não foi possível enviar a mensagem (${response.status}).`);
-            return normalizeMessage(result);
-        }
         const { data, error } = await getClient().schema("chat").rpc("enviar_mensagem", {
             p_contato_id: contactId, p_cliente_mensagem_id: clientMessageId,
             p_texto: text || "", p_midia_chave: mediaPath || null, p_midia_nome: mediaName || null,
@@ -379,17 +392,9 @@
         return normalizeMessage(row(data));
     };
 
-    api.markRead = async (contactId) => {
-        const { data: sessionData, error: sessionError } = await getClient().auth.getSession();
-        fail(sessionError);
-        const accessToken = sessionData.session?.access_token;
-        if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
-        const response = await fetch("/api/chat/read", {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ empresaId: state.empresaId, contatoId })
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.mensagem || `Não foi possível atualizar a leitura (${response.status}).`);
+    api.markRead = async (contatoId) => {
+        const { error } = await getClient().schema("chat").rpc("marcar_como_lida", { p_contato_id: contatoId });
+        fail(error);
     };
 
     api.sendVisualAction = async (contactId, type, symbol) => {

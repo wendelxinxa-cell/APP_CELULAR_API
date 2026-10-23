@@ -83,6 +83,21 @@ body{background:var(--cat-bg);color:var(--cat-text)}
 .sidebar-title{padding:21px 20px 16px}
 .contact-search{height:44px;border-radius:14px;margin-inline:13px}
 .contact-item{min-height:68px;border-radius:15px;margin:2px 4px}
+.new-conversation-button{display:block;width:calc(100% - 26px);margin:0 13px 12px;padding:11px 14px;text-align:left}
+.new-conversation-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:#080808c9;backdrop-filter:blur(7px)}
+.new-conversation-dialog{display:flex;flex-direction:column;width:min(440px,100%);max-height:min(680px,85dvh);overflow:hidden;border:1px solid var(--cat-border);border-radius:22px;background:linear-gradient(155deg,#242424,#1a0d27);box-shadow:0 24px 80px #0009;color:var(--cat-text)}
+.new-conversation-dialog>header{display:flex;align-items:center;justify-content:space-between;padding:19px 20px 12px}
+.new-conversation-dialog h2{margin:0;color:var(--cat-text);font-size:21px}
+.new-conversation-dialog .eyebrow{margin:0 0 5px}
+.dialog-close{width:38px;height:38px;border:1px solid var(--cat-border);border-radius:12px;background:#140723;color:var(--cat-text);font-size:25px;line-height:1;cursor:pointer}
+.new-conversation-dialog>.contact-search{flex:0 0 44px;margin:8px 14px 12px}
+.new-conversation-list{overflow-y:auto;padding:0 12px 12px}
+.new-conversation-user{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;margin:2px 0;padding:9px 10px;border:0;border-radius:14px;background:transparent;color:var(--cat-text);text-align:left;cursor:pointer}
+.new-conversation-user:hover,.new-conversation-user:focus-visible{outline:none;background:#281737}
+.new-conversation-user>span:nth-child(2){display:grid;gap:4px;flex:1;min-width:0}
+.new-conversation-user strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.new-conversation-user small{color:var(--cat-muted)}
+.user-open-indicator{color:var(--cat-yellow);font-size:24px}
 .contact-avatar{width:42px;height:42px;flex-basis:42px;border:2px solid #00c5b330}
 .active-contact{height:76px;flex-basis:76px;padding-inline:22px}
 .messages-body{padding:24px clamp(16px,4vw,42px);background:radial-gradient(ellipse at 50% 0,#1b1b1b,#141414 70%)}

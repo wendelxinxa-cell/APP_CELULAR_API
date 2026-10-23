@@ -40,10 +40,10 @@ public sealed class SupabaseChatClient(IJSRuntime js)
         await InvokeVoidAsync("appCelular.supabase.updatePassword", senha);
     }
 
-    public async Task SolicitarAcessoAsync(string email, string nome, string senha)
+    public async Task SolicitarAcessoAsync(string email, string nome)
     {
         await InicializarAsync();
-        await InvokeVoidAsync("appCelular.supabase.requestSignup", email.Trim(), nome.Trim(), senha);
+        await InvokeVoidAsync("appCelular.supabase.requestSignup", email.Trim(), nome.Trim());
     }
 
     public async Task ConfirmarEmailCadastroAsync()
@@ -61,15 +61,11 @@ public sealed class SupabaseChatClient(IJSRuntime js)
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() =>
         InvokeAsync<List<UsuarioAuthGerenciavel>>("appCelular.supabase.listManagedUsers");
     public Task<List<CadastroPendente>> ListarCadastrosPendentesAsync() => InvokeAsync<List<CadastroPendente>>("appCelular.supabase.listSignupRequests");
-    public Task AprovarCadastroAsync(long requestId, long usuarioId, long empresaId, string tipoNegocio) => InvokeVoidAsync("appCelular.supabase.approveSignupRequest", requestId, usuarioId, empresaId, tipoNegocio);
+    public Task AprovarCadastroAsync(long requestId, long usuarioId) => InvokeVoidAsync("appCelular.supabase.approveSignupRequest", requestId, usuarioId);
     public Task RecusarCadastroAsync(long requestId) => InvokeVoidAsync("appCelular.supabase.rejectSignupRequest", requestId);
     public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => InvokeAsync<List<UsuarioEmpresaDisponivel>>("appCelular.supabase.listCompanyUsers");
-    public Task DefinirTipoNegocioUsuarioAsync(long empresaId, long usuarioId, string tipoNegocio) =>
-        InvokeVoidAsync("appCelular.supabase.setCompanyUserBusinessType", empresaId, usuarioId, tipoNegocio);
-    public Task EditarUsuarioEmpresaAsync(long empresaId, long usuarioId, string username, string email, string nome, string tipoNegocio) =>
-        InvokeVoidAsync("appCelular.supabase.updateCompanyUser", new { empresaId, id = usuarioId, username, email, nome, tipoNegocio });
-    public Task DefinirUsuarioEmpresaAtivoAsync(long empresaId, long usuarioId, bool ativo) =>
-        InvokeVoidAsync("appCelular.supabase.setCompanyUserActive", new { empresaId, id = usuarioId }, ativo);
+    public Task DefinirPermissaoOcultarMensagensAsync(long empresaId, long usuarioId, bool permitido) =>
+        InvokeVoidAsync("appCelular.supabase.setMessageHidePermission", empresaId, usuarioId, permitido);
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) =>
         InvokeVoidAsync("appCelular.supabase.setManagedUserMaster", authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) =>
@@ -82,8 +78,17 @@ public sealed class SupabaseChatClient(IJSRuntime js)
     public Task<List<ContatoConversa>> ObterContatosAsync() =>
         InvokeAsync<List<ContatoConversa>>("appCelular.supabase.listContacts");
 
+    public Task<List<ContatoConversa>> ListarContatosEmpresaAsync() =>
+        InvokeAsync<List<ContatoConversa>>("appCelular.supabase.listCompanyContacts");
+
     public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId, long depoisDoId = 0) =>
         InvokeAsync<List<MensagemConversa>>("appCelular.supabase.listMessages", contatoId, depoisDoId);
+
+    public Task<bool> PodeOcultarMensagensAsync() => InvokeAsync<bool>("appCelular.supabase.canHideMessages");
+    public Task<OcultacoesMensagemWeb> ObterOcultacoesMensagensAsync(long contatoId) =>
+        InvokeAsync<OcultacoesMensagemWeb>("appCelular.supabase.listMessageHides", contatoId);
+    public Task DefinirOcultacaoMensagemAsync(long contatoId, long mensagemId, bool ocultar) =>
+        InvokeVoidAsync("appCelular.supabase.setMessageHide", contatoId, mensagemId, ocultar);
 
     public Task<string> UploadMidiaAsync(long contatoId, Guid clienteMensagemId, string inputId, string nome, string tipo) =>
         InvokeAsync<string>("appCelular.supabase.uploadMessageMedia", contatoId, clienteMensagemId.ToString(), inputId, nome, tipo);
@@ -164,14 +169,20 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
         return [.. contatosSessao];
     }
 
+
+    public Task<List<ContatoConversa>> ListarContatosEmpresaAsync() => supabase.ListarContatosEmpresaAsync();
+
     public Task<List<MensagemConversa>> ObterMensagensAsync(long contatoId, long depoisDoId = 0) => supabase.ObterMensagensAsync(contatoId, depoisDoId);
+    public Task<bool> PodeOcultarMensagensAsync() => supabase.PodeOcultarMensagensAsync();
+    public Task<OcultacoesMensagemWeb> ObterOcultacoesMensagensAsync(long contatoId) => supabase.ObterOcultacoesMensagensAsync(contatoId);
+    public Task DefinirOcultacaoMensagemAsync(long contatoId, long mensagemId, bool ocultar) => supabase.DefinirOcultacaoMensagemAsync(contatoId, mensagemId, ocultar);
     public Task<string> UploadMidiaAsync(long contatoId, Guid id, string inputId, string nome, string tipo) => supabase.UploadMidiaAsync(contatoId, id, inputId, nome, tipo);
     public Task<UrlMidiaResponse> CriarUrlLeituraAsync(string caminho) => supabase.CriarUrlLeituraAsync(caminho);
     public Task<MensagemConversa> EnviarMensagemAsync(long contatoId, string texto, Guid id, string? chave, string? nome, string? tipo, long? tamanho) => supabase.EnviarMensagemAsync(contatoId, texto, id, chave, nome, tipo, tamanho);
     public Task MarcarComoLidasAsync(long contatoId) => supabase.MarcarComoLidasAsync(contatoId);
     public Task EnviarAcaoVisualAsync(long contatoId, string tipo, string simbolo) => supabase.EnviarAcaoVisualAsync(contatoId, tipo, simbolo);
     public Task<List<AcaoVisualConversa>> ObterAcoesVisuaisAsync(long contatoId) => supabase.ObterAcoesVisuaisAsync(contatoId);
-    public Task SolicitarAcessoAsync(string email, string nome, string senha) => supabase.SolicitarAcessoAsync(email, nome, senha);
+    public Task SolicitarAcessoAsync(string email, string nome) => supabase.SolicitarAcessoAsync(email, nome);
     public Task ConfirmarEmailCadastroAsync() => supabase.ConfirmarEmailCadastroAsync();
     public Task<List<SolicitacaoAcesso>> ListarSolicitacoesAsync() => supabase.ListarSolicitacoesAsync();
     public Task AprovarSolicitacaoAsync(SolicitacaoAcesso request) => supabase.AprovarSolicitacaoAsync(request);
@@ -180,13 +191,10 @@ public sealed class ChatPortalState(SupabaseChatClient supabase)
     public Task AprovarUsuarioAparelhoAsync(AprovacaoUsuarioAparelho request) => supabase.AprovarUsuarioAparelhoAsync(request);
     public Task<List<UsuarioAuthGerenciavel>> ListarUsuariosGerenciaveisAsync() => supabase.ListarUsuariosGerenciaveisAsync();
     public Task<List<CadastroPendente>> ListarCadastrosPendentesAsync() => supabase.ListarCadastrosPendentesAsync();
-    public Task AprovarCadastroAsync(long requestId, long usuarioId, long empresaId, string tipoNegocio) => supabase.AprovarCadastroAsync(requestId, usuarioId, empresaId, tipoNegocio);
+    public Task AprovarCadastroAsync(long requestId, long usuarioId) => supabase.AprovarCadastroAsync(requestId, usuarioId);
     public Task RecusarCadastroAsync(long requestId) => supabase.RecusarCadastroAsync(requestId);
     public Task<List<UsuarioEmpresaDisponivel>> ListarUsuariosEmpresaAsync() => supabase.ListarUsuariosEmpresaAsync();
-    public Task DefinirTipoNegocioUsuarioAsync(long empresaId, long usuarioId, string tipoNegocio) =>
-        supabase.DefinirTipoNegocioUsuarioAsync(empresaId, usuarioId, tipoNegocio);
-    public Task EditarUsuarioEmpresaAsync(long empresaId, long usuarioId, string username, string email, string nome, string tipoNegocio) => supabase.EditarUsuarioEmpresaAsync(empresaId, usuarioId, username, email, nome, tipoNegocio);
-    public Task DefinirUsuarioEmpresaAtivoAsync(long empresaId, long usuarioId, bool ativo) => supabase.DefinirUsuarioEmpresaAtivoAsync(empresaId, usuarioId, ativo);
+    public Task DefinirPermissaoOcultarMensagensAsync(long empresaId, long usuarioId, bool permitido) => supabase.DefinirPermissaoOcultarMensagensAsync(empresaId, usuarioId, permitido);
     public Task DefinirUsuarioMasterAsync(string authUid, bool ativo) => supabase.DefinirUsuarioMasterAsync(authUid, ativo);
     public Task DefinirUsuarioAtivoAsync(string authUid, bool ativo) => supabase.DefinirUsuarioAtivoAsync(authUid, ativo);
     public Task<ConviteUsuarioResponse> ConvidarUsuarioAsync(string email, string nome, bool master, long empresaId, long? usuarioId) =>
@@ -216,6 +224,12 @@ public sealed class ChatSessao
     public DateTimeOffset ExpiraEm { get; set; }
 }
 
+public sealed class OcultacoesMensagemWeb
+{
+    public List<long> OcultadasParaMim { get; set; } = [];
+    public List<long> OcultadasParaContato { get; set; } = [];
+}
+
 public sealed class SolicitacaoAcesso
 {
     public string AuthUid { get; set; } = "";
@@ -238,7 +252,6 @@ public sealed class CadastroPendente
     public DateTimeOffset CriadaEm { get; set; }
     public bool EmailVerificado { get; set; }
     public long UsuarioIdSelecionado { get; set; }
-    public string TipoNegocioSelecionado { get; set; } = "chat";
 }
 
 public sealed class UsuarioEmpresaDisponivel
@@ -247,13 +260,13 @@ public sealed class UsuarioEmpresaDisponivel
     public long EmpresaId { get; set; }
     public string Empresa { get; set; } = "";
     public string Nome { get; set; } = "";
-    public string Username { get; set; } = "";
     public string Funcao { get; set; } = "";
     public string Email { get; set; } = "";
     public bool Aprovado { get; set; }
     public bool Bloqueado { get; set; }
     public bool AparelhoPendente { get; set; }
     public string TipoNegocio { get; set; } = "sucata";
+    public bool PodeOcultarMensagensAlheias { get; set; }
 }
 
 public sealed class AprovacaoUsuarioAparelho
@@ -321,4 +334,6 @@ public sealed class MensagemConversa
     public DateTime EnviadaEm { get; set; }
     public DateTime? LidaEm { get; set; }
     public string? StatusEnvio { get; set; }
+    public bool OcultadaParaMim { get; set; }
+    public bool OcultadaParaContato { get; set; }
 }

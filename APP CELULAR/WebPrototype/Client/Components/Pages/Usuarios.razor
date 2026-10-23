@@ -61,80 +61,67 @@ else if (Portal.Autenticado && Portal.EhZeus)
             </section>
 
             <section class="managed-users">
-                <div class="managed-users-heading"><h2>Contas no Supabase</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
-                @if (usuarios.Count == 0)
-                {
-                    <div class="home-unavailable"><strong>Nenhuma conta vinculada</strong><p>Convites e cadastros aprovados aparecerão nesta lista.</p></div>
-                }
-                else
-                {
-                    @foreach (var usuario in usuarios)
-                    {
-                        <article class="managed-user" @key="usuario.AuthUid">
-                            <div class="managed-user-copy">
-                                <strong>@usuario.Nome</strong>
-                                <small>@usuario.Email</small>
-                                <small>@EstadoUsuario(usuario)</small>
-                            </div>
-                            <span class="managed-user-role">@(usuario.Master ? "ZEUS MASTER" : usuario.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
-                            @if (!usuario.Master)
-                            {
-                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(usuario, true)" disabled="@processando">Tornar master</button>
-                                <button class="@(usuario.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(usuario, !usuario.Ativo)" disabled="@processando">@(usuario.Ativo ? "Bloquear" : "Ativar")</button>
-                            }
-                            else if (usuario.AuthUid != Portal.Sessao!.SupabaseUserId)
-                            {
-                                <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(usuario, false)" disabled="@processando">Remover master</button>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(usuario.Email))
-                            {
-                                <button class="secondary-button" type="button" @onclick="() => SolicitarRedefinicaoAsync(usuario.Email)" disabled="@processando">Redefinir senha</button>
-                            }
-                        </article>
-                    }
-                }
-            </section>
-            <section class="managed-users">
-                <div class="managed-users-heading"><h2>Usuários cadastrados nas empresas</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
+                <div class="managed-users-heading"><h2>Usuários cadastrados</h2><button class="secondary-button" type="button" @onclick="AtualizarAsync" disabled="@processando">Atualizar</button></div>
                 @if (usuariosEmpresa.Count == 0)
                 {
-                    <div class="home-unavailable"><strong>Nenhum usuário cadastrado</strong><p>Os usuários das empresas aparecerão nesta lista.</p></div>
+                    <div class="home-unavailable"><strong>Nenhum usuário cadastrado</strong><p>Os usuários da empresa aparecerão nesta lista.</p></div>
                 }
                 else
                 {
-                    @foreach (var usuario in usuariosEmpresa)
+                    @foreach (var usuario in usuariosEmpresa.Where(user => user.EmpresaId == Portal.Sessao!.EmpresaId))
                     {
                         <article class="managed-user" @key="usuario.Id">
                             <div class="managed-user-copy">
                                 <strong>@usuario.Nome</strong>
                                 <small>@usuario.Funcao · @(usuario.TipoNegocio == "chat" ? "Chat" : "Comercial")</small>
                                 <small>@(string.IsNullOrWhiteSpace(usuario.Empresa) ? $"Empresa · código {usuario.EmpresaId}" : $"Empresa: {usuario.Empresa} · código {usuario.EmpresaId}")</small>
-                                @if (!string.IsNullOrWhiteSpace(usuario.Email)) { <small>@usuario.Email</small> }
+                                @if (!string.IsNullOrWhiteSpace(usuario.Email))
+                                {
+                                    <small>@usuario.Email</small>
+                                }
                                 <small>@EstadoUsuario(usuario)</small>
                             </div>
                             <span class="managed-user-role">@(usuario.Bloqueado ? "BLOQUEADO" : usuario.Aprovado ? "LIBERADO" : "PENDENTE")</span>
-                            <button class="secondary-button" type="button" @onclick="() => IniciarEdicao(usuario)" disabled="@processando">Editar</button>
-                            <button class="@(usuario.Bloqueado ? "primary-button" : "danger-button")" type="button" @onclick="() => AlterarUsuarioEmpresaAtivoAsync(usuario, usuario.Bloqueado)" disabled="@processando">@(usuario.Bloqueado ? "Ativar" : "Desativar")</button>
-                            @if (!string.IsNullOrWhiteSpace(usuario.Email))
+                            @if (usuario.TipoNegocio == "chat" && !usuario.Bloqueado && usuario.Aprovado)
                             {
-                                <button class="secondary-button" type="button" @onclick="() => SolicitarRedefinicaoAsync(usuario.Email)" disabled="@processando">Redefinir senha</button>
-                            }
-                            @if (editandoId == usuario.Id)
-                            {
-                                <EditForm Model="edicao" OnValidSubmit="SalvarEdicaoAsync" @key="usuario.Id">
-                                    <div class="user-invite-grid">
-                                        <label>E-mail<input @bind="edicao.Email" type="email" maxlength="254" required /></label>
-                                        <label>Nome<input @bind="edicao.Nome" maxlength="120" required /></label>
-                                        <label>Tipo de acesso<select @bind="edicao.TipoNegocio"><option value="chat">Chat</option><option value="comercial">Comercial</option></select></label>
-                                    </div>
-                                    <button class="primary-button" type="submit" disabled="@processando">Salvar alterações</button>
-                                    <button class="secondary-button" type="button" @onclick="CancelarEdicao">Cancelar</button>
-                                </EditForm>
+                                <button class="@(usuario.PodeOcultarMensagensAlheias ? "danger-button" : "secondary-button")" type="button" @onclick="() => AlterarPermissaoOcultarAsync(usuario)" disabled="@processando">
+                                    @(usuario.PodeOcultarMensagensAlheias ? "Revogar ocultação" : "Permitir ocultar mensagens")
+                                </button>
                             }
                         </article>
                     }
                 }
             </section>
+
+            <details class="managed-users managed-auth-accounts">
+                <summary>Contas vinculadas do Supabase</summary>
+                @if (usuarios.Count == 0)
+                {
+                    <div class="home-unavailable"><strong>Nenhuma conta vinculada</strong><p>Convites e cadastros aprovados aparecerão aqui.</p></div>
+                }
+                else
+                {
+                    @foreach (var conta in usuarios)
+                    {
+                        <article class="managed-user" @key="conta.AuthUid">
+                            <div class="managed-user-copy"><strong>@conta.Nome</strong><small>@conta.Email</small><small>@(conta.Ativo ? "Ativo" : "Acesso desativado")</small></div>
+                            <span class="managed-user-role">@(conta.Master ? "ZEUS MASTER" : conta.UsuarioId.HasValue ? "USUÁRIO VINCULADO" : "SEM VÍNCULO")</span>
+                            @if (!conta.Master)
+                            {
+                                <button class="secondary-button" type="button" @onclick="() => AlterarMasterAsync(conta, true)" disabled="@processando">Tornar master</button>
+                                @if (conta.UsuarioId.HasValue)
+                                {
+                                    <button class="@(conta.Ativo ? "danger-button" : "primary-button")" type="button" @onclick="() => AlterarAtivoAsync(conta, !conta.Ativo)" disabled="@processando">@(conta.Ativo ? "Bloquear" : "Ativar")</button>
+                                }
+                            }
+                            else if (conta.AuthUid != Portal.Sessao!.SupabaseUserId)
+                            {
+                                <button class="danger-button" type="button" @onclick="() => AlterarMasterAsync(conta, false)" disabled="@processando">Remover master</button>
+                            }
+                        </article>
+                    }
+                }
+            </details>
         </section>
     </main>
 }
@@ -147,8 +134,6 @@ else if (Portal.Autenticado && Portal.EhZeus)
     private bool processando;
     private bool falha;
     private string? aviso;
-    private long? editandoId;
-    private UsuarioEmpresaEdicao edicao = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -235,14 +220,16 @@ else if (Portal.Autenticado && Portal.EhZeus)
 
     private async Task AlterarAtivoAsync(UsuarioAuthGerenciavel usuario, bool ativo)
     {
-        var pergunta = ativo && !usuario.UsuarioId.HasValue
-            ? $"Reabrir a solicitação de acesso de {usuario.Email}?"
-            : $"Confirma {(ativo ? "reativar" : "bloquear")} a conta de {usuario.Email}?";
-        if (!await JS.InvokeAsync<bool>("confirm", pergunta)) return;
-        var sucesso = ativo && !usuario.UsuarioId.HasValue
-            ? "Solicitação reaberta. Vincule esta conta a um usuário CATCHAT para liberar o acesso completo."
-            : ativo ? "Acesso do usuário reativado." : "Acesso do usuário bloqueado.";
-        await ProcessarAsync(async () => await Portal.DefinirUsuarioAtivoAsync(usuario.AuthUid, ativo), sucesso);
+        var acao = ativo ? "reativar" : "bloquear";
+        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} a conta de {usuario.Email}?")) return;
+        await ProcessarAsync(async () => await Portal.DefinirUsuarioAtivoAsync(usuario.AuthUid, ativo), "Acesso do usuário atualizado.");
+    }
+
+    private async Task AlterarPermissaoOcultarAsync(UsuarioEmpresaDisponivel usuario)
+    {
+        var permitir = !usuario.PodeOcultarMensagensAlheias;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {(permitir ? "permitir" : "revogar") } que {usuario.Nome} oculte mensagens alheias para o outro participante?")) return;
+        await ProcessarAsync(async () => await Portal.DefinirPermissaoOcultarMensagensAsync(usuario.EmpresaId, usuario.Id, permitir), "Permissão de ocultar mensagens atualizada.");
     }
 
     private async Task ProcessarAsync(Func<Task> acao, string sucesso)
@@ -250,70 +237,17 @@ else if (Portal.Autenticado && Portal.EhZeus)
         processando = true;
         aviso = null;
         falha = false;
-        try
-        {
-            await acao();
-            await AtualizarAsync();
-            if (!string.IsNullOrWhiteSpace(aviso)) falha = true;
-            else { aviso = sucesso; falha = false; }
-        }
+        try { await acao(); aviso = sucesso; await AtualizarAsync(); }
         catch (Exception ex) when (ex is InvalidOperationException or JSException) { falha = true; aviso = ex.Message; }
         finally { processando = false; }
     }
 
-    private static string EstadoUsuario(UsuarioAuthGerenciavel usuario) =>
-        usuario.Master ? "Acesso Zeus master ativo" : usuario.Ativo ? usuario.UsuarioId.HasValue ? "Ativo" : "Solicitação pendente · sem vínculo" : "Acesso desativado";
-
-    private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) =>
-        usuario.Bloqueado ? "Acesso desativado" : usuario.Aprovado ? "Ativo" : usuario.AparelhoPendente ? "Aguardando aprovação do aparelho" : "Pendente";
-
-    private void IniciarEdicao(UsuarioEmpresaDisponivel usuario)
-    {
-        editandoId = usuario.Id;
-        edicao = new UsuarioEmpresaEdicao { Id = usuario.Id, EmpresaId = usuario.EmpresaId, Username = usuario.Username, Email = usuario.Email, Nome = usuario.Nome, TipoNegocio = usuario.TipoNegocio };
-        aviso = null;
-    }
-
-    private void CancelarEdicao() => editandoId = null;
-
-    private async Task SalvarEdicaoAsync()
-    {
-        var username = edicao.Username.Trim();
-        var email = edicao.Email.Trim();
-        var nome = edicao.Nome.Trim();
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome))
-        {
-            falha = true; aviso = "Este usuário ainda não tem identidade vinculada para edição. Confira o cadastro e tente novamente."; return;
-        }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Salvar nome e e-mail para este usuário?")) return;
-        await ProcessarAsync(async () => await Portal.EditarUsuarioEmpresaAsync(edicao.EmpresaId, edicao.Id, username, email, nome, edicao.TipoNegocio), "Dados do usuário atualizados no banco.");
-        if (!falha) editandoId = null;
-    }
-
-    private async Task AlterarUsuarioEmpresaAtivoAsync(UsuarioEmpresaDisponivel usuario, bool ativo)
-    {
-        var acao = ativo ? "ativar" : "desativar";
-        if (!await JS.InvokeAsync<bool>("confirm", $"Confirma {acao} o usuário {usuario.Nome}?")) return;
-        await ProcessarAsync(async () => await Portal.DefinirUsuarioEmpresaAtivoAsync(usuario.EmpresaId, usuario.Id, ativo), ativo ? "Usuário ativado." : "Usuário desativado.");
-    }
-
-    private async Task SolicitarRedefinicaoAsync(string emailInformado)
-    {
-        var email = emailInformado.Trim();
-        if (string.IsNullOrWhiteSpace(email)) return;
-        if (!await JS.InvokeAsync<bool>("confirm", $"Enviar para {email} um link seguro para definir uma nova senha?")) return;
-        await ProcessarAsync(async () => await Portal.SolicitarRedefinicaoSenhaAsync(email), $"Link para redefinir a senha enviado para {email}.");
-    }
-
-    private sealed class UsuarioEmpresaEdicao
-    {
-        public long Id { get; set; }
-        public long EmpresaId { get; set; }
-        public string Username { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string Nome { get; set; } = "";
-        public string TipoNegocio { get; set; } = "comercial";
-    }
+    private static string EstadoUsuario(UsuarioEmpresaDisponivel usuario) => usuario.Bloqueado
+        ? "Acesso bloqueado"
+        : !usuario.Aprovado && usuario.AparelhoPendente ? "Pendente: usuário e aparelho"
+        : !usuario.Aprovado ? "Pendente: usuário"
+        : usuario.AparelhoPendente ? "Pendente: aparelho"
+        : "Liberado";
 
     private sealed class ConviteForm
     {

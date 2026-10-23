@@ -8,6 +8,14 @@
       "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/conversas/contatos-web"
     },
     {
+      "source": "/api/conversas/:path*",
+      "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/conversas/:path*"
+    },
+    {
+      "source": "/api/financeiro/:path*",
+      "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/financeiro/:path*"
+    },
+    {
       "source": "/api/administracao/:path*",
       "destination": "https://app-celular-api-vercel-test-git-codex-vercel-ses-a94572-catchat.vercel.app/api/administracao/:path*"
     },

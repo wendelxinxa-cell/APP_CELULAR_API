@@ -29,47 +29,27 @@ else
 
         <div class="messaging-layout">
             <aside class="conversation-sidebar @(ContatoId.HasValue ? "sidebar-on-chat" : "")">
-                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@ContatosFiltrados.Count()</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true, atualizar: true)" disabled="@carregandoContatos">Atualizar</button></div>
+                <div class="sidebar-title"><div><p class="eyebrow">CATCHAT</p><h1>Conversas</h1></div><span class="contact-count">@contatos.Count</span><button class="secondary-button" type="button" @onclick="() => CarregarContatosAsync(exibirErro: true, atualizar: true)" disabled="@carregandoContatos">Atualizar</button></div>
+                <button class="primary-button new-conversation-button" type="button" @onclick="AbrirNovaConversaAsync" disabled="@carregandoUsuariosEmpresa">＋ Nova conversa</button>
                 <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroContato" @bind:event="oninput" placeholder="Buscar pessoa..." aria-label="Buscar pessoa" /></label>
-                <div class="conversation-filter-actions">
-                    <button type="button" class="conversation-filter-toggle" @onclick="() => mostrarOcultas = !mostrarOcultas">
-                        @(mostrarOcultas ? "← Voltar às conversas" : $"Ver conversas apagadas ({contatos.Count(c => conversasOcultas.Contains(c.Id))})")
-                    </button>
-                </div>
                 <div class="contact-list">
                     @if (carregandoContatos && contatos.Count == 0)
                     {
-                        <p class="chat-loading">Carregando contatos…</p>
+                        <p class="chat-loading">@(tempoEsperaApi > 0 ? $"Aguardando a API voltar · {tempoEsperaApi}s" : "Carregando contatos…")</p>
                     }
                     else if (!ContatosFiltrados.Any())
                     {
-                        <div class="contact-empty">@(mostrarOcultas ? "Você não tem conversas apagadas neste navegador." : string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhuma conversa com mensagens encontrada na empresa {Portal.Sessao!.EmpresaId}." : "Nenhuma pessoa encontrada.")</div>
+                        <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroContato) ? $"Nenhuma conversa com mensagens encontrada na empresa {Portal.Sessao!.EmpresaId}." : "Nenhuma pessoa encontrada.")</div>
                     }
                     else
                     {
                         @foreach (var contato in ContatosFiltrados)
                         {
-                            <div class="conversation-list-row">
-                                <a class="contact-item @(ContatoId == contato.Id ? "contact-active" : "")" href="@($"/conversas/{contato.Id}")">
-                                    <span class="contact-avatar">@PrimeiraLetra(contato.Nome)</span>
-                                    <span class="contact-copy"><strong>@contato.Nome</strong><small>@(string.IsNullOrWhiteSpace(contato.UltimaMensagem) ? "Iniciar conversa" : contato.UltimaMensagem)</small></span>
-                                    <span class="contact-meta">@if (contato.NaoLidas > 0) { <b>@contato.NaoLidas</b> }</span>
-                                </a>
-                                <div class="conversation-row-actions">
-                                    @if (mostrarOcultas)
-                                    {
-                                        <button class="conversation-row-button" type="button" title="Restaurar conversa para você" @onclick="() => RestaurarConversaAsync(contato)">Restaurar</button>
-                                    }
-                                    else
-                                    {
-                                        <button class="conversation-row-button" type="button" title="Apagar somente para você" @onclick="() => ApagarParaMimAsync(contato)">Apagar para mim</button>
-                                    }
-                                    @if (Portal.EhZeus)
-                                    {
-                                        <button class="conversation-row-button danger" type="button" title="Excluir permanentemente do banco de dados" @onclick="() => ExcluirDoBancoAsync(contato)">Excluir do banco</button>
-                                    }
-                                </div>
-                            </div>
+                            <a class="contact-item @(ContatoId == contato.Id ? "contact-active" : "")" href="@($"/conversas/{contato.Id}")">
+                                <span class="contact-avatar">@PrimeiraLetra(contato.Nome)</span>
+                                <span class="contact-copy"><strong>@contato.Nome</strong><small>@(string.IsNullOrWhiteSpace(contato.UltimaMensagem) ? "Iniciar conversa" : contato.UltimaMensagem)</small></span>
+                                <span class="contact-meta">@if (contato.NaoLidas > 0) { <b>@contato.NaoLidas</b> }</span>
+                            </a>
                         }
                     }
                 </div>
@@ -86,19 +66,7 @@ else
                     <header class="active-contact">
                         <a class="mobile-back" href="/conversas" aria-label="Voltar às conversas">‹</a>
                         <span class="contact-avatar large">@PrimeiraLetra(ContatoAtual.Nome)</span>
-                        <div class="active-contact-copy"><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
-                        <div class="message-history-tools" aria-label="Privacidade das mensagens">
-                            @if (historicoProcessando)
-                            {
-                                <span class="history-progress" role="status"><i></i>@historicoStatus</span>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(historicoStatus))
-                            {
-                                <span class="history-status" role="status">@historicoStatus</span>
-                            }
-                            <button type="button" title="Ocultar todas as mensagens já carregadas" aria-label="Ocultar todas as mensagens já carregadas" disabled="@historicoProcessando" @onclick="OcultarMensagensAsync">🔒</button>
-                            <button type="button" title="Exibir mensagens ocultas" aria-label="Exibir mensagens ocultas" disabled="@historicoProcessando" @onclick="ExibirMensagensAsync">🔓</button>
-                        </div>
+                        <div><strong>@ContatoAtual.Nome</strong><small>Conversa sincronizada</small></div>
                     </header>
 
                     <section class="messages-body" aria-label="Mensagens da conversa" @ref="painelMensagens">
@@ -119,16 +87,20 @@ else
                             @foreach (var mensagem in mensagens)
                             {
                                 var minha = mensagem.RemetenteId == Portal.Sessao!.UsuarioId;
-                                var oculta = mensagensOcultas.Contains(ChaveMensagem(mensagem));
                                 <div class="message-row @(minha ? "message-own" : "message-incoming")">
-                                    <article class="message-bubble">
-                                        @if (oculta)
+                                    <article class="message-bubble @(mensagem.OcultadaParaMim ? "message-hidden" : null)">
+                                        @if (podeOcultarMensagens && !minha && mensagem.Id > 0)
                                         {
-                                            <p class="hidden-message-content">🔒 Mensagem oculta neste aparelho</p>
+                                            <button class="message-hide-action" type="button" disabled="@alterandoOcultacao" @onclick="() => AlternarOcultacaoAsync(mensagem)">@(mensagem.OcultadaParaContato ? "↩ Restaurar para o contato" : "🙈 Ocultar para o contato")</button>
+                                        }
+                                        @if (mensagem.OcultadaParaMim)
+                                        {
+                                            <p class="message-hidden-label">🔒 Mensagem ocultada pelo outro participante</p>
                                         }
                                         else if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl) && (mensagem.MidiaTipo ?? mensagem.FotoTipo ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <video class="message-image" src="@mensagem.FotoUrl" controls playsinline preload="metadata"></video>
+                                            <a class="message-media-download" href="@mensagem.FotoUrl" target="_blank" rel="noopener">Abrir ou baixar vídeo</a>
                                         }
                                         else if (!string.IsNullOrWhiteSpace(mensagem.FotoUrl))
                                         {
@@ -146,7 +118,7 @@ else
                                         {
                                             <p class="@(EhFigurinha(mensagem.Texto) ? "message-sticker" : null)" style="font-size:@(tamanhoFonte)px;font-weight:@(fonteSemibold ? 600 : 400)">@mensagem.Texto</p>
                                         }
-                                        <footer><time>@HoraBrasilia(mensagem.EnviadaEm)</time>@if (oculta) { <span>Oculta</span> } else if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
+                                        <footer><time>@HoraBrasilia(mensagem.EnviadaEm)</time>@if (minha) { <span>@(mensagem.StatusEnvio ?? (mensagem.LidaEm.HasValue ? "✓✓" : "✓"))</span> }</footer>
                                     </article>
                                 </div>
                             }
@@ -158,7 +130,7 @@ else
                     <form class="message-composer" @onsubmit="EnviarAsync" @onsubmit:preventDefault="true">
                         <div class="chatcat-actions" aria-label="Ações da conversa">
                             <label class="chatcat-action" for="foto-conversa" title="Foto" aria-label="Foto"><span>＋</span></label>
-                            <InputFile id="foto-conversa" class="chatcat-file-input" accept="image/*,video/*" OnChange="SelecionarFotoAsync" disabled="@enviando" />
+                            <InputFile id="foto-conversa" class="chatcat-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm" OnChange="SelecionarFotoAsync" disabled="@enviando" />
                             <button type="button" title="Abrir figurinhas" aria-label="Abrir figurinhas" disabled="@enviando" @onclick="AlternarFigurinhas">▧</button>
                             <button type="button" title="Fonte" aria-label="Fonte" disabled="@enviando" @onclick="AlternarFonte">Aa</button>
                             <button type="button" class="attention-action" data-chatcat-attention title="Chamar atenção do contato" aria-label="Chamar atenção do contato" disabled="@enviando" @onclick='() => EnviarAcaoVisualAsync("ATTENTION", "⚡")'>⚡</button>
@@ -210,6 +182,35 @@ else
                 }
             </main>
         </div>
+
+        @if (seletorNovaConversaAberto)
+        {
+            <div class="new-conversation-backdrop" @onclick="FecharNovaConversaAsync">
+                <section class="new-conversation-dialog" role="dialog" aria-modal="true" aria-labelledby="new-conversation-title" @onclick:stopPropagation="true">
+                    <header><div><p class="eyebrow">EMPRESA @Portal.Sessao!.EmpresaId</p><h2 id="new-conversation-title">Nova conversa</h2></div><button class="dialog-close" type="button" aria-label="Fechar" @onclick="FecharNovaConversaAsync">×</button></header>
+                    <label class="contact-search"><span aria-hidden="true">⌕</span><input @bind="filtroNovoContato" @bind:event="oninput" placeholder="Buscar usuário..." aria-label="Buscar usuário para conversar" /></label>
+                    <div class="new-conversation-list">
+                        @if (carregandoUsuariosEmpresa)
+                        {
+                            <p class="chat-loading">Carregando usuários…</p>
+                        }
+                        else if (!UsuariosEmpresaFiltrados.Any())
+                        {
+                            <div class="contact-empty">@(string.IsNullOrWhiteSpace(filtroNovoContato) ? "Não há outros usuários disponíveis nesta empresa." : "Nenhum usuário encontrado.")</div>
+                        }
+                        else
+                        {
+                            @foreach (var usuario in UsuariosEmpresaFiltrados)
+                            {
+                                <button class="new-conversation-user" type="button" @onclick="() => IniciarConversaAsync(usuario)">
+                                    <span class="contact-avatar">@PrimeiraLetra(usuario.Nome)</span><span><strong>@usuario.Nome</strong><small>@(string.IsNullOrWhiteSpace(usuario.UltimaMensagem) ? "Iniciar conversa" : "Abrir conversa")</small></span><span class="user-open-indicator">›</span>
+                                </button>
+                            }
+                        }
+                    </div>
+                </section>
+            </div>
+        }
     </div>
 }
 
@@ -218,26 +219,33 @@ else
 
     private readonly CancellationTokenSource polling = new();
     private readonly List<ContatoConversa> contatos = new();
+    private readonly List<ContatoConversa> usuariosEmpresa = new();
     private readonly List<MensagemConversa> mensagens = new();
-    private readonly HashSet<long> conversasOcultas = new();
-    private bool mostrarOcultas;
     private string filtroContato = "";
+    private string filtroNovoContato = "";
     private string texto = "";
     private string? erro;
     private string? acaoVisual;
     private long? contatoCarregado;
     private bool carregandoContatos;
+    private int tempoEsperaApi;
+    private bool carregandoUsuariosEmpresa;
+    private bool seletorNovaConversaAberto;
     private bool carregandoMensagens;
     private bool enviando;
-    private bool historicoProcessando;
-    private string? historicoStatus;
-    private readonly HashSet<string> mensagensOcultas = new(StringComparer.Ordinal);
+    private bool podeOcultarMensagens;
+    private bool alterandoOcultacao;
     private bool inicializado;
     private bool rolarMensagens;
     private ElementReference painelMensagens;
     private long idMensagemLocal;
     private const int TamanhoMaximoFoto = 8 * 1024 * 1024;
     private const long TamanhoMaximoVideo = 100 * 1024 * 1024;
+    private static readonly HashSet<string> TiposMidiaPermitidos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/gif", "image/webp", "image/heic",
+        "video/mp4", "video/quicktime", "video/webm"
+    };
     private static readonly string[] winks = ["✨", "💥", "🎉", "😺", "💫", "🚀"];
     private string? fotoChave;
     private string? fotoNome;
@@ -254,11 +262,14 @@ else
     private static readonly TimeZoneInfo FusoBrasilia = ObterFusoBrasilia();
 
     private IEnumerable<ContatoConversa> ContatosFiltrados => contatos
-        .Where(contato => conversasOcultas.Contains(contato.Id) == mostrarOcultas)
         .Where(contato => contato.Nome.Contains(filtroContato.Trim(), StringComparison.OrdinalIgnoreCase))
         .OrderByDescending(contato => contato.DataUltimaMensagem.HasValue)
         .ThenByDescending(contato => contato.DataUltimaMensagem)
         .ThenBy(contato => contato.Nome);
+
+    private IEnumerable<ContatoConversa> UsuariosEmpresaFiltrados => usuariosEmpresa
+        .Where(usuario => usuario.Nome.Contains(filtroNovoContato.Trim(), StringComparison.OrdinalIgnoreCase))
+        .OrderBy(usuario => usuario.Nome);
 
     private ContatoConversa? ContatoAtual => ContatoId is null ? null : contatos.FirstOrDefault(contato => contato.Id == ContatoId.Value);
     private bool PodeEnviar => !enviando && ContatoAtual is not null && (!string.IsNullOrWhiteSpace(texto) || !string.IsNullOrWhiteSpace(fotoChave));
@@ -286,9 +297,9 @@ else
         mostrarMaisAcoes = false;
         var arquivo = args.File;
         var tipo = arquivo.ContentType ?? "";
-        if (!(tipo.StartsWith("image/", StringComparison.OrdinalIgnoreCase) || tipo.StartsWith("video/", StringComparison.OrdinalIgnoreCase)))
+        if (!TiposMidiaPermitidos.Contains(tipo))
         {
-            erro = "Escolha uma foto ou vídeo compatível.";
+            erro = "Formato não aceito. Use JPG, PNG, GIF, WebP ou HEIC para fotos; MP4, MOV ou WebM para vídeos.";
             return;
         }
         var limite = tipo.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ? TamanhoMaximoVideo : TamanhoMaximoFoto;
@@ -306,7 +317,8 @@ else
             fotoNome = arquivo.Name;
             fotoTipo = tipo;
             fotoTamanho = arquivo.Size;
-            await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", fotoChave);
+            try { await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", fotoChave); }
+            catch (JSException) { /* O upload ainda pode usar o arquivo mantido no seletor do navegador. */ }
             erro = null;
         }
         catch (Exception ex)
@@ -351,29 +363,13 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!inicializado)
-            return;
-
-        if (ContatoId.HasValue && conversasOcultas.Contains(ContatoId.Value))
-        {
-            Navigation.NavigateTo("/conversas", replace: true);
-            return;
-        }
-        if (ContatoId == contatoCarregado)
+        if (!inicializado || ContatoId == contatoCarregado)
             return;
 
         contatoCarregado = ContatoId;
         mensagens.Clear();
-        mensagensOcultas.Clear();
-        historicoStatus = null;
         if (ContatoId.HasValue && ContatoAtual is not null)
         {
-            try
-            {
-                var ocultas = await JS.InvokeAsync<List<string>>("appCelular.getHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value));
-                mensagensOcultas.UnionWith(ocultas);
-            }
-            catch (JSException) { }
             try
             {
                 var locais = await JS.InvokeAsync<List<MensagemConversa>>("appCelular.getChatMessages", ChaveCacheConversa(ContatoId.Value));
@@ -399,7 +395,8 @@ else
         if (firstRender && Portal.Autenticado)
         {
             inicializado = true;
-            await CarregarConversasOcultasAsync();
+            try { podeOcultarMensagens = await Portal.PodeOcultarMensagensAsync(); }
+            catch (InvalidOperationException) { podeOcultarMensagens = false; }
             await CarregarContatosAsync(exibirErro: true);
             Realtime.MensagemRecebida += AoReceberMensagemAsync;
             Realtime.Reconectado += AoReconectarAsync;
@@ -424,6 +421,10 @@ else
             return;
 
         carregandoContatos = true;
+        tempoEsperaApi = 60;
+        using var contagem = new CancellationTokenSource();
+        _ = ContarEsperaApiAsync(contagem.Token);
+        await InvokeAsync(StateHasChanged);
         try
         {
             var atualizados = atualizar ? await Portal.AtualizarContatosAsync() : await Portal.ObterContatosAsync();
@@ -437,58 +438,68 @@ else
         }
         finally
         {
+            contagem.Cancel();
+            tempoEsperaApi = 0;
             carregandoContatos = false;
         }
     }
 
-    private string ChaveConversasOcultas => $"{Portal.Sessao!.EmpresaId}:{Portal.Sessao.UsuarioId}";
-
-    private async Task CarregarConversasOcultasAsync()
+    private async Task ContarEsperaApiAsync(CancellationToken cancellationToken)
     {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
-            var ids = await JS.InvokeAsync<List<long>>("appCelular.getHiddenConversations", ChaveConversasOcultas);
-            conversasOcultas.Clear();
-            conversasOcultas.UnionWith(ids);
+            while (tempoEsperaApi > 0 && await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(() =>
+                {
+                    if (tempoEsperaApi > 0) tempoEsperaApi--;
+                    StateHasChanged();
+                });
+            }
         }
-        catch (JSException) { }
+        catch (OperationCanceledException) { }
     }
 
-    private async Task SalvarConversasOcultasAsync() =>
-        await JS.InvokeVoidAsync("appCelular.saveHiddenConversations", ChaveConversasOcultas, conversasOcultas.ToArray());
-
-    private async Task ApagarParaMimAsync(ContatoConversa contato)
+    private async Task AbrirNovaConversaAsync()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Apagar a conversa com {contato.Nome} somente para você? As mensagens continuarão no banco e visíveis para os outros participantes.")) return;
-        conversasOcultas.Add(contato.Id);
-        await SalvarConversasOcultasAsync();
-        if (ContatoId == contato.Id) Navigation.NavigateTo("/conversas");
-    }
+        seletorNovaConversaAberto = true;
+        filtroNovoContato = "";
+        if (usuariosEmpresa.Count > 0)
+            return;
 
-    private async Task RestaurarConversaAsync(ContatoConversa contato)
-    {
-        conversasOcultas.Remove(contato.Id);
-        await SalvarConversasOcultasAsync();
-    }
-
-    private async Task ExcluirDoBancoAsync(ContatoConversa contato)
-    {
-        if (!Portal.EhZeus || Portal.Sessao is null) return;
-        var confirmacao = await JS.InvokeAsync<bool>("confirm", $"EXCLUSÃO PERMANENTE: apagar do banco todas as mensagens entre {Portal.Sessao.Usuario} e {contato.Nome}? Isso afeta todos os participantes e não pode ser desfeito.");
-        if (!confirmacao) return;
-
+        carregandoUsuariosEmpresa = true;
+        erro = null;
         try
         {
-            historicoProcessando = true;
-            await JS.InvokeVoidAsync("appCelular.supabase.deleteConversationForZeus", Portal.Sessao.EmpresaId, Portal.Sessao.UsuarioId, contato.Id);
-            conversasOcultas.Remove(contato.Id);
-            await SalvarConversasOcultasAsync();
-            if (ContatoId == contato.Id) Navigation.NavigateTo("/conversas");
-            await CarregarContatosAsync(exibirErro: true, atualizar: true);
-            historicoStatus = "Conversa excluída permanentemente do banco de dados.";
+            var disponiveis = await Portal.ListarContatosEmpresaAsync();
+            usuariosEmpresa.Clear();
+            usuariosEmpresa.AddRange(disponiveis.Where(usuario => usuario.Id != Portal.Sessao!.UsuarioId));
         }
-        catch (Exception ex) { erro = ex.Message; }
-        finally { historicoProcessando = false; }
+        catch (InvalidOperationException ex)
+        {
+            seletorNovaConversaAberto = false;
+            erro = ex.Message;
+        }
+        finally
+        {
+            carregandoUsuariosEmpresa = false;
+        }
+    }
+
+    private Task FecharNovaConversaAsync()
+    {
+        seletorNovaConversaAberto = false;
+        return Task.CompletedTask;
+    }
+
+    private Task IniciarConversaAsync(ContatoConversa usuario)
+    {
+        if (!contatos.Any(contato => contato.Id == usuario.Id))
+            contatos.Add(usuario);
+        seletorNovaConversaAberto = false;
+        Navigation.NavigateTo($"/conversas/{usuario.Id}");
+        return Task.CompletedTask;
     }
 
     private async Task CarregarMensagensAsync(bool exibirErro, bool marcarComoLidas, bool buscarAcoes = true)
@@ -516,6 +527,8 @@ else
                 else
                     mensagens.Add(recebida);
             }
+            var atualizadasOcultacao = await AtualizarEstadoOcultacoesAsync(ContatoId.Value);
+            mudou |= atualizadasOcultacao;
             if (recebidas.Count > 0)
             {
                 try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(ContatoId.Value), recebidas); }
@@ -558,6 +571,46 @@ else
         {
             carregandoMensagens = false;
         }
+    }
+
+    private async Task<bool> AtualizarEstadoOcultacoesAsync(long contatoId)
+    {
+        try
+        {
+            var estado = await Portal.ObterOcultacoesMensagensAsync(contatoId);
+            var paraMim = estado.OcultadasParaMim.ToHashSet();
+            var paraContato = estado.OcultadasParaContato.ToHashSet();
+            bool mudou = false;
+            foreach (var mensagem in mensagens.Where(m => m.Id > 0))
+            {
+                var ocultaMim = paraMim.Contains(mensagem.Id);
+                var ocultaContato = paraContato.Contains(mensagem.Id);
+                if (mensagem.OcultadaParaMim != ocultaMim || mensagem.OcultadaParaContato != ocultaContato) mudou = true;
+                mensagem.OcultadaParaMim = ocultaMim;
+                mensagem.OcultadaParaContato = ocultaContato;
+            }
+            try { await JS.InvokeVoidAsync("appCelular.saveChatMessages", ChaveCacheConversa(contatoId), mensagens); } catch (JSException) { }
+            return mudou;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private async Task AlternarOcultacaoAsync(MensagemConversa mensagem)
+    {
+        if (!podeOcultarMensagens || alterandoOcultacao || ContatoId is not long contatoId || mensagem.Id <= 0) return;
+        alterandoOcultacao = true;
+        try
+        {
+            await Portal.DefinirOcultacaoMensagemAsync(contatoId, mensagem.Id, !mensagem.OcultadaParaContato);
+            mensagem.OcultadaParaContato = !mensagem.OcultadaParaContato;
+            await AtualizarEstadoOcultacoesAsync(contatoId);
+            erro = null;
+        }
+        catch (InvalidOperationException ex) { erro = ex.Message; }
+        finally { alterandoOcultacao = false; }
     }
 
     private async Task CarregarAcoesVisuaisAsync()
@@ -756,7 +809,8 @@ else
             {
                 chaveFotoEnviada = await Portal.UploadMidiaAsync(ContatoId.Value, idCliente, "foto-conversa", nomeFotoEnviada ?? "midia", tipoFotoEnviada ?? "application/octet-stream");
                 mensagemLocal.MidiaChave = chaveFotoEnviada;
-                await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", chaveFotoEnviada);
+                try { await JS.InvokeVoidAsync("appCelular.cacheInputFile", "foto-conversa", chaveFotoEnviada); }
+                catch (JSException) { /* Cache local é opcional; o envio já está no Storage. */ }
             }
             var enviada = await Portal.EnviarMensagemAsync(ContatoId.Value, textoEnviado, idCliente, chaveFotoEnviada, nomeFotoEnviada, tipoFotoEnviada, tamanhoFotoEnviada > 0 ? tamanhoFotoEnviada : null);
             enviada.FotoUrl = previewFotoEnviada;
@@ -787,6 +841,7 @@ else
             enviando = false;
         }
     }
+
 
     private async Task EnviarAcaoVisualAsync(string tipo, string simbolo)
     {
@@ -841,85 +896,6 @@ else
                 acaoVisual = null;
             StateHasChanged();
         });
-    }
-
-    private string ChaveEstadoMensagens(long contatoId) => $"ocultas:{ChaveCacheConversa(contatoId)}";
-
-    private static string ChaveMensagem(MensagemConversa mensagem) => mensagem.Id > 0
-        ? $"id:{mensagem.Id}"
-        : $"cliente:{mensagem.ClienteMensagemId:N}";
-
-    private async Task OcultarMensagensAsync()
-    {
-        if (historicoProcessando || !ContatoId.HasValue) return;
-        var mensagensPersistidas = mensagens.Where(x => x.Id > 0).ToList();
-        var chavesVisiveis = mensagensPersistidas
-            .Select(ChaveMensagem)
-            .Where(chave => !mensagensOcultas.Contains(chave))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (chavesVisiveis.Count == 0)
-        {
-            historicoStatus = mensagensPersistidas.Count > 0
-                ? "As mensagens desta conversa já estão ocultas neste aparelho."
-                : "Não há mensagens carregadas nesta conversa para ocultar.";
-            return;
-        }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Ocultar todas as {chavesVisiveis.Count} mensagens já carregadas nesta conversa neste aparelho? O conteúdo continuará no servidor.")) return;
-
-        historicoProcessando = true;
-        historicoStatus = "Ocultando mensagens desta conversa…";
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
-        try
-        {
-            var novasOcultas = new HashSet<string>(mensagensOcultas, StringComparer.Ordinal);
-            novasOcultas.UnionWith(chavesVisiveis);
-            await JS.InvokeVoidAsync("appCelular.saveHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value), novasOcultas.ToArray());
-            mensagensOcultas.Clear();
-            mensagensOcultas.UnionWith(novasOcultas);
-            historicoStatus = $"{chavesVisiveis.Count} mensagens ocultadas neste aparelho.";
-        }
-        catch (JSException ex)
-        {
-            historicoStatus = $"Não foi possível salvar a ocultação: {ex.Message}";
-        }
-        finally
-        {
-            historicoProcessando = false;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private async Task ExibirMensagensAsync()
-    {
-        if (historicoProcessando || !ContatoId.HasValue) return;
-        if (mensagensOcultas.Count == 0)
-        {
-            historicoStatus = "Não há mensagens ocultas nesta conversa neste aparelho.";
-            return;
-        }
-        if (!await JS.InvokeAsync<bool>("confirm", $"Exibir as {mensagensOcultas.Count} mensagens ocultas nesta conversa?")) return;
-
-        historicoProcessando = true;
-        historicoStatus = "Exibindo mensagens desta conversa…";
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
-        try
-        {
-            await JS.InvokeVoidAsync("appCelular.saveHiddenChatMessages", ChaveEstadoMensagens(ContatoId.Value), Array.Empty<string>());
-            mensagensOcultas.Clear();
-            historicoStatus = "Mensagens exibidas nesta conversa.";
-        }
-        catch (JSException ex)
-        {
-            historicoStatus = $"Não foi possível exibir as mensagens: {ex.Message}";
-        }
-        finally
-        {
-            historicoProcessando = false;
-            await InvokeAsync(StateHasChanged);
-        }
     }
 
     private async Task SairAsync()
