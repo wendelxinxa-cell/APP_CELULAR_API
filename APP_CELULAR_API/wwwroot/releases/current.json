@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 49,
-  "versionCode": 52,
-  "fileName": "CATCHAT_0.0.001_build_49.apk",
-  "sha256": "322690F32ABA9423CC2037FD6C9ED1F2A4C083DB8DEC81D316E52BCFFF912304",
-  "notes": "CATCHAT build 49: financeiro com contas a pagar e receber, grupos personalizados, balanço por período e lançamentos fixos ou variáveis."
+  "build": 50,
+  "versionCode": 53,
+  "fileName": "CATCHAT_0.0.001_build_50.apk",
+  "sha256": "31FCB7320C9FEE966DD3FE4729C01CFD8FA6E8276FD6577A6C39364A8C023367",
+  "notes": "CATCHAT build 50: financeiro com data de lançamento separada do vencimento, histórico de pagamento/recebimento e gráfico mensal."
 }

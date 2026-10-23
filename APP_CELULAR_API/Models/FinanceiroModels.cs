@@ -36,6 +36,7 @@ public sealed class FinanceiroRecorrenciaDto
     public int DiaVencimento { get; set; }
     public int IntervaloMeses { get; set; }
     public DateTime DataInicio { get; set; }
+    public DateTime DataLancamento { get; set; }
     public DateTime? DataFim { get; set; }
     public bool Ativa { get; set; }
     public DateTime DataAlteracao { get; set; }
@@ -53,6 +54,7 @@ public sealed class FinanceiroLancamentoDto
     public string Descricao { get; set; } = "";
     public string Observacao { get; set; } = "";
     public decimal Valor { get; set; }
+    public DateTime DataLancamento { get; set; }
     public DateTime DataVencimento { get; set; }
     public DateTime? DataLiquidacao { get; set; }
     public string Status { get; set; } = "PENDENTE";
