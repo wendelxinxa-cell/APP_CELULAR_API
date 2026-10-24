@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 52,
-  "versionCode": 55,
-  "fileName": "CATCHAT_0.0.001_build_52.apk",
-  "sha256": "7EB9D3C85FD6AA3EEDB689B7DD1B8C27B9F6181686358378EE26383BD9854172",
-  "notes": "CATCHAT build 52: calendário financeiro com seleção imediata para lançamentos novos e edição de vencimentos."
+  "build": 53,
+  "versionCode": 56,
+  "fileName": "CATCHAT_0.0.001_build_53.apk",
+  "sha256": "A557F95ABBDC883E2EF14660493C7218394DD6C73606FE2D1EE6CEDB101EAEED",
+  "notes": "CATCHAT build 53: calendário financeiro com seleção imediata nos filtros de período, contas a pagar e contas a receber."
 }
