@@ -208,23 +208,19 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     NichoAgendamento = reader.IsDBNull(6) ? null : reader.GetString(6)
                 });
 
-            // Instalações antigas ainda têm empresas configuradas diretamente no Render,
-            // sem uma linha ativa no catálogo central. Mantém essa lista disponível para
-            // o Zeus selecionar a empresa ao aprovar um cadastro Web.
-            if (!empresas.Any(x => x.Status.Equals("ATIVA", StringComparison.OrdinalIgnoreCase)))
+            // Mantém as empresas antigas configuradas no Render mesmo depois que novas
+            // empresas passam a existir no catálogo central. Evita duplicar IDs catalogados.
+            var legadas = new List<(long Id, string Nome)>();
+            AdicionarEmpresasLegadas(legadas);
+            foreach (var legada in legadas)
             {
-                var legadas = new List<(long Id, string Nome)>();
-                AdicionarEmpresasLegadas(legadas);
-                foreach (var legada in legadas)
+                if (empresas.Any(x => x.Id == legada.Id)) continue;
+                empresas.Add(new EmpresaCatalogoResponse
                 {
-                    if (empresas.Any(x => x.Id == legada.Id)) continue;
-                    empresas.Add(new EmpresaCatalogoResponse
-                    {
-                        Id = legada.Id,
-                        Nome = legada.Nome,
-                        Status = "ATIVA"
-                    });
-                }
+                    Id = legada.Id,
+                    Nome = legada.Nome,
+                    Status = "ATIVA"
+                });
             }
             return Ok(empresas);
         }
@@ -1026,7 +1022,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
     private async Task<List<(long Id, string Nome)>> EmpresasAtivas()
     {
-        var empresas = new List<(long, string)>();
+        var empresas = new List<(long Id, string Nome)>();
         string? raw = _configuration.GetConnectionString("CadastroCentral");
         if (!string.IsNullOrWhiteSpace(raw))
         {
@@ -1038,10 +1034,12 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync()) empresas.Add((reader.GetInt64(0), reader.GetString(1)));
 
-                // Empresas antigas podem continuar configuradas no Render sem registro no catálogo.
-                // Só usa esse modo de compatibilidade quando o catálogo não tem nenhuma empresa ativa.
-                if (empresas.Count == 0)
-                    AdicionarEmpresasLegadas(empresas);
+                // Mescla empresas antigas configuradas no Render com o catálogo central.
+                // A Empresa 1 continua disponível após o cadastro de novas empresas.
+                var legadas = new List<(long Id, string Nome)>();
+                AdicionarEmpresasLegadas(legadas);
+                foreach (var legada in legadas)
+                    if (!empresas.Any(x => x.Id == legada.Id)) empresas.Add(legada);
             }
             catch (Exception ex)
             {
