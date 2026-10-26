@@ -58,6 +58,7 @@ public sealed class AdministracaoCadastrosController(
         if (id <= 0 || request.EmpresaId <= 0 || request.TipoNegocio is not ("chat" or "comercial" or "agendamento"))
             return BadRequest(new { mensagem = "Selecione uma empresa e um tipo de negócio válidos." });
 
+        string etapa = "resolvendo o banco operacional da empresa";
         try
         {
             string tenantConnection;
@@ -69,9 +70,17 @@ public sealed class AdministracaoCadastrosController(
 
             await using var tenantDb = new NpgsqlConnection(tenantConnection);
             await tenantDb.OpenAsync();
-            await using var tenantTransaction = await tenantDb.BeginTransactionAsync();
 
+            etapa = "preparando as colunas de usuário do banco operacional";
+            await GarantirEsquemaUsuarioOperacionalAsync(tenantDb);
+
+            etapa = "abrindo o catálogo central";
             await using var db = await BancoChatCentral.Abrir(configuration);
+            etapa = "preparando as colunas de aprovação do catálogo central";
+            await GarantirEsquemaAprovacaoCentralAsync(db);
+
+            etapa = "iniciando as transações de aprovação";
+            await using var tenantTransaction = await tenantDb.BeginTransactionAsync();
             await using var transaction = await db.BeginTransactionAsync();
             Guid authUid;
             string email;
@@ -96,6 +105,7 @@ public sealed class AdministracaoCadastrosController(
                     return Conflict(new { mensagem = "O e-mail da conta autenticada não corresponde ao cadastro." });
             }
 
+            etapa = "incluindo o usuário no banco operacional da empresa";
             const string createTenantUserSql = """
                 INSERT INTO app.usuario
                     (nome,senha_hash,funcao,tipo_negocio,eh_master,aprovado,empresa_id,status_sincronizacao,
@@ -115,6 +125,7 @@ public sealed class AdministracaoCadastrosController(
                 usuarioId = Convert.ToInt64(await createTenantUser.ExecuteScalarAsync());
             }
 
+            etapa = "confirmando o cadastro no Supabase Auth";
             await using (var confirmCmd = new NpgsqlCommand(
                 "UPDATE auth.users SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW() WHERE id=@authUid AND lower(email)=lower(@email)",
                 db, transaction))
@@ -124,6 +135,7 @@ public sealed class AdministracaoCadastrosController(
                 await confirmCmd.ExecuteNonQueryAsync();
             }
 
+            etapa = "vinculando o usuário à empresa no catálogo central";
             const string insertUser = """
                 INSERT INTO chat.usuario_auth (auth_uid,empresa_id,usuario_id,nome,email,tipo_negocio,ativo)
                 VALUES (@authUid,@empresaId,@usuarioId,@nome,@email,@tipoNegocio,TRUE);
@@ -139,6 +151,7 @@ public sealed class AdministracaoCadastrosController(
                 await createUserCmd.ExecuteNonQueryAsync();
             }
 
+            etapa = "marcando a solicitação como aprovada";
             const string approveRequest = """
                 UPDATE chat.solicitacao_cadastro
                 SET status='APROVADO',auth_uid=@authUid,usuario_id=@usuarioId,empresa_id=@empresaId,
@@ -157,6 +170,7 @@ public sealed class AdministracaoCadastrosController(
 
             await transaction.CommitAsync();
             await tenantTransaction.CommitAsync();
+            etapa = "enviando o link para criação de senha";
             bool linkEnviado = await EnviarLinkCriacaoSenhaAsync(httpClientFactory, email);
             string mensagem = linkEnviado
                 ? $"Cadastro de {nome} aprovado. Enviamos o link para criar a senha para {email}."
@@ -169,9 +183,31 @@ public sealed class AdministracaoCadastrosController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Falha ao aprovar cadastro Web {RequestId}.", id);
-            return StatusCode(503, new { mensagem = "Não foi possível aprovar o cadastro. Confira as conexões Supabase e tente atualizar a lista." });
+            string? sqlState = (ex as PostgresException)?.SqlState;
+            logger.LogError(ex, "Falha ao aprovar cadastro Web {RequestId}. Etapa: {Etapa}; SQLSTATE: {SqlState}.", id, etapa, sqlState ?? "indisponível");
+            return StatusCode(503, new { mensagem = $"Não foi possível aprovar o cadastro ao {etapa}. Confira os logs da API e tente novamente." });
         }
+    }
+
+    private static async Task GarantirEsquemaUsuarioOperacionalAsync(NpgsqlConnection db)
+    {
+        const string sql = """
+            ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'comercial';
+            ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS email TEXT NULL;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task GarantirEsquemaAprovacaoCentralAsync(NpgsqlConnection db)
+    {
+        const string sql = """
+            ALTER TABLE chat.usuario_auth ADD COLUMN IF NOT EXISTS email TEXT NULL;
+            ALTER TABLE chat.usuario_auth ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'comercial';
+            ALTER TABLE chat.solicitacao_cadastro ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NULL;
+            """;
+        await using var cmd = new NpgsqlCommand(sql, db);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     [HttpPost("{id:long}/recusar")]
