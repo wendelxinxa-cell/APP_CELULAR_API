@@ -14,7 +14,6 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 {
     private readonly IConfiguration _configuration;
     private readonly MasterSessionStore _sessions;
-    private readonly CatalogoCriptografia _criptografia;
     private readonly IEmpresaDatabaseResolver _resolver;
     private readonly TenantSessionStore _tenantSessions;
     private readonly EmailNotificacaoService _email;
@@ -23,7 +22,6 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     public AdministracaoEmpresasController(
         IConfiguration configuration,
         MasterSessionStore sessions,
-        CatalogoCriptografia criptografia,
         IEmpresaDatabaseResolver resolver,
         TenantSessionStore tenantSessions,
         EmailNotificacaoService email,
@@ -31,7 +29,6 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     {
         _configuration = configuration;
         _sessions = sessions;
-        _criptografia = criptografia;
         _resolver = resolver;
         _tenantSessions = tenantSessions;
         _email = email;
@@ -263,17 +260,12 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             await using var db = await AbrirCatalogo();
             await GarantirTipoEmpresaAsync(db);
-            etapaCadastro = "localizando a conexão operacional compartilhada";
-            string normalized = await ObterConexaoOperacionalCompartilhada(db);
-            byte[] encrypted = _criptografia.Criptografar(normalized);
-
             etapaCadastro = "salvando a empresa no catálogo central";
             await using var cmd = new NpgsqlCommand(
-                "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, conexao_criptografada, status, ativa, criada_por, aprovada_por, aprovada_em, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, @conexao, 'ATIVA', TRUE, @criadaPor, @aprovadaPor, NOW(), @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
+                "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, status, ativa, criada_por, aprovada_por, aprovada_em, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, 'ATIVA', TRUE, @criadaPor, @aprovadaPor, NOW(), @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
                 db);
             cmd.Parameters.AddWithValue("nome", nome);
             cmd.Parameters.AddWithValue("email", emailResponsavel);
-            cmd.Parameters.AddWithValue("conexao", encrypted);
             string masterUsername = _configuration["MasterAdmin:Username"]!.Trim();
             cmd.Parameters.AddWithValue("criadaPor", masterUsername);
             cmd.Parameters.AddWithValue("aprovadaPor", masterUsername);
@@ -322,8 +314,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             string mensagem = etapaCadastro switch
             {
                 "abrindo o catálogo central" => "A API não conseguiu abrir o catálogo central. Confira a configuração CadastroCentral no servidor.",
-                "localizando a conexão operacional compartilhada" => "O catálogo central foi acessado, mas a API não encontrou a conexão do banco operacional compartilhado. Verifique a configuração existente SupabaseEmpresa1 da API.",
-                _ => "Não foi possível salvar a empresa no catálogo central. Confira as migrações 002 e 017 do catálogo."
+                _ => "Não foi possível salvar a empresa no catálogo central. Confira as migrações 002, 017 e 019 do catálogo."
             };
             return StatusCode(503, new { mensagem });
         }
@@ -1191,34 +1182,6 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
             empresas.Add((id, $"Empresa {id}"));
         }
-    }
-
-    private async Task<string> ObterConexaoOperacionalCompartilhada(NpgsqlConnection catalogo)
-    {
-        // O banco operacional é compartilhado por todas as empresas. Primeiro
-        // usamos a conexão já existente no servidor; cadastrar um novo tenant
-        // não pode depender de haver outra empresa ativa no catálogo central.
-        string? conexaoBase = _configuration.GetConnectionString("SupabaseEmpresa1");
-        if (!string.IsNullOrWhiteSpace(conexaoBase))
-            return EmpresaDatabaseResolver.NormalizarConnectionString(conexaoBase);
-
-        string? nome = _configuration["Empresas:1"];
-        string? configurada = string.IsNullOrWhiteSpace(nome)
-            ? null
-            : _configuration.GetConnectionString(nome);
-        if (!string.IsNullOrWhiteSpace(configurada))
-            return EmpresaDatabaseResolver.NormalizarConnectionString(configurada);
-
-        // Reutiliza a conexão criptografada de uma empresa ativa do catálogo, sem
-        // exigir uma variável nova no Render nem abrir uma conexão operacional aqui.
-        await using var cmd = new NpgsqlCommand(
-            "SELECT conexao_criptografada FROM platform.empresa_catalogo WHERE ativa = TRUE AND status = 'ATIVA' AND conexao_criptografada IS NOT NULL ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id LIMIT 1",
-            catalogo);
-        var valor = await cmd.ExecuteScalarAsync();
-        if (valor is byte[] criptografada)
-            return EmpresaDatabaseResolver.NormalizarConnectionString(_criptografia.Descriptografar(criptografada));
-
-        throw new InvalidOperationException("Não há conexão operacional ativa para reutilizar.");
     }
 
     private bool MasterAutorizado() => _sessions.Validar(Request.Headers.Authorization.ToString());
