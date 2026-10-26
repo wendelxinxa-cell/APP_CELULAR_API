@@ -37,7 +37,7 @@ public sealed class AdministracaoCadastrosController(
                     Id = reader.GetInt64(0),
                     Email = reader.GetString(1),
                     Nome = reader.GetString(2),
-                    EmpresaId = reader.IsDBNull(3) ? null : reader.GetInt64(3),
+                    EmpresaId = reader.IsDBNull(3) ? null : Convert.ToInt64(reader.GetValue(3)),
                     CriadaEm = reader.GetDateTime(4),
                     EmailVerificado = !reader.IsDBNull(5)
                 });
@@ -93,10 +93,10 @@ public sealed class AdministracaoCadastrosController(
                 initialRequestCmd.Parameters.AddWithValue("id", id);
                 await using var reader = await initialRequestCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
-                authUidInicial = reader.IsDBNull(0) ? null : reader.GetGuid(0);
+                authUidInicial = reader.IsDBNull(0) ? null : LerGuid(reader.GetValue(0));
                 emailInicial = reader.GetString(1);
                 nomeInicial = reader.GetString(2);
-                empresaOrigemId = reader.GetInt64(3);
+                empresaOrigemId = Convert.ToInt64(reader.GetValue(3));
             }
 
             if (authUidInicial is null)
@@ -127,7 +127,7 @@ public sealed class AdministracaoCadastrosController(
                 await using var reader = await requestCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
                 if (reader.IsDBNull(0)) return Conflict(new { mensagem = "A conta de autenticação ainda não foi associada ao pedido. Reenvie a solicitação pelo formulário e tente novamente." });
-                authUid = reader.GetGuid(0);
+                authUid = LerGuid(reader.GetValue(0));
                 email = reader.GetString(1);
                 nome = reader.GetString(2);
                 if (reader.IsDBNull(3) || !string.Equals(reader.GetString(3), email, StringComparison.OrdinalIgnoreCase))
@@ -227,6 +227,13 @@ public sealed class AdministracaoCadastrosController(
         await using var cmd = new NpgsqlCommand(sql, db);
         await cmd.ExecuteNonQueryAsync();
     }
+
+    private static Guid LerGuid(object value) => value switch
+    {
+        Guid guid => guid,
+        string text when Guid.TryParse(text, out var guid) => guid,
+        _ => Guid.Parse(Convert.ToString(value)!)
+    };
 
     private static async Task GarantirEsquemaAprovacaoCentralAsync(NpgsqlConnection db)
     {
