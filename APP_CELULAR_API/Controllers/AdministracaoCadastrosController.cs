@@ -1,6 +1,7 @@
 using APP_CELULAR_API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using System.Net.Http.Json;
 
 namespace APP_CELULAR_API.Controllers;
 
@@ -51,7 +52,7 @@ public sealed class AdministracaoCadastrosController(
     }
 
     [HttpPost("{id:long}/aprovar")]
-    public async Task<IActionResult> Aprovar(long id, [FromBody] AprovarCadastroPendenteRequest request)
+    public async Task<IActionResult> Aprovar(long id, [FromBody] AprovarCadastroPendenteRequest request, IHttpClientFactory httpClientFactory)
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao Administrador Master." });
         if (id <= 0 || request.EmpresaId <= 0 || request.TipoNegocio is not ("chat" or "comercial" or "agendamento"))
@@ -156,7 +157,11 @@ public sealed class AdministracaoCadastrosController(
 
             await transaction.CommitAsync();
             await tenantTransaction.CommitAsync();
-            return Ok(new { sucesso = true, usuarioId, mensagem = $"Novo cadastro de {nome} aprovado." });
+            bool linkEnviado = await EnviarLinkCriacaoSenhaAsync(httpClientFactory, email);
+            string mensagem = linkEnviado
+                ? $"Cadastro de {nome} aprovado. Enviamos o link para criar a senha para {email}."
+                : $"Cadastro de {nome} aprovado, mas não foi possível enviar o link de senha. Solicite uma redefinição de senha para {email}.";
+            return Ok(new { sucesso = true, usuarioId, emailEnviado = linkEnviado, mensagem });
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
         {
@@ -194,6 +199,28 @@ public sealed class AdministracaoCadastrosController(
     }
 
     private bool MasterAutorizado() => sessions.Validar(Request.Headers.Authorization.ToString());
+
+    private async Task<bool> EnviarLinkCriacaoSenhaAsync(IHttpClientFactory httpClientFactory, string email)
+    {
+        string supabaseUrl = (configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        string publishableKey = configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        string appUrl = (configuration["SupabaseAuth:AppUrl"] ?? "https://catchat-razor-test.onrender.com").TrimEnd('/');
+        string redirectUrl = Uri.EscapeDataString($"{appUrl}/redefinir-senha");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/auth/v1/recover?redirect_to={redirectUrl}");
+        request.Headers.Add("apikey", publishableKey);
+        request.Content = JsonContent.Create(new { email });
+        try
+        {
+            using var response = await httpClientFactory.CreateClient().SendAsync(request);
+            if (response.IsSuccessStatusCode) return true;
+            logger.LogWarning("Supabase não aceitou o envio do link de criação de senha para o cadastro aprovado (HTTP {StatusCode}).", (int)response.StatusCode);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Falha de rede ao enviar link de criação de senha para o cadastro aprovado.");
+        }
+        return false;
+    }
 }
 
 public sealed class CadastroPendenteResponse
