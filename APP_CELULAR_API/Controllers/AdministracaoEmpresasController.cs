@@ -280,6 +280,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             return BadRequest(new { mensagem = "A conexão informada não está em um formato válido." });
         }
 
+        string etapaCadastro = "conectando ao banco Supabase da empresa";
         try
         {
             await using (var test = new NpgsqlConnection(normalized))
@@ -291,8 +292,10 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             }
 
             byte[] encrypted = _criptografia.Criptografar(normalized);
+            etapaCadastro = "abrindo o catálogo central";
             await using var db = await AbrirCatalogo();
             await GarantirTipoEmpresaAsync(db);
+            etapaCadastro = "salvando a empresa no catálogo central";
             await using var cmd = new NpgsqlCommand(
                 "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, conexao_criptografada, status, ativa, criada_por, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, @conexao, 'PENDENTE', FALSE, @criadaPor, @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
                 db);
@@ -337,9 +340,18 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         {
             return Conflict(new { mensagem = "Já existe uma empresa com esse nome." });
         }
-        catch
+        catch (Exception ex)
         {
-            return StatusCode(503, new { mensagem = "Não foi possível cadastrar a empresa. Confira o banco informado e a configuração do catálogo central." });
+            string? sqlState = (ex as PostgresException)?.SqlState;
+            _logger.LogError("Cadastro de empresa falhou ao {Etapa} (tipo {TipoErro}, SQLSTATE {SqlState}).",
+                etapaCadastro, ex.GetType().Name, sqlState ?? "indisponível");
+            string mensagem = etapaCadastro switch
+            {
+                "conectando ao banco Supabase da empresa" => "A API não conseguiu conectar ao banco Supabase da empresa. Confira a conexão do banco e tente novamente.",
+                "abrindo o catálogo central" => "A API não conseguiu abrir o catálogo central. Confira a configuração CadastroCentral no servidor.",
+                _ => "A conexão foi validada, mas não foi possível salvar a empresa no catálogo central. Confira as migrações 002 e 017 do catálogo."
+            };
+            return StatusCode(503, new { mensagem });
         }
     }
 
