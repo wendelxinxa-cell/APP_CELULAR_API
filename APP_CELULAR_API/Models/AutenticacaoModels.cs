@@ -28,5 +28,6 @@ public class LoginApiResponse
     public string Funcao { get; set; } = "USUARIO";
     public string TipoNegocio { get; set; } = "sucata";
     public bool EhMaster { get; set; }
+    public List<string> IconesPermitidos { get; set; } = new();
     public DateTimeOffset ExpiraEm { get; set; }
 }

@@ -446,18 +446,19 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                            COALESCE(u.username,''),COALESCE(u.email,''),
                            EXISTS (SELECT 1 FROM app.dispositivo d WHERE d.empresa_id=u.empresa_id
                                AND (d.usuario_id=u.id OR d.usuario_id_solicitado=u.id)
-                               AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL))
+                               AND (d.solicitado_em IS NOT NULL OR d.usuario_id_solicitado IS NOT NULL)),
+                           COALESCE(u.icones_permitidos,'["chat","pessoas","produtos","vendas","compras","financeiro","outros","usuarios","configuracoes"]')
                     FROM app.usuario u
                     WHERE u.empresa_id=@empresaId AND COALESCE(u.eh_master,FALSE)=FALSE ORDER BY u.nome;
                     """;
                 await using var cmd = new NpgsqlCommand(sql, db);
                 cmd.Parameters.AddWithValue("empresaId", empresa.Id);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, string Username, string Email, bool AparelhoPendente)>();
+                var linhas = new List<(long Id, int? IdLocal, string Nome, string Funcao, bool Aprovado, bool Bloqueado, string TipoNegocio, string Username, string Email, bool AparelhoPendente, string Icones)>();
                 while (await reader.ReadAsync())
                     linhas.Add((reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt32(1),
                         reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetBoolean(9)));
+                        reader.GetBoolean(4), reader.GetBoolean(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetBoolean(9), reader.GetString(10)));
                 await reader.CloseAsync();
 
                 var emails = await ObterEmailsVinculados(empresa.Id, linhas.Select(x => x.Id).ToArray());
@@ -465,7 +466,8 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                     usuarios.Add(new { id = linha.Id, idLocal = linha.IdLocal, empresaId = empresa.Id, empresa = empresa.Nome,
                         nome = linha.Nome, funcao = linha.Funcao, aprovado = linha.Aprovado, bloqueado = linha.Bloqueado,
                         tipoNegocio = linha.TipoNegocio, username = linha.Username, aparelhoPendente = linha.AparelhoPendente,
-                        email = string.IsNullOrWhiteSpace(linha.Email) ? emails.GetValueOrDefault(linha.Id, "") : linha.Email });
+                        email = string.IsNullOrWhiteSpace(linha.Email) ? emails.GetValueOrDefault(linha.Id, "") : linha.Email,
+                        iconesPermitidos = LerIconesPermitidos(linha.Icones) });
             }
             return Ok(usuarios);
         }
@@ -891,9 +893,34 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         return nome is null ? NotFound(new { mensagem = "Usuário não encontrado." }) : Ok(new { sucesso = true, nome, tipoNegocio = request.TipoNegocio });
     }
 
+    [HttpPut("acessos/empresas/{empresaId:long}/usuarios/{id:long}/icones")]
+    public async Task<IActionResult> DefinirIconesUsuario(long empresaId, long id, [FromBody] PermissoesIconesUsuarioRequest request)
+    {
+        if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
+        string[] validos = ["chat", "pessoas", "produtos", "vendas", "compras", "financeiro", "outros", "usuarios", "configuracoes"];
+        var enviados = request.Icones ?? new();
+        var icones = enviados.Where(x => validos.Contains(x, StringComparer.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (icones.Length != enviados.Count) return BadRequest(new { mensagem = "A lista contém um ícone inválido." });
+        await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
+        await db.OpenAsync();
+        await GarantirColunaTipoNegocio(db);
+        await using var cmd = new NpgsqlCommand("UPDATE app.usuario SET icones_permitidos=@icones WHERE id=@id AND empresa_id=@empresaId AND COALESCE(eh_master,FALSE)=FALSE RETURNING nome;", db);
+        cmd.Parameters.AddWithValue("icones", System.Text.Json.JsonSerializer.Serialize(icones));
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("empresaId", empresaId);
+        var nome = await cmd.ExecuteScalarAsync();
+        return nome is null ? NotFound(new { mensagem = "Usuário não encontrado." }) : Ok(new { sucesso = true, nome, iconesPermitidos = icones });
+    }
+
+    private static string[] LerIconesPermitidos(string json)
+    {
+        try { return System.Text.Json.JsonSerializer.Deserialize<string[]>(json) ?? []; }
+        catch (System.Text.Json.JsonException) { return []; }
+    }
+
     private static async Task GarantirColunaTipoNegocio(NpgsqlConnection db)
     {
-        await using var cmd = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata';", db);
+        await using var cmd = new NpgsqlCommand("ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata'; ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS icones_permitidos TEXT NOT NULL DEFAULT '[\"chat\",\"pessoas\",\"produtos\",\"vendas\",\"compras\",\"financeiro\",\"outros\",\"usuarios\",\"configuracoes\"]';", db);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -1201,6 +1228,11 @@ public sealed class UsuarioAcessoRequest
 public sealed class TipoNegocioUsuarioRequest
 {
     public string TipoNegocio { get; set; } = "sucata";
+}
+
+public sealed class PermissoesIconesUsuarioRequest
+{
+    public List<string> Icones { get; set; } = new();
 }
 
 public sealed class BloqueioUsuarioRequest
