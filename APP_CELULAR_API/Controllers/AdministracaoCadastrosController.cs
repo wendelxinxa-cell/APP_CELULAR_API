@@ -240,6 +240,8 @@ public sealed class AdministracaoCadastrosController(
         const string sql = """
             ALTER TABLE chat.usuario_auth ADD COLUMN IF NOT EXISTS email TEXT NULL;
             ALTER TABLE chat.usuario_auth ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'comercial';
+            ALTER TABLE chat.solicitacao_cadastro ADD COLUMN IF NOT EXISTS auth_uid UUID NULL;
+            ALTER TABLE chat.solicitacao_cadastro ADD COLUMN IF NOT EXISTS usuario_id BIGINT NULL;
             ALTER TABLE chat.solicitacao_cadastro ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NULL;
             """;
         await using var cmd = new NpgsqlCommand(sql, db);
