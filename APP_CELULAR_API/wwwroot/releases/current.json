@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 55,
-  "versionCode": 58,
-  "fileName": "CATCHAT_0.0.001_build_55.apk",
-  "sha256": "347E0CFA4EE4874731B029812F31D6C611EA85A080C45C95E8B3522D7BE2C1A0",
-  "notes": "CATCHAT build 55: mantém o acesso de Usuários visível para Zeus, com liberação das permissões de módulos."
+  "build": 56,
+  "versionCode": 59,
+  "fileName": "CATCHAT_0.0.001_build_56.apk",
+  "sha256": "D401CCA1D492BEB33E32FEC2D39A539620E89F0EE0DF7F551B89689515FA0F65",
+  "notes": "CATCHAT build 56: corrige o tratamento de respostas da API ao alterar usuários."
 }
