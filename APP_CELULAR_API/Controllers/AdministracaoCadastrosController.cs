@@ -79,6 +79,35 @@ public sealed class AdministracaoCadastrosController(
             etapa = "preparando as colunas de aprovação do catálogo central";
             await GarantirEsquemaAprovacaoCentralAsync(db);
 
+            etapa = "verificando o vínculo do pedido com o Supabase Auth";
+            Guid? authUidInicial;
+            string emailInicial;
+            string nomeInicial;
+            long empresaOrigemId;
+            await using (var initialRequestCmd = new NpgsqlCommand("""
+                SELECT auth_uid,email,nome,empresa_id
+                FROM chat.solicitacao_cadastro
+                WHERE id=@id AND status='PENDENTE';
+                """, db))
+            {
+                initialRequestCmd.Parameters.AddWithValue("id", id);
+                await using var reader = await initialRequestCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
+                authUidInicial = reader.IsDBNull(0) ? null : reader.GetGuid(0);
+                emailInicial = reader.GetString(1);
+                nomeInicial = reader.GetString(2);
+                empresaOrigemId = reader.GetInt64(3);
+            }
+
+            if (authUidInicial is null)
+            {
+                etapa = "reparando o vínculo com a conta do Supabase Auth";
+                string? erroVinculo = await GarantirContaAutenticacaoVinculadaAsync(
+                    httpClientFactory, emailInicial, nomeInicial, empresaOrigemId);
+                if (erroVinculo is not null)
+                    return Conflict(new { mensagem = $"O pedido ainda não está vinculado à conta de autenticação. {erroVinculo}" });
+            }
+
             etapa = "iniciando as transações de aprovação";
             await using var tenantTransaction = await tenantDb.BeginTransactionAsync();
             await using var transaction = await db.BeginTransactionAsync();
@@ -97,7 +126,7 @@ public sealed class AdministracaoCadastrosController(
                 requestCmd.Parameters.AddWithValue("id", id);
                 await using var reader = await requestCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
-                if (reader.IsDBNull(0)) return Conflict(new { mensagem = "O cadastro ainda não está vinculado à conta de autenticação." });
+                if (reader.IsDBNull(0)) return Conflict(new { mensagem = "A conta de autenticação ainda não foi associada ao pedido. Reenvie a solicitação pelo formulário e tente novamente." });
                 authUid = reader.GetGuid(0);
                 email = reader.GetString(1);
                 nome = reader.GetString(2);
@@ -208,6 +237,36 @@ public sealed class AdministracaoCadastrosController(
             """;
         await using var cmd = new NpgsqlCommand(sql, db);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task<string?> GarantirContaAutenticacaoVinculadaAsync(
+        IHttpClientFactory httpClientFactory, string email, string nome, long empresaOrigemId)
+    {
+        string supabaseUrl = (configuration["SupabaseAuth:Url"] ?? "https://zuqwlupzxfjqswfseuat.supabase.co").TrimEnd('/');
+        string publishableKey = configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/functions/v1/master-user-invite");
+        request.Headers.TryAddWithoutValidation("apikey", publishableKey);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", publishableKey);
+        request.Content = JsonContent.Create(new { action = "requestSignup", email, nome, empresaId = empresaOrigemId });
+        try
+        {
+            using var response = await httpClientFactory.CreateClient().SendAsync(request);
+            string content = await response.Content.ReadAsStringAsync();
+            using var document = System.Text.Json.JsonDocument.Parse(content);
+            var root = document.RootElement;
+            bool ok = response.IsSuccessStatusCode && root.TryGetProperty("ok", out var okElement) && okElement.ValueKind == System.Text.Json.JsonValueKind.True;
+            if (ok) return null;
+            string? message = root.TryGetProperty("message", out var messageElement) ? messageElement.GetString() : null;
+            logger.LogWarning("Não foi possível reparar o vínculo Auth do pedido para {Email}. HTTP {StatusCode}.", email, (int)response.StatusCode);
+            return string.IsNullOrWhiteSpace(message)
+                ? "Não foi possível criar ou localizar a conta de ativação. Reenvie o cadastro pelo formulário."
+                : message;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException)
+        {
+            logger.LogWarning(ex, "Falha ao reparar o vínculo Auth do pedido para {Email}.", email);
+            return "Não foi possível acessar a função de cadastro do Supabase. Tente novamente em instantes.";
+        }
     }
 
     [HttpPost("{id:long}/recusar")]
