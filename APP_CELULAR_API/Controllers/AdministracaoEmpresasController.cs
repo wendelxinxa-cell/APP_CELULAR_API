@@ -320,7 +320,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             string mensagem = etapaCadastro switch
             {
                 "abrindo o catálogo central" => "A API não conseguiu abrir o catálogo central. Confira a configuração CadastroCentral no servidor.",
-                "localizando a conexão operacional compartilhada" => "O catálogo central foi acessado, mas não foi encontrada uma conexão operacional para reutilizar. Verifique se há uma empresa ativa no catálogo.",
+                "localizando a conexão operacional compartilhada" => "O catálogo central foi acessado, mas a API não encontrou a conexão do banco operacional compartilhado. Verifique a configuração existente SupabaseEmpresa1 da API.",
                 _ => "Não foi possível salvar a empresa no catálogo central. Confira as migrações 002 e 017 do catálogo."
             };
             return StatusCode(503, new { mensagem });
@@ -1193,6 +1193,13 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
     private async Task<string> ObterConexaoOperacionalCompartilhada(NpgsqlConnection catalogo)
     {
+        // O banco operacional é compartilhado por todas as empresas. Primeiro
+        // usamos a conexão já existente no servidor; cadastrar um novo tenant
+        // não pode depender de haver outra empresa ativa no catálogo central.
+        string? conexaoBase = _configuration.GetConnectionString("SupabaseEmpresa1");
+        if (!string.IsNullOrWhiteSpace(conexaoBase))
+            return EmpresaDatabaseResolver.NormalizarConnectionString(conexaoBase);
+
         string? nome = _configuration["Empresas:1"];
         string? configurada = string.IsNullOrWhiteSpace(nome)
             ? null
