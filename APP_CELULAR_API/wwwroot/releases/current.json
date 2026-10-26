@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 58,
-  "versionCode": 61,
-  "fileName": "CATCHAT_0.0.001_build_58.apk",
-  "sha256": "F9363B3513AB617BCD2B2A44350B0E4289008147D2CA32DA0CFCCFD9297AFAE2",
-  "notes": "CATCHAT build 58: cadastro automático de empresas com novo código e ativação; mantém os nichos comercial, chat e agendamento."
+  "build": 59,
+  "versionCode": 62,
+  "fileName": "CATCHAT_0.0.001_build_59.apk",
+  "sha256": "B9A5AEE71C1511D5D3E557B2D3424C96A2E58F304207A063157388C03FD2A1E9",
+  "notes": "CATCHAT build 59: cadastros centrais pendentes aparecem nas aprovações do APK; Zeus pode selecionar empresa para pré-visualizar o leiaute."
 }
