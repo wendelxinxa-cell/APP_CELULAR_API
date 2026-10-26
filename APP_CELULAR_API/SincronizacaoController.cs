@@ -1,4 +1,4 @@
-﻿using APP_CELULAR_API.Models;
+using APP_CELULAR_API.Models;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using APP_CELULAR_API.Services;
@@ -1582,7 +1582,7 @@ public class SincronizacaoController : ControllerBase
             cmd.Parameters.AddWithValue("nome", item.Nome);
             cmd.Parameters.AddWithValue("senhaHash", item.SenhaHash);
             cmd.Parameters.AddWithValue("funcao", item.Funcao);
-            cmd.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio == "chat" ? "chat" : "sucata");
+            cmd.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio is "chat" or "agendamento" ? item.TipoNegocio : "sucata");
             cmd.Parameters.AddWithValue("ehMaster", item.EhMaster);
             cmd.Parameters.AddWithValue("dataAlteracao", item.DataAlteracao);
             cmd.Parameters.AddWithValue("excluido", item.Excluido);
@@ -1635,7 +1635,7 @@ public class SincronizacaoController : ControllerBase
         cmdInsert.Parameters.AddWithValue("nome", item.Nome);
         cmdInsert.Parameters.AddWithValue("senhaHash", item.SenhaHash);
         cmdInsert.Parameters.AddWithValue("funcao", item.Funcao);
-        cmdInsert.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio == "chat" ? "chat" : "sucata");
+        cmdInsert.Parameters.AddWithValue("tipoNegocio", item.TipoNegocio is "chat" or "agendamento" ? item.TipoNegocio : "sucata");
         cmdInsert.Parameters.AddWithValue("ehMaster", item.EhMaster);
         cmdInsert.Parameters.AddWithValue("empresaId", empresaId);
         cmdInsert.Parameters.AddWithValue("dataCadastro", item.DataCadastro);

@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 56,
-  "versionCode": 59,
-  "fileName": "CATCHAT_0.0.001_build_56.apk",
-  "sha256": "D401CCA1D492BEB33E32FEC2D39A539620E89F0EE0DF7F551B89689515FA0F65",
-  "notes": "CATCHAT build 56: corrige o tratamento de respostas da API ao alterar usuários."
+  "build": 57,
+  "versionCode": 60,
+  "fileName": "CATCHAT_0.0.001_build_57.apk",
+  "sha256": "992E99C08A79644280B9C7BD9E0A963AF1D54D684C6021074324AB5B48945EE6",
+  "notes": "CATCHAT build 57: adiciona o tipo de negócio Agendamento, com agenda para barbearias, manicure/esmalterias e petshops."
 }

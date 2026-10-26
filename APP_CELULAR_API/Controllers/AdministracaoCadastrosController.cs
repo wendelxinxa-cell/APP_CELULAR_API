@@ -54,7 +54,7 @@ public sealed class AdministracaoCadastrosController(
     public async Task<IActionResult> Aprovar(long id, [FromBody] AprovarCadastroPendenteRequest request)
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao Administrador Master." });
-        if (id <= 0 || request.EmpresaId <= 0 || request.TipoNegocio is not ("chat" or "comercial"))
+        if (id <= 0 || request.EmpresaId <= 0 || request.TipoNegocio is not ("chat" or "comercial" or "agendamento"))
             return BadRequest(new { mensagem = "Selecione uma empresa e um tipo de negócio válidos." });
 
         try

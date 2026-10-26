@@ -27,6 +27,7 @@ public class LoginApiResponse
     public long DispositivoId { get; set; }
     public string Funcao { get; set; } = "USUARIO";
     public string TipoNegocio { get; set; } = "sucata";
+    public string? NichoAgendamento { get; set; }
     public bool EhMaster { get; set; }
     public List<string> IconesPermitidos { get; set; } = new();
     public DateTimeOffset ExpiraEm { get; set; }

@@ -86,7 +86,7 @@ public class AutenticacaoController : ControllerBase
             await using var db = new NpgsqlConnection(connectionString);
             await db.OpenAsync();
             await GarantirColunaTipoNegocio(db);
-            const string sql = "SELECT id, COALESCE(eh_master,FALSE), upper(trim(COALESCE(funcao,''))), COALESCE(aprovado,TRUE), COALESCE(excluido,FALSE), COALESCE(bloqueado_por_master,FALSE), COALESCE(tipo_negocio,'sucata'), trim(nome), COALESCE(icones_permitidos,'[\"chat\",\"pessoas\",\"produtos\",\"vendas\",\"compras\",\"financeiro\",\"outros\",\"usuarios\",\"configuracoes\"]') FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId LIMIT 1;";
+            const string sql = "SELECT id, COALESCE(eh_master,FALSE), upper(trim(COALESCE(funcao,''))), COALESCE(aprovado,TRUE), COALESCE(excluido,FALSE), COALESCE(bloqueado_por_master,FALSE), COALESCE(tipo_negocio,'sucata'), trim(nome), COALESCE(icones_permitidos,'[\"chat\",\"agenda\",\"pessoas\",\"produtos\",\"vendas\",\"compras\",\"financeiro\",\"outros\",\"usuarios\",\"configuracoes\"]') FROM app.usuario WHERE empresa_id=@empresaId AND id=@usuarioId LIMIT 1;";
             await using var cmd = new NpgsqlCommand(sql, db);
             cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
             cmd.Parameters.AddWithValue("usuarioId", usuarioId);
@@ -102,13 +102,15 @@ public class AutenticacaoController : ControllerBase
             string nome = reader.GetString(7);
             var iconesPermitidos = LerIcones(reader.GetString(8));
             await reader.CloseAsync();
+            var configuracaoEmpresa = await ObterConfiguracaoEmpresaAsync(request.EmpresaId, tipoNegocio);
+            tipoNegocio = configuracaoEmpresa.TipoNegocio;
             if (excluido || bloqueado) return StatusCode(403, new { codigo = "USUARIO_BLOQUEADO", mensagem = "Este usuário está bloqueado. Solicite liberação a Zeus." });
             if (!aprovado) return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Este usuário aguarda aprovação da empresa." });
 
             var (dispositivoId, dispositivoAtivo) = await ObterOuSolicitarDispositivo(db, request.EmpresaId, legacyId, request.ChaveInstalacao, request.NomeDispositivo);
             if (!dispositivoAtivo) return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação de Zeus." });
             var (token, session) = _sessions.Create(request.EmpresaId, legacyId, ehMaster || funcao == "ADMINISTRADOR", dispositivoId);
-            return Ok(new LoginApiResponse { Nome = nome, Token = token, EmpresaId = session.EmpresaId, UsuarioId = session.UsuarioId, DispositivoId = session.DispositivoId, Funcao = funcao, TipoNegocio = tipoNegocio == "chat" ? "chat" : "sucata", EhMaster = ehMaster, IconesPermitidos = iconesPermitidos, ExpiraEm = session.ExpiresAt });
+            return Ok(new LoginApiResponse { Nome = nome, Token = token, EmpresaId = session.EmpresaId, UsuarioId = session.UsuarioId, DispositivoId = session.DispositivoId, Funcao = funcao, TipoNegocio = tipoNegocio, NichoAgendamento = configuracaoEmpresa.NichoAgendamento, EhMaster = ehMaster, IconesPermitidos = iconesPermitidos, ExpiraEm = session.ExpiresAt });
         }
         catch (Exception ex)
         {
@@ -146,7 +148,7 @@ public class AutenticacaoController : ControllerBase
         const string sql = """
             SELECT id, senha_hash, COALESCE(eh_master, FALSE), upper(trim(COALESCE(funcao, ''))),
                    COALESCE(aprovado, TRUE), COALESCE(excluido, FALSE), COALESCE(bloqueado_por_master, FALSE),
-                   COALESCE(tipo_negocio, 'sucata'), COALESCE(icones_permitidos,'["chat","pessoas","produtos","vendas","compras","financeiro","outros","usuarios","configuracoes"]')
+                   COALESCE(tipo_negocio, 'sucata'), COALESCE(icones_permitidos,'["chat","agenda","pessoas","produtos","vendas","compras","financeiro","outros","usuarios","configuracoes"]')
             FROM app.usuario
             WHERE empresa_id = @empresaId
               AND lower(trim(nome)) = lower(trim(@nome))
@@ -170,6 +172,8 @@ public class AutenticacaoController : ControllerBase
         string tipoNegocio = reader.GetString(7);
         var iconesPermitidos = LerIcones(reader.GetString(8));
         await reader.CloseAsync();
+        var configuracaoEmpresa = await ObterConfiguracaoEmpresaAsync(request.EmpresaId, tipoNegocio);
+        tipoNegocio = configuracaoEmpresa.TipoNegocio;
         byte[] senhaCadastrada = Encoding.UTF8.GetBytes(senhaHashCadastrada.Trim().ToUpperInvariant());
         byte[] senhaInformada = Encoding.UTF8.GetBytes(request.SenhaHash.Trim().ToUpperInvariant());
         if (!CryptographicOperations.FixedTimeEquals(senhaCadastrada, senhaInformada))
@@ -193,16 +197,46 @@ public class AutenticacaoController : ControllerBase
             UsuarioId = session.UsuarioId,
             DispositivoId = session.DispositivoId,
             Funcao = funcao,
-            TipoNegocio = tipoNegocio == "chat" ? "chat" : "sucata",
+            TipoNegocio = tipoNegocio,
+            NichoAgendamento = configuracaoEmpresa.NichoAgendamento,
             EhMaster = ehMaster,
             IconesPermitidos = iconesPermitidos,
             ExpiraEm = session.ExpiresAt
         });
     }
 
+    private async Task<(string TipoNegocio, string? NichoAgendamento)> ObterConfiguracaoEmpresaAsync(long empresaId, string fallback)
+    {
+        string connectionString = _configuration.GetConnectionString("CadastroCentral") ?? "";
+        if (string.IsNullOrWhiteSpace(connectionString)) return (NormalizarTipoNegocio(fallback), null);
+        try
+        {
+            await using var central = new NpgsqlConnection(EmpresaDatabaseResolver.NormalizarConnectionString(connectionString));
+            await central.OpenAsync();
+            await using var cmd = new NpgsqlCommand("SELECT tipo_negocio,nicho_agendamento FROM platform.empresa_catalogo WHERE id=@empresa AND ativa=TRUE AND status='ATIVA'", central);
+            cmd.Parameters.AddWithValue("empresa", empresaId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return (NormalizarTipoNegocio(fallback), null);
+            string tipo = reader.IsDBNull(0) ? "comercial" : reader.GetString(0);
+            string? nicho = reader.IsDBNull(1) ? null : reader.GetString(1);
+            return (tipo is "chat" or "agendamento" ? tipo : NormalizarTipoNegocio(fallback), tipo == "agendamento" ? nicho : null);
+        }
+        catch
+        {
+            return (NormalizarTipoNegocio(fallback), null);
+        }
+    }
+
+    private static string NormalizarTipoNegocio(string valor) => valor switch
+    {
+        "chat" => "chat",
+        "agendamento" => "agendamento",
+        _ => "sucata"
+    };
+
     private static async Task GarantirColunaTipoNegocio(NpgsqlConnection db)
     {
-        const string sql = "ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata'; ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS icones_permitidos TEXT NOT NULL DEFAULT '[\"chat\",\"pessoas\",\"produtos\",\"vendas\",\"compras\",\"financeiro\",\"outros\",\"usuarios\",\"configuracoes\"]';";
+        const string sql = "ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'sucata'; ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS icones_permitidos TEXT NOT NULL DEFAULT '[\"chat\",\"agenda\",\"pessoas\",\"produtos\",\"vendas\",\"compras\",\"financeiro\",\"outros\",\"usuarios\",\"configuracoes\"]';";
         await using var command = new NpgsqlCommand(sql, db);
         await command.ExecuteNonQueryAsync();
     }
