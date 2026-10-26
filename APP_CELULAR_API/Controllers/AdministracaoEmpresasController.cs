@@ -269,12 +269,14 @@ public sealed class AdministracaoEmpresasController : ControllerBase
 
             etapaCadastro = "salvando a empresa no catálogo central";
             await using var cmd = new NpgsqlCommand(
-                "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, conexao_criptografada, status, ativa, criada_por, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, @conexao, 'PENDENTE', FALSE, @criadaPor, @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
+                "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, conexao_criptografada, status, ativa, criada_por, aprovada_por, aprovada_em, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, @conexao, 'ATIVA', TRUE, @criadaPor, @aprovadaPor, NOW(), @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
                 db);
             cmd.Parameters.AddWithValue("nome", nome);
             cmd.Parameters.AddWithValue("email", emailResponsavel);
             cmd.Parameters.AddWithValue("conexao", encrypted);
-            cmd.Parameters.AddWithValue("criadaPor", _configuration["MasterAdmin:Username"]!.Trim());
+            string masterUsername = _configuration["MasterAdmin:Username"]!.Trim();
+            cmd.Parameters.AddWithValue("criadaPor", masterUsername);
+            cmd.Parameters.AddWithValue("aprovadaPor", masterUsername);
             cmd.Parameters.AddWithValue("tipoNegocio", tipoNegocio);
             cmd.Parameters.AddWithValue("nichoAgendamento", (object?)nichoAgendamento ?? DBNull.Value);
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -289,8 +291,8 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             {
                 try
                 {
-                    await _email.Enviar(emailMaster!, "Aprovação de nova empresa pendente",
-                        $"Uma empresa foi cadastrada e aguarda sua aprovação.\n\nEmpresa: {nome}\nCódigo: {id}\nResponsável: {emailResponsavel}\n\nAbra o aplicativo como Administrador Master para aprovar ou manter pendente.");
+                    await _email.Enviar(emailMaster!, "Nova empresa cadastrada e ativa",
+                        $"A empresa foi cadastrada e ativada automaticamente.\n\nEmpresa: {nome}\nCódigo: {id}\nResponsável: {emailResponsavel}");
                 }
                 catch
                 {
@@ -304,7 +306,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 EmailResponsavel = emailResponsavel,
                 TipoNegocio = tipoNegocio,
                 NichoAgendamento = nichoAgendamento,
-                Status = "PENDENTE",
+                Status = "ATIVA",
                 CriadaEm = criadaEm
             });
         }
