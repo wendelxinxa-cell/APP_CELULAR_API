@@ -10,7 +10,6 @@ public sealed class CadastroEmpresaRequest
 {
     public string Nome { get; set; } = "";
     public string EmailResponsavel { get; set; } = "";
-    public string ConnectionString { get; set; } = "";
     public string TipoNegocio { get; set; } = "comercial";
     public string? NichoAgendamento { get; set; }
 }

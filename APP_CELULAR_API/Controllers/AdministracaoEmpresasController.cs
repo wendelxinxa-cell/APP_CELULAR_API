@@ -243,7 +243,6 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao Administrador Master." });
         string nome = request.Nome?.Trim() ?? "";
         string emailResponsavel = request.EmailResponsavel?.Trim() ?? "";
-        string connectionString = request.ConnectionString?.Trim() ?? "";
         string tipoNegocio = (request.TipoNegocio ?? "").Trim().ToLowerInvariant();
         string? nichoAgendamento = string.IsNullOrWhiteSpace(request.NichoAgendamento)
             ? null : request.NichoAgendamento.Trim().ToLowerInvariant();
@@ -252,49 +251,22 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         if (tipoNegocio == "agendamento" && nichoAgendamento is not ("barbearia" or "manicure" or "petshop" or "todos"))
             return BadRequest(new { mensagem = "Selecione o nicho de agendamento: barbearia, manicure, petshop ou todos." });
         if (tipoNegocio != "agendamento") nichoAgendamento = null;
-        string? bancoUnicoConfigurado = ObterConnectionBancoUnico();
-        if (!string.IsNullOrWhiteSpace(bancoUnicoConfigurado))
-            connectionString = bancoUnicoConfigurado;
         if (nome.Length is < 2 or > 120)
             return BadRequest(new { mensagem = "O nome da empresa deve ter entre 2 e 120 caracteres." });
-        if (connectionString.Length is < 20 or > 2048)
-            return BadRequest(new { mensagem = "Informe a conexão Supabase da empresa." });
         if (!MailAddress.TryCreate(emailResponsavel, out _))
             return BadRequest(new { mensagem = "Informe um e-mail válido do responsável pela empresa." });
         string? emailMaster = _configuration["MasterAdmin:Email"];
         bool emailMasterValido = MailAddress.TryCreate(emailMaster, out _);
 
-        string normalized;
+        string etapaCadastro = "abrindo o catálogo central";
         try
         {
-            normalized = EmpresaDatabaseResolver.NormalizarConnectionString(connectionString);
-            var parsed = new NpgsqlConnectionStringBuilder(normalized);
-            string? host = parsed.Host;
-            if (string.IsNullOrWhiteSpace(host) ||
-                (!host.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) &&
-                 !host.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase)))
-                return BadRequest(new { mensagem = "Por segurança, o banco precisa estar hospedado no Supabase." });
-        }
-        catch
-        {
-            return BadRequest(new { mensagem = "A conexão informada não está em um formato válido." });
-        }
-
-        string etapaCadastro = "conectando ao banco Supabase da empresa";
-        try
-        {
-            await using (var test = new NpgsqlConnection(normalized))
-            {
-                await test.OpenAsync();
-                await using var check = new NpgsqlCommand("SELECT to_regclass('app.usuario') IS NOT NULL", test);
-                if (await check.ExecuteScalarAsync() is not true)
-                    return BadRequest(new { mensagem = "O banco conectado não possui o esquema do aplicativo (app.usuario). Prepare o banco da empresa antes do cadastro." });
-            }
-
-            byte[] encrypted = _criptografia.Criptografar(normalized);
-            etapaCadastro = "abrindo o catálogo central";
             await using var db = await AbrirCatalogo();
             await GarantirTipoEmpresaAsync(db);
+            etapaCadastro = "localizando a conexão operacional compartilhada";
+            string normalized = await ObterConexaoOperacionalCompartilhada(db);
+            byte[] encrypted = _criptografia.Criptografar(normalized);
+
             etapaCadastro = "salvando a empresa no catálogo central";
             await using var cmd = new NpgsqlCommand(
                 "INSERT INTO platform.empresa_catalogo (nome, email_responsavel, conexao_criptografada, status, ativa, criada_por, tipo_negocio, nicho_agendamento) VALUES (@nome, @email, @conexao, 'PENDENTE', FALSE, @criadaPor, @tipoNegocio, @nichoAgendamento) RETURNING id, criada_em",
@@ -347,9 +319,9 @@ public sealed class AdministracaoEmpresasController : ControllerBase
                 etapaCadastro, ex.GetType().Name, sqlState ?? "indisponível");
             string mensagem = etapaCadastro switch
             {
-                "conectando ao banco Supabase da empresa" => "A API não conseguiu conectar ao banco Supabase da empresa. Confira a conexão do banco e tente novamente.",
                 "abrindo o catálogo central" => "A API não conseguiu abrir o catálogo central. Confira a configuração CadastroCentral no servidor.",
-                _ => "A conexão foi validada, mas não foi possível salvar a empresa no catálogo central. Confira as migrações 002 e 017 do catálogo."
+                "localizando a conexão operacional compartilhada" => "O catálogo central foi acessado, mas não foi encontrada uma conexão operacional para reutilizar. Verifique se há uma empresa ativa no catálogo.",
+                _ => "Não foi possível salvar a empresa no catálogo central. Confira as migrações 002 e 017 do catálogo."
             };
             return StatusCode(503, new { mensagem });
         }
@@ -1219,12 +1191,25 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         }
     }
 
-    private string? ObterConnectionBancoUnico()
+    private async Task<string> ObterConexaoOperacionalCompartilhada(NpgsqlConnection catalogo)
     {
         string? nome = _configuration["Empresas:1"];
-        if (string.IsNullOrWhiteSpace(nome)) return null;
-        string? valor = _configuration.GetConnectionString(nome);
-        return string.IsNullOrWhiteSpace(valor) ? null : EmpresaDatabaseResolver.NormalizarConnectionString(valor);
+        string? configurada = string.IsNullOrWhiteSpace(nome)
+            ? null
+            : _configuration.GetConnectionString(nome);
+        if (!string.IsNullOrWhiteSpace(configurada))
+            return EmpresaDatabaseResolver.NormalizarConnectionString(configurada);
+
+        // Reutiliza a conexão criptografada de uma empresa ativa do catálogo, sem
+        // exigir uma variável nova no Render nem abrir uma conexão operacional aqui.
+        await using var cmd = new NpgsqlCommand(
+            "SELECT conexao_criptografada FROM platform.empresa_catalogo WHERE ativa = TRUE AND status = 'ATIVA' AND conexao_criptografada IS NOT NULL ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id LIMIT 1",
+            catalogo);
+        var valor = await cmd.ExecuteScalarAsync();
+        if (valor is byte[] criptografada)
+            return EmpresaDatabaseResolver.NormalizarConnectionString(_criptografia.Descriptografar(criptografada));
+
+        throw new InvalidOperationException("Não há conexão operacional ativa para reutilizar.");
     }
 
     private bool MasterAutorizado() => _sessions.Validar(Request.Headers.Authorization.ToString());
