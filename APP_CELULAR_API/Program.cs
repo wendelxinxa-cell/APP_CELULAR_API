@@ -16,6 +16,7 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<SupabaseLoginService>();
 builder.Services.AddCors(options => options.AddPolicy("catchat-razor", policy =>
     policy.WithOrigins("https://catchat-razor-test.onrender.com", "http://localhost:5252", "https://localhost:5252")
         .AllowAnyHeader().AllowAnyMethod()));
