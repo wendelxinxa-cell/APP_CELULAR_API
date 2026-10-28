@@ -266,9 +266,9 @@ public sealed class AdministracaoCadastrosController(
             if ((bool)(await exists.ExecuteScalarAsync() ?? false)) return;
         }
 
-        var columns = new List<(string Name, bool Required)>();
+        var columns = new List<(string Name, string DataType)>();
         await using (var metadata = new NpgsqlCommand("""
-            SELECT a.attname, (a.attnotnull AND a.attgenerated='') AS required
+            SELECT a.attname, pg_catalog.format_type(a.atttypid,a.atttypmod)
             FROM pg_attribute a JOIN pg_class t ON t.oid=a.attrelid
             JOIN pg_namespace n ON n.oid=t.relnamespace
             WHERE n.nspname=@schema AND t.relname=@table AND a.attnum>0 AND NOT a.attisdropped
@@ -278,17 +278,21 @@ public sealed class AdministracaoCadastrosController(
         {
             metadata.Parameters.AddWithValue("schema", schema); metadata.Parameters.AddWithValue("table", tabela);
             await using var reader = await metadata.ExecuteReaderAsync();
-            while (await reader.ReadAsync()) columns.Add((reader.GetString(0), reader.GetBoolean(1)));
+            while (await reader.ReadAsync()) columns.Add((reader.GetString(0), reader.GetString(1)));
         }
         var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { [chave] = empresaId };
-        foreach (var (column, _) in columns)
+        foreach (var (column, dataType) in columns)
         {
-            if (column.Equals("nome", StringComparison.OrdinalIgnoreCase) || column.Equals("name", StringComparison.OrdinalIgnoreCase)) values[column] = nome;
+            if (column.Equals("nome", StringComparison.OrdinalIgnoreCase) || column.Equals("name", StringComparison.OrdinalIgnoreCase) || column.Equals("razao_social", StringComparison.OrdinalIgnoreCase)) values[column] = nome;
             else if (column.Equals("email", StringComparison.OrdinalIgnoreCase) || column.Equals("email_responsavel", StringComparison.OrdinalIgnoreCase)) values[column] = emailResponsavel;
             else if (column.Equals("ativa", StringComparison.OrdinalIgnoreCase) || column.Equals("ativo", StringComparison.OrdinalIgnoreCase)) values[column] = true;
             else if (column.Equals("status", StringComparison.OrdinalIgnoreCase)) values[column] = "ATIVA";
             else if (column.Equals("tipo_negocio", StringComparison.OrdinalIgnoreCase)) values[column] = tipoNegocio;
-            else if (column.Equals("criada_em", StringComparison.OrdinalIgnoreCase) || column.Equals("created_at", StringComparison.OrdinalIgnoreCase)) values[column] = DateTime.UtcNow;
+            else if (dataType.Contains("timestamp", StringComparison.OrdinalIgnoreCase) || dataType.Equals("date", StringComparison.OrdinalIgnoreCase))
+                values[column] = dataType.Contains("with time zone", StringComparison.OrdinalIgnoreCase)
+                    ? DateTime.UtcNow
+                    : DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            else if (column.Equals("criada_em", StringComparison.OrdinalIgnoreCase) || column.Equals("created_at", StringComparison.OrdinalIgnoreCase) || column.Equals("data_cadastro", StringComparison.OrdinalIgnoreCase) || column.Equals("data_alteracao", StringComparison.OrdinalIgnoreCase) || column.Equals("atualizado_em", StringComparison.OrdinalIgnoreCase)) values[column] = DateTime.UtcNow;
             else if (column.Equals("id", StringComparison.OrdinalIgnoreCase)) values[column] = empresaId;
             else if (!values.ContainsKey(column))
                 throw new InvalidOperationException($"A tabela {schema}.{tabela} exige o campo '{column}' para sincronizar a empresa. Configure esse campo na API antes de aprovar usuários.");
