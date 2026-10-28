@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 68,
-  "versionCode": 71,
-  "fileName": "CATCHAT_0.0.001_build_68.apk",
-  "sha256": "22B2BD609DFB013F9B9C8459D9D04A31255DCD8B7203E9E93DD37A1BFA1D589D",
-  "notes": "CATCHAT build 68 de teste: painel mobile de ações rápidas para agendamento."
+  "build": 69,
+  "versionCode": 72,
+  "fileName": "CATCHAT_0.0.001_build_69.apk",
+  "sha256": "10283166BEF7374878D8D7F1A46A55F831A494DDDB0B7BEEE06CF6354F3001CF",
+  "notes": "CATCHAT build 69: correção do acesso Zeus à agenda na empresa selecionada."
 }
