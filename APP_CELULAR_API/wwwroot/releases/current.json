@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 66,
-  "versionCode": 69,
-  "fileName": "CATCHAT_0.0.001_build_66.apk",
-  "sha256": "10AF3B6441C9CF2526808089C382E4B9C451A0F18CF2EE67189F36392B6EFB6F",
-  "notes": "CATCHAT build 66: habilita ativação e login biométrico de Zeus com sessão master renovada."
+  "build": 67,
+  "versionCode": 70,
+  "fileName": "CATCHAT_0.0.001_build_67.apk",
+  "sha256": "1E544090A16759AF457089776754941395E30AE2C6AD1ECC8F77795A9F03EF3B",
+  "notes": "CATCHAT build 67 de teste: pacote Android atualizado para a API Render de testes."
 }
