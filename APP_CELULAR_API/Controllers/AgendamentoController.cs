@@ -7,7 +7,10 @@ namespace APP_CELULAR_API.Controllers;
 
 [ApiController]
 [Route("api/agendamento")]
-public sealed class AgendamentoController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions) : ControllerBase
+public sealed class AgendamentoController(
+    IEmpresaDatabaseResolver resolver,
+    TenantSessionStore sessions,
+    MasterSessionStore masterSessions) : ControllerBase
 {
     private static readonly string[] Nichos = ["barbearia", "manicure", "petshop"];
     private static readonly string[] Status = ["confirmado", "pendente", "em_atendimento", "concluido", "cancelado"];
@@ -226,11 +229,27 @@ public sealed class AgendamentoController(IEmpresaDatabaseResolver resolver, Ten
 
     private async Task<(long EmpresaId, NpgsqlConnection? Db, IActionResult? Erro)> AbrirTenant()
     {
-        long empresaId = 0;
+        var authorization = Request.Headers.Authorization.ToString();
+        long empresaId;
         NpgsqlConnection? db = null;
-        if (!sessions.TryGet(Request.Headers.Authorization.ToString(), out var session))
+        if (sessions.TryGet(authorization, out var session))
+        {
+            empresaId = session.EmpresaId;
+            var empresaSolicitada = Request.Headers["X-Empresa-Id"].ToString();
+            if (!string.IsNullOrWhiteSpace(empresaSolicitada) &&
+                (!long.TryParse(empresaSolicitada, out var empresaInformada) || empresaInformada != empresaId))
+                return (0, null, Forbid());
+        }
+        else if (masterSessions.Validar(authorization))
+        {
+            if (!long.TryParse(Request.Headers["X-Empresa-Id"].ToString(), out empresaId) || empresaId <= 0)
+                return (0, null, BadRequest(new { mensagem = "Selecione uma empresa válida para abrir a agenda." }));
+        }
+        else
+        {
             return (0, null, Unauthorized(new { mensagem = "Sessão expirada. Entre novamente para acessar os agendamentos." }));
-        empresaId = session.EmpresaId;
+        }
+
         try
         {
             db = new NpgsqlConnection(await resolver.ObterConnectionString(empresaId));
