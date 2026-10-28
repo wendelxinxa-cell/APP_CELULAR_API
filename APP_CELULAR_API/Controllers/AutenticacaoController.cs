@@ -50,21 +50,20 @@ public class AutenticacaoController : ControllerBase
                 await using var central = new NpgsqlConnection(EmpresaDatabaseResolver.NormalizarConnectionString(centralConnection));
                 await central.OpenAsync();
                 const string lookupSql = """
-                    SELECT DISTINCT lower(trim(email))
+                    SELECT DISTINCT empresa_id, lower(trim(email))
                     FROM chat.usuario_auth
-                    WHERE empresa_id=@empresaId AND COALESCE(ativo,FALSE)=TRUE AND trim(COALESCE(email,''))<>''
+                    WHERE COALESCE(ativo,FALSE)=TRUE AND trim(COALESCE(email,''))<>''
                       AND (lower(trim(COALESCE(username,'')))=lower(trim(@identifier))
                            OR lower(trim(COALESCE(nome,'')))=lower(trim(@identifier)))
-                    ORDER BY 1 LIMIT 2;
+                    ORDER BY empresa_id, 2 LIMIT 20;
                     """;
                 await using (var lookup = new NpgsqlCommand(lookupSql, central))
                 {
-                    lookup.Parameters.AddWithValue("empresaId", request.EmpresaId);
                     lookup.Parameters.AddWithValue("identifier", request.Identificador.Trim());
                     await using var centralReader = await lookup.ExecuteReaderAsync();
-                    var emails = new List<string>();
-                    while (await centralReader.ReadAsync()) emails.Add(centralReader.GetString(0));
-                    if (emails.Count == 0)
+                    var matches = new List<(long EmpresaId, string Email)>();
+                    while (await centralReader.ReadAsync()) matches.Add((centralReader.GetInt64(0), centralReader.GetString(1)));
+                    if (matches.Count == 0)
                     {
                         await centralReader.CloseAsync();
                         await using var pending = new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM chat.solicitacao_cadastro WHERE lower(trim(COALESCE(username,'')))=lower(trim(@identifier)) AND status='PENDENTE')", central);
@@ -73,9 +72,14 @@ public class AutenticacaoController : ControllerBase
                             return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Seu cadastro está aguardando aprovação de Zeus." });
                         return NotFound(new { codigo = "USUARIO_NAO_CADASTRADO", mensagem = "Nome de login não encontrado nesta empresa. Confira o nome ou entre com seu e-mail." });
                     }
-                    if (emails.Count > 1)
+                    var companyMatches = matches.Where(x => x.EmpresaId == request.EmpresaId).ToList();
+                    var selected = companyMatches.Count > 0 ? companyMatches : matches;
+                    var distinctCompanies = selected.Select(x => x.EmpresaId).Distinct().ToList();
+                    var distinctEmails = selected.Select(x => x.Email).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    if (distinctCompanies.Count != 1 || distinctEmails.Count != 1)
                         return BadRequest(new { codigo = "LOGIN_AMBIGUO", mensagem = "Esse nome está associado a mais de uma conta. Entre com seu e-mail." });
-                    loginEmail = emails[0];
+                    request.EmpresaId = distinctCompanies[0];
+                    loginEmail = distinctEmails[0];
                 }
             }
 
