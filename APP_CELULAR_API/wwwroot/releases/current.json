@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 63,
-  "versionCode": 66,
-  "fileName": "CATCHAT_0.0.001_build_63.apk",
-  "sha256": "1C8DB1D12E78FD0DFE18A49A4CA18111F678E8D4E27D2AF1400DB29AD2385297",
-  "notes": "CATCHAT build 63: abre automaticamente o prompt biométrico na tela de login quando a conta já tem biometria ativada."
+  "build": 64,
+  "versionCode": 67,
+  "fileName": "CATCHAT_0.0.001_build_64.apk",
+  "sha256": "57F954E4BA981D08BA762B31C0EC644D2AA15179BC53E8A01BD0644D2C3298EE",
+  "notes": "CATCHAT build 64: declara permissões biométricas Android."
 }
