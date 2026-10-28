@@ -73,7 +73,7 @@ public sealed class AdministracaoCadastrosController(
             Guid authUid;
             string email, nome, username;
             await using (var cmd = new NpgsqlCommand("""
-                SELECT r.auth_uid,r.email,r.nome,COALESCE(r.username,r.nome),u.email_confirmed_at
+                SELECT r.auth_uid,r.email,r.nome,COALESCE(r.username,r.nome),u.email
                 FROM chat.solicitacao_cadastro r LEFT JOIN auth.users u ON u.id=r.auth_uid
                 WHERE r.id=@id AND r.status='PENDENTE' FOR UPDATE OF r;
                 """, central, centralTx))
@@ -83,7 +83,25 @@ public sealed class AdministracaoCadastrosController(
                 if (!await reader.ReadAsync()) return NotFound(new { mensagem = "Cadastro pendente não encontrado." });
                 if (reader.IsDBNull(0)) return Conflict(new { mensagem = "A conta de autenticação ainda não foi preparada. Peça à pessoa para reenviar o cadastro." });
                 authUid = reader.GetGuid(0); email = reader.GetString(1); nome = reader.GetString(2); username = reader.GetString(3);
-                if (reader.IsDBNull(4)) return Conflict(new { mensagem = "A conta de autenticação não está pronta para aprovação." });
+                if (reader.IsDBNull(4) || !string.Equals(reader.GetString(4), email, StringComparison.OrdinalIgnoreCase))
+                    return Conflict(new { mensagem = "A conta de autenticação não corresponde ao e-mail deste cadastro." });
+            }
+
+            // O cadastro público não exige confirmação por e-mail: a aprovação de Zeus
+            // libera a conta. Confirme o usuário pendente no Auth dentro da transação
+            // central para que a senha escolhida no cadastro funcione após a aprovação.
+            await using (var confirm = new NpgsqlCommand("""
+                UPDATE auth.users
+                SET email_confirmed_at=COALESCE(email_confirmed_at,NOW()),updated_at=NOW()
+                WHERE id=@authUid AND LOWER(email)=LOWER(@email)
+                RETURNING email_confirmed_at;
+                """, central, centralTx))
+            {
+                confirm.Parameters.AddWithValue("authUid", authUid);
+                confirm.Parameters.AddWithValue("email", email);
+                var confirmedAt = await confirm.ExecuteScalarAsync();
+                if (confirmedAt is null or DBNull)
+                    return Conflict(new { mensagem = "Não foi possível preparar a conta de autenticação para aprovação. Confira o e-mail e tente novamente." });
             }
 
             long usuarioId;
