@@ -272,6 +272,24 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             long id = reader.GetInt64(0);
             var criadaEm = reader.GetFieldValue<DateTimeOffset>(1);
             await reader.CloseAsync();
+            etapaCadastro = "sincronizando a empresa no banco operacional";
+            try
+            {
+                await using var operacional = new NpgsqlConnection(await _resolver.ObterConnectionString(id));
+                await operacional.OpenAsync();
+                await using var txOperacional = await operacional.BeginTransactionAsync();
+                await AdministracaoCadastrosController.GarantirEmpresaOperacional(
+                    operacional, txOperacional, id, nome, emailResponsavel, tipoNegocio);
+                await txOperacional.CommitAsync();
+            }
+            catch
+            {
+                await using var rollbackCatalogo = new NpgsqlCommand(
+                    "DELETE FROM platform.empresa_catalogo WHERE id=@id AND status='ATIVA'", db);
+                rollbackCatalogo.Parameters.AddWithValue("id", id);
+                await rollbackCatalogo.ExecuteNonQueryAsync();
+                throw;
+            }
             _resolver.InvalidarCache(id);
             // E-mail é um aviso complementar. A solicitação fica disponível na lista do
             // Master mesmo quando o servidor não tem um provedor de e-mail configurado.
@@ -310,6 +328,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             string mensagem = etapaCadastro switch
             {
                 "abrindo o catálogo central" => "A API não conseguiu abrir o catálogo central. Confira a configuração CadastroCentral no servidor.",
+                "sincronizando a empresa no banco operacional" => "A empresa não foi ativada porque não foi possível sincronizá-la no banco operacional. Confira a conexão e a tabela de empresas do banco operacional.",
                 _ => "Não foi possível salvar a empresa no catálogo central. Confira as migrações 002, 017 e 019 do catálogo."
             };
             return StatusCode(503, new { mensagem });

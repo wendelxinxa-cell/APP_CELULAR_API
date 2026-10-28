@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 61,
-  "versionCode": 64,
-  "fileName": "CATCHAT_0.0.001_build_61.apk",
-  "sha256": "3306F485DC6DB0BC0924E5CA933658B0EBFF2C0B37F10F0D66C3A3C747A1B617",
-  "notes": "CATCHAT build 61: confirmação da conta durante aprovação Zeus e ativação biométrica opcional no login."
+  "build": 62,
+  "versionCode": 65,
+  "fileName": "CATCHAT_0.0.001_build_62.apk",
+  "sha256": "30573A59C5F7196EE4A0E853B0D83F1CF5045DA8FF35BA18DC0A6C4EFC97640D",
+  "notes": "CATCHAT build 62: biometria solicitada no próximo acesso e sincronização da empresa entre catálogo central e banco operacional antes de aprovações."
 }

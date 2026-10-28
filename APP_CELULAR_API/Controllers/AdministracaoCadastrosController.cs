@@ -72,6 +72,13 @@ public sealed class AdministracaoCadastrosController(
             await using var centralTx = await central.BeginTransactionAsync();
             Guid authUid;
             string email, nome, username;
+            string nomeEmpresa;
+            await using (var company = new NpgsqlCommand("SELECT nome FROM platform.empresa_catalogo WHERE id=@id AND ativa=TRUE AND status='ATIVA'", central, centralTx))
+            {
+                company.Parameters.AddWithValue("id", request.EmpresaId);
+                nomeEmpresa = await company.ExecuteScalarAsync() as string
+                    ?? throw new InvalidOperationException("A empresa selecionada não está ativa no catálogo central.");
+            }
             await using (var cmd = new NpgsqlCommand("""
                 SELECT r.auth_uid,r.email,r.nome,COALESCE(r.username,r.nome),u.email
                 FROM chat.solicitacao_cadastro r LEFT JOIN auth.users u ON u.id=r.auth_uid
@@ -104,7 +111,9 @@ public sealed class AdministracaoCadastrosController(
                     return Conflict(new { mensagem = "Não foi possível preparar a conta de autenticação para aprovação. Confira o e-mail e tente novamente." });
             }
 
+            string tipoNegocio = await ObterTipoEmpresa(central, centralTx, request.EmpresaId);
             long usuarioId;
+            await GarantirEmpresaOperacional(tenant, tenantTx, request.EmpresaId, nomeEmpresa, email, tipoNegocio);
             await using (var check = new NpgsqlCommand("""
                 SELECT EXISTS(SELECT 1 FROM app.usuario WHERE empresa_id=@empresaId
                     AND (lower(trim(COALESCE(username,'')))=lower(trim(@username)) OR lower(trim(COALESCE(email,'')))=lower(trim(@email)))
@@ -131,14 +140,13 @@ public sealed class AdministracaoCadastrosController(
                 insert.Parameters.AddWithValue("email", email);
                 insert.Parameters.AddWithValue("nome", nome);
                 insert.Parameters.AddWithValue("senha", randomLegacyPassword);
-                insert.Parameters.AddWithValue("tipo", await ObterTipoEmpresa(central, centralTx, request.EmpresaId));
+                insert.Parameters.AddWithValue("tipo", tipoNegocio);
                 insert.Parameters.AddWithValue("empresaId", request.EmpresaId);
                 insert.Parameters.AddWithValue("icones", iconJson);
                 usuarioId = Convert.ToInt64(await insert.ExecuteScalarAsync());
                 createdUserId = usuarioId;
             }
 
-            string tipoNegocio = await ObterTipoEmpresa(central, centralTx, request.EmpresaId);
             await using (var insert = new NpgsqlCommand("""
                 INSERT INTO chat.usuario_auth(auth_uid,empresa_id,usuario_id,nome,email,username,tipo_negocio,ativo)
                 VALUES(@authUid,@empresaId,@usuarioId,@nome,@email,@username,@tipo,TRUE);
@@ -225,6 +233,71 @@ public sealed class AdministracaoCadastrosController(
             ALTER TABLE app.usuario ADD COLUMN IF NOT EXISTS icones_permitidos TEXT NOT NULL DEFAULT '["chat","pessoas","produtos","vendas","compras","financeiro","agenda","outros","usuarios","configuracoes"]';
             """, db, tx);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    // O banco legado mantém uma FK app.usuario.empresa_id para seu cadastro local
+    // de empresas. O catálogo central passou a ser a fonte oficial, então espelhamos
+    // a empresa (mesmo ID) no alvo real da FK antes de inserir o usuário.
+    public static async Task GarantirEmpresaOperacional(NpgsqlConnection db, NpgsqlTransaction tx,
+        long empresaId, string nome, string emailResponsavel, string tipoNegocio)
+    {
+        string? schema = null, tabela = null, chave = null;
+        await using (var fk = new NpgsqlCommand("""
+            SELECT ns.nspname, rel.relname, att.attname
+            FROM pg_constraint c
+            JOIN pg_class rel ON rel.oid=c.confrelid
+            JOIN pg_namespace ns ON ns.oid=rel.relnamespace
+            JOIN LATERAL unnest(c.confkey) WITH ORDINALITY k(attnum,ord) ON TRUE
+            JOIN pg_attribute att ON att.attrelid=rel.oid AND att.attnum=k.attnum
+            WHERE c.conrelid='app.usuario'::regclass AND c.conname='fk_usuario_empresa'
+            ORDER BY k.ord LIMIT 1;
+            """, db, tx))
+        await using (var reader = await fk.ExecuteReaderAsync())
+        {
+            if (await reader.ReadAsync()) { schema = reader.GetString(0); tabela = reader.GetString(1); chave = reader.GetString(2); }
+        }
+        if (schema is null || tabela is null || chave is null) return;
+
+        static string Q(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
+        string qualified = Q(schema) + "." + Q(tabela);
+        await using (var exists = new NpgsqlCommand($"SELECT EXISTS(SELECT 1 FROM {qualified} WHERE {Q(chave)}=@id)", db, tx))
+        {
+            exists.Parameters.AddWithValue("id", empresaId);
+            if ((bool)(await exists.ExecuteScalarAsync() ?? false)) return;
+        }
+
+        var columns = new List<(string Name, bool Required)>();
+        await using (var metadata = new NpgsqlCommand("""
+            SELECT a.attname, (a.attnotnull AND a.attgenerated='') AS required
+            FROM pg_attribute a JOIN pg_class t ON t.oid=a.attrelid
+            JOIN pg_namespace n ON n.oid=t.relnamespace
+            WHERE n.nspname=@schema AND t.relname=@table AND a.attnum>0 AND NOT a.attisdropped
+              AND (a.attnotnull AND a.attgenerated='')
+            ORDER BY a.attnum;
+            """, db, tx))
+        {
+            metadata.Parameters.AddWithValue("schema", schema); metadata.Parameters.AddWithValue("table", tabela);
+            await using var reader = await metadata.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) columns.Add((reader.GetString(0), reader.GetBoolean(1)));
+        }
+        var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { [chave] = empresaId };
+        foreach (var (column, _) in columns)
+        {
+            if (column.Equals("nome", StringComparison.OrdinalIgnoreCase) || column.Equals("name", StringComparison.OrdinalIgnoreCase)) values[column] = nome;
+            else if (column.Equals("email", StringComparison.OrdinalIgnoreCase) || column.Equals("email_responsavel", StringComparison.OrdinalIgnoreCase)) values[column] = emailResponsavel;
+            else if (column.Equals("ativa", StringComparison.OrdinalIgnoreCase) || column.Equals("ativo", StringComparison.OrdinalIgnoreCase)) values[column] = true;
+            else if (column.Equals("status", StringComparison.OrdinalIgnoreCase)) values[column] = "ATIVA";
+            else if (column.Equals("tipo_negocio", StringComparison.OrdinalIgnoreCase)) values[column] = tipoNegocio;
+            else if (column.Equals("criada_em", StringComparison.OrdinalIgnoreCase) || column.Equals("created_at", StringComparison.OrdinalIgnoreCase)) values[column] = DateTime.UtcNow;
+            else if (column.Equals("id", StringComparison.OrdinalIgnoreCase)) values[column] = empresaId;
+            else if (!values.ContainsKey(column))
+                throw new InvalidOperationException($"A tabela {schema}.{tabela} exige o campo '{column}' para sincronizar a empresa. Configure esse campo na API antes de aprovar usuários.");
+        }
+        var insertColumns = values.Keys.ToArray();
+        string sql = $"INSERT INTO {qualified} ({string.Join(",", insertColumns.Select(Q))}) VALUES ({string.Join(",", insertColumns.Select((_, i) => "@v" + i))}) ON CONFLICT ({Q(chave)}) DO NOTHING";
+        await using var insert = new NpgsqlCommand(sql, db, tx);
+        for (int i = 0; i < insertColumns.Length; i++) insert.Parameters.AddWithValue("v" + i, values[insertColumns[i]]);
+        await insert.ExecuteNonQueryAsync();
     }
 
     private static async Task<string> ObterTipoEmpresa(NpgsqlConnection central, NpgsqlTransaction tx, long empresaId)
