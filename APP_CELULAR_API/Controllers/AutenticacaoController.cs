@@ -40,21 +40,57 @@ public class AutenticacaoController : ControllerBase
         var anonKey = _configuration["SupabaseAuth:PublishableKey"] ?? "sb_publishable_gFiEwBm-VXwx5MsMzNxo7g_1scloOC-";
         try
         {
-            using var loginRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/functions/v1/master-user-invite")
+            string loginEmail = request.Identificador.Trim();
+            if (!loginEmail.Contains('@'))
             {
-                Content = JsonContent.Create(new { action = "signIn", identificador = request.Identificador.Trim(), senha = request.Senha, empresaId = request.EmpresaId })
+                string centralConnection = _configuration.GetConnectionString("CadastroCentral") ?? "";
+                if (string.IsNullOrWhiteSpace(centralConnection))
+                    return StatusCode(503, new { mensagem = "O banco central não está configurado para localizar o nome de login." });
+
+                await using var central = new NpgsqlConnection(EmpresaDatabaseResolver.NormalizarConnectionString(centralConnection));
+                await central.OpenAsync();
+                const string lookupSql = """
+                    SELECT DISTINCT lower(trim(email))
+                    FROM chat.usuario_auth
+                    WHERE empresa_id=@empresaId AND COALESCE(ativo,FALSE)=TRUE AND trim(COALESCE(email,''))<>''
+                      AND (lower(trim(COALESCE(username,'')))=lower(trim(@identifier))
+                           OR lower(trim(COALESCE(nome,'')))=lower(trim(@identifier)))
+                    ORDER BY 1 LIMIT 2;
+                    """;
+                await using (var lookup = new NpgsqlCommand(lookupSql, central))
+                {
+                    lookup.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                    lookup.Parameters.AddWithValue("identifier", request.Identificador.Trim());
+                    await using var centralReader = await lookup.ExecuteReaderAsync();
+                    var emails = new List<string>();
+                    while (await centralReader.ReadAsync()) emails.Add(centralReader.GetString(0));
+                    if (emails.Count == 0)
+                    {
+                        await centralReader.CloseAsync();
+                        await using var pending = new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM chat.solicitacao_cadastro WHERE lower(trim(COALESCE(username,'')))=lower(trim(@identifier)) AND status='PENDENTE')", central);
+                        pending.Parameters.AddWithValue("identifier", request.Identificador.Trim());
+                        if ((bool)(await pending.ExecuteScalarAsync() ?? false))
+                            return StatusCode(403, new { codigo = "USUARIO_PENDENTE", mensagem = "Seu cadastro está aguardando aprovação de Zeus." });
+                        return NotFound(new { codigo = "USUARIO_NAO_CADASTRADO", mensagem = "Nome de login não encontrado nesta empresa. Confira o nome ou entre com seu e-mail." });
+                    }
+                    if (emails.Count > 1)
+                        return BadRequest(new { codigo = "LOGIN_AMBIGUO", mensagem = "Esse nome está associado a mais de uma conta. Entre com seu e-mail." });
+                    loginEmail = emails[0];
+                }
+            }
+
+            using var loginRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/auth/v1/token?grant_type=password")
+            {
+                Content = JsonContent.Create(new { email = loginEmail, password = request.Senha })
             };
             loginRequest.Headers.TryAddWithoutValidation("apikey", anonKey);
-            loginRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", anonKey);
             using var loginResponse = await clients.CreateClient().SendAsync(loginRequest);
             using var loginJson = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
             if (!loginResponse.IsSuccessStatusCode)
             {
-                var message = loginJson.RootElement.TryGetProperty("message", out var errorMessage) ? errorMessage.GetString() : null;
-                return Unauthorized(new { codigo = "AUTH_SUPABASE", mensagem = message ?? "Apelido/e-mail ou senha incorretos." });
+                return Unauthorized(new { codigo = "AUTH_SUPABASE", mensagem = "Nome, e-mail ou senha incorretos." });
             }
-            if (!loginJson.RootElement.TryGetProperty("session", out var tokenSession) ||
-                !tokenSession.TryGetProperty("access_token", out var accessTokenElement))
+            if (!loginJson.RootElement.TryGetProperty("access_token", out var accessTokenElement))
                 return StatusCode(502, new { mensagem = "O Supabase não retornou uma sessão válida." });
             var accessToken = accessTokenElement.GetString();
             if (string.IsNullOrWhiteSpace(accessToken)) return StatusCode(502, new { mensagem = "O Supabase não retornou uma sessão válida." });
