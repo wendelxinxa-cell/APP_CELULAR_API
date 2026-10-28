@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 62,
-  "versionCode": 65,
-  "fileName": "CATCHAT_0.0.001_build_62.apk",
-  "sha256": "30573A59C5F7196EE4A0E853B0D83F1CF5045DA8FF35BA18DC0A6C4EFC97640D",
-  "notes": "CATCHAT build 62: biometria solicitada no próximo acesso e sincronização da empresa entre catálogo central e banco operacional antes de aprovações."
+  "build": 63,
+  "versionCode": 66,
+  "fileName": "CATCHAT_0.0.001_build_63.apk",
+  "sha256": "1C8DB1D12E78FD0DFE18A49A4CA18111F678E8D4E27D2AF1400DB29AD2385297",
+  "notes": "CATCHAT build 63: abre automaticamente o prompt biométrico na tela de login quando a conta já tem biometria ativada."
 }
