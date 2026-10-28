@@ -149,6 +149,21 @@ public class AutenticacaoController : ControllerBase
 
             var (dispositivoId, dispositivoAtivo) = await ObterOuSolicitarDispositivo(db, request.EmpresaId, legacyId, request.ChaveInstalacao, request.NomeDispositivo);
             if (!dispositivoAtivo) return StatusCode(403, new { codigo = "APARELHO_PENDENTE", mensagem = "Este aparelho aguarda aprovação de Zeus." });
+
+            // A senha acabou de ser validada pelo Supabase. Mantenha o hash
+            // legado operacional sincronizado para que o desbloqueio biométrico
+            // do app consiga renovar a sessão pela rota de compatibilidade.
+            string legacyPasswordHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Senha)));
+            await using (var updatePassword = new NpgsqlCommand(
+                "UPDATE app.usuario SET senha_hash=@senhaHash WHERE id=@usuarioId AND empresa_id=@empresaId AND COALESCE(aprovado,TRUE)=TRUE AND COALESCE(excluido,FALSE)=FALSE",
+                db))
+            {
+                updatePassword.Parameters.AddWithValue("senhaHash", legacyPasswordHash);
+                updatePassword.Parameters.AddWithValue("usuarioId", legacyId);
+                updatePassword.Parameters.AddWithValue("empresaId", request.EmpresaId);
+                await updatePassword.ExecuteNonQueryAsync();
+            }
+
             var (token, session) = _sessions.Create(request.EmpresaId, legacyId, ehMaster || funcao == "ADMINISTRADOR", dispositivoId);
             return Ok(new LoginApiResponse { Nome = nome, Token = token, EmpresaId = session.EmpresaId, UsuarioId = session.UsuarioId, DispositivoId = session.DispositivoId, Funcao = funcao, TipoNegocio = tipoNegocio, NichoAgendamento = configuracaoEmpresa.NichoAgendamento, EhMaster = ehMaster, IconesPermitidos = iconesPermitidos, ExpiraEm = session.ExpiresAt });
         }
