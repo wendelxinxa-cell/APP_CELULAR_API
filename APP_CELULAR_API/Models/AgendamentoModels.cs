@@ -42,6 +42,7 @@ public sealed class AgendamentoServico
 {
     public Guid Id { get; set; }
     public string Nicho { get; set; } = "barbearia";
+    public string CategoriaAtendimento { get; set; } = "servico";
     public string Nome { get; set; } = "";
     public int DuracaoMinutos { get; set; } = 30;
     public decimal PrecoBrl { get; set; }
@@ -73,6 +74,9 @@ public sealed class AgendamentoItem
     public string ProfissionalNome { get; set; } = "";
     public string Whatsapp { get; set; } = "";
     public DateTimeOffset DataHorario { get; set; }
+    public DateTimeOffset? DataFim { get; set; }
+    public string CategoriaServico { get; set; } = "servico";
+    public Dictionary<string, string?> Detalhes { get; set; } = [];
     public string Status { get; set; } = "confirmado";
     public decimal ValorTotal { get; set; }
     public bool MensagemWhatsappEnviada { get; set; }
@@ -104,6 +108,7 @@ public sealed class AgendamentoProfissionalRequest
 public sealed class AgendamentoServicoRequest
 {
     public string Nicho { get; set; } = "barbearia";
+    public string CategoriaAtendimento { get; set; } = "servico";
     public string Nome { get; set; } = "";
     public int DuracaoMinutos { get; set; }
     public decimal PrecoBrl { get; set; }
@@ -125,6 +130,9 @@ public sealed class CriarAgendamentoRequest
     public Guid ServicoId { get; set; }
     public Guid ProfissionalId { get; set; }
     public DateTimeOffset DataHorario { get; set; }
+    public DateTimeOffset? DataFim { get; set; }
+    public string CategoriaServico { get; set; } = "servico";
+    public Dictionary<string, string?> Detalhes { get; set; } = [];
     public string Status { get; set; } = "confirmado";
     public decimal? ValorTotal { get; set; }
 }

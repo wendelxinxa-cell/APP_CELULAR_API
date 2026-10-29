@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 60,
-  "versionCode": 63,
-  "fileName": "CATCHAT_0.0.001_build_60.apk",
-  "sha256": "D419F85E64FCA1B574E1AD31AECE84DC122101EF8EC6C5AAE6B47B882E76F6CC",
-  "notes": "CATCHAT build 60: cadastro pendente com aprovação de Zeus, empresa e módulos; cadastro de empresas ativo."
+  "build": 71,
+  "versionCode": 74,
+  "fileName": "CATCHAT_0.0.001_build_71.apk",
+  "sha256": "14FB152932C68E80488BB860C9D080454D5F9AC9D530135C3C5FD3C6EAC879BD",
+  "notes": "CATCHAT build 71: atalhos rápidos e telas operacionais para produtos, veterinária e hospedagem."
 }
