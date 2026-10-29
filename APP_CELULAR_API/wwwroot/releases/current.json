@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "sha256": "14FB152932C68E80488BB860C9D080454D5F9AC9D530135C3C5FD3C6EAC879BD",
-  "notes": "CATCHAT build 71: atalhos rápidos e telas operacionais para produtos, veterinária e hospedagem.",
-  "versionCode": 74,
-  "fileName": "CATCHAT_0.0.001_build_71.apk",
-  "build": 71
+  "sha256": "09A3A5B72EDFF3772367B705588A2ADF608F6CFBFD5A091E2DFF9260C1F8FE04",
+  "notes": "CATCHAT build 72: novo agendamento em tela própria, agenda do dia acima das ações rápidas e navegação inferior redesenhada.",
+  "versionCode": 75,
+  "fileName": "CATCHAT_0.0.001_build_72.apk",
+  "build": 72
 }
