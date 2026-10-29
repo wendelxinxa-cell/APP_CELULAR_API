@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "sha256": "41FD21EDA7234708FCF6A5970A54C612C01134D6D7F76B7A4250B7AAA121BE7C",
-  "notes": "CATCHAT build 70: agenda redesenhada para celular, navegação por dia/semana/mês e cadastro guiado.",
-  "versionCode": 73,
-  "fileName": "CATCHAT_0.0.001_build_70.apk",
-  "build": 70
+  "sha256": "14FB152932C68E80488BB860C9D080454D5F9AC9D530135C3C5FD3C6EAC879BD",
+  "notes": "CATCHAT build 71: atalhos rápidos e telas operacionais para produtos, veterinária e hospedagem.",
+  "versionCode": 74,
+  "fileName": "CATCHAT_0.0.001_build_71.apk",
+  "build": 71
 }
