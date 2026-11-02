@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "sha256": "09A3A5B72EDFF3772367B705588A2ADF608F6CFBFD5A091E2DFF9260C1F8FE04",
-  "notes": "CATCHAT build 72: novo agendamento em tela própria, agenda do dia acima das ações rápidas e navegação inferior redesenhada.",
-  "versionCode": 75,
-  "fileName": "CATCHAT_0.0.001_build_72.apk",
-  "build": 72
+  "build": 73,
+  "versionCode": 76,
+  "fileName": "CATCHAT_0.0.001_build_73.apk",
+  "sha256": "3C24A6FBEBC4DBB5172799109C5EAAA5F1B16B6FCF7AF25DF706182B5C400946",
+  "notes": "CATCHAT build 73: Finanças mostra saldo anterior e saldo final previsto para o período consultado, respeitando o filtro por tipo."
 }
