@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "75"
+        value: "76"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_75.apk"
+        value: "CATCHAT_0.0.001_build_76.apk"
       - key: AppUpdate__Sha256
-        value: "4AA74DE3D12A79D58E73066D4E3A297798AC89165F1F83F593FA4FCDD2D607FD"
+        value: "BCD23FBE7BD546958EC612B44ACEDDA07C1E175B4EF3B91B4E85F27774267E76"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 75: correção do atualizador para ler os formatos do manifesto e atualizar releases."
+        value: "CATCHAT build 76: novo módulo APPENTREGA com fluxo de viagens e entregas."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash
