@@ -274,7 +274,7 @@ public class AutenticacaoController : ControllerBase
             if (!await reader.ReadAsync()) return (NormalizarTipoNegocio(fallback), null);
             string tipo = reader.IsDBNull(0) ? "comercial" : reader.GetString(0);
             string? nicho = reader.IsDBNull(1) ? null : reader.GetString(1);
-            return (tipo is "chat" or "agendamento" ? tipo : NormalizarTipoNegocio(fallback), tipo == "agendamento" ? nicho : null);
+            return (tipo is "chat" or "agendamento" or "appentrega" ? tipo : NormalizarTipoNegocio(fallback), tipo == "agendamento" ? nicho : null);
         }
         catch
         {

@@ -239,7 +239,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         string tipoNegocio = (request.TipoNegocio ?? "").Trim().ToLowerInvariant();
         string? nichoAgendamento = string.IsNullOrWhiteSpace(request.NichoAgendamento)
             ? null : request.NichoAgendamento.Trim().ToLowerInvariant();
-        if (tipoNegocio is not ("comercial" or "chat" or "agendamento"))
+        if (tipoNegocio is not ("comercial" or "chat" or "agendamento" or "appentrega"))
             return BadRequest(new { mensagem = "Selecione um tipo de negócio válido." });
         if (tipoNegocio == "agendamento" && nichoAgendamento is not ("barbearia" or "manicure" or "petshop" or "todos"))
             return BadRequest(new { mensagem = "Selecione o nicho de agendamento: barbearia, manicure, petshop ou todos." });
@@ -794,7 +794,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
         string username = (request.Username ?? "").Trim();
         string email = (request.Email ?? "").Trim().ToLowerInvariant();
         string nome = (request.Nome ?? "").Trim();
-        string tipoNegocio = request.TipoNegocio is "chat" or "comercial" or "agendamento" ? request.TipoNegocio : "";
+        string tipoNegocio = request.TipoNegocio is "chat" or "comercial" or "agendamento" or "appentrega" ? request.TipoNegocio : "";
         if (empresaId <= 0 || id <= 0 || username.Length is < 3 or > 40
             || username.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-')
             || !MailAddress.TryCreate(email, out var parsedEmail)
@@ -865,7 +865,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
             cmd.Parameters.AddWithValue("nome", request.Nome.Trim());
             cmd.Parameters.AddWithValue("senhaHash", request.SenhaHash);
             cmd.Parameters.AddWithValue("funcao", request.Funcao?.Trim() ?? "USUARIO");
-            cmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio is "chat" or "agendamento" ? request.TipoNegocio : "sucata");
+            cmd.Parameters.AddWithValue("tipoNegocio", request.TipoNegocio is "chat" or "agendamento" or "appentrega" ? request.TipoNegocio : "sucata");
             cmd.Parameters.AddWithValue("empresaId", request.EmpresaId);
             cmd.Parameters.AddWithValue("alteradoEm", request.AlteradoEm);
             cmd.Parameters.AddWithValue("bloqueado", request.Bloqueado);
@@ -889,7 +889,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     public async Task<IActionResult> DefinirTipoNegocio(long empresaId, long id, [FromBody] TipoNegocioUsuarioRequest request)
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
-        if (request.TipoNegocio is not ("sucata" or "comercial" or "chat" or "agendamento")) return BadRequest(new { mensagem = "Tipo de negócio inválido." });
+        if (request.TipoNegocio is not ("sucata" or "comercial" or "chat" or "agendamento" or "appentrega")) return BadRequest(new { mensagem = "Tipo de negócio inválido." });
         await using var db = new NpgsqlConnection(await _resolver.ObterConnectionString(empresaId));
         await db.OpenAsync();
         await GarantirColunaTipoNegocio(db);
@@ -905,7 +905,7 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     public async Task<IActionResult> DefinirIconesUsuario(long empresaId, long id, [FromBody] PermissoesIconesUsuarioRequest request)
     {
         if (!MasterAutorizado()) return Unauthorized(new { mensagem = "Acesso restrito ao usuário Zeus." });
-        string[] validos = ["chat", "agenda", "pessoas", "produtos", "vendas", "compras", "financeiro", "outros", "usuarios", "configuracoes"];
+        string[] validos = ["chat", "agenda", "pessoas", "produtos", "vendas", "compras", "financeiro", "outros", "usuarios", "configuracoes", "appentrega"];
         var enviados = request.Icones ?? new();
         var icones = enviados.Where(x => validos.Contains(x, StringComparer.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (icones.Length != enviados.Count) return BadRequest(new { mensagem = "A lista contém um ícone inválido." });
@@ -1216,6 +1216,11 @@ public sealed class AdministracaoEmpresasController : ControllerBase
     {
         await using var cmd = new NpgsqlCommand("ALTER TABLE platform.empresa_catalogo ADD COLUMN IF NOT EXISTS tipo_negocio TEXT NOT NULL DEFAULT 'comercial'; ALTER TABLE platform.empresa_catalogo ADD COLUMN IF NOT EXISTS nicho_agendamento TEXT NULL;", db);
         await cmd.ExecuteNonQueryAsync();
+        await using var check = new NpgsqlCommand("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid='platform.empresa_catalogo'::regclass AND conname='ck_empresa_catalogo_tipo_negocio';", db);
+        var definition = await check.ExecuteScalarAsync() as string;
+        if (definition?.Contains("appentrega", StringComparison.OrdinalIgnoreCase) == true) return;
+        await using var widen = new NpgsqlCommand("ALTER TABLE platform.empresa_catalogo DROP CONSTRAINT IF EXISTS ck_empresa_catalogo_tipo_negocio; ALTER TABLE platform.empresa_catalogo ADD CONSTRAINT ck_empresa_catalogo_tipo_negocio CHECK (tipo_negocio IN ('comercial','chat','agendamento','appentrega'));", db);
+        await widen.ExecuteNonQueryAsync();
     }
 }
 

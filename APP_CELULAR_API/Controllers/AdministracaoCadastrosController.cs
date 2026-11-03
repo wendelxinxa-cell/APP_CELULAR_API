@@ -17,7 +17,7 @@ public sealed class AdministracaoCadastrosController(
     private static readonly HashSet<string> ModulosValidos = new(StringComparer.Ordinal)
     {
         "chat", "pessoas", "produtos", "vendas", "compras", "financeiro",
-        "agenda", "outros", "usuarios", "configuracoes"
+        "agenda", "outros", "usuarios", "configuracoes", "appentrega"
     };
 
     [HttpGet]
@@ -309,7 +309,7 @@ public sealed class AdministracaoCadastrosController(
         await using var cmd = new NpgsqlCommand("SELECT tipo_negocio FROM platform.empresa_catalogo WHERE id=@id AND ativa=TRUE AND status='ATIVA'", central, tx);
         cmd.Parameters.AddWithValue("id", empresaId);
         var tipo = await cmd.ExecuteScalarAsync() as string;
-        return tipo is "chat" or "agendamento" ? tipo : tipo is null ? throw new InvalidOperationException("A empresa selecionada não está ativa no catálogo central.") : "comercial";
+        return tipo is "chat" or "agendamento" or "appentrega" ? tipo : tipo is null ? throw new InvalidOperationException("A empresa selecionada não está ativa no catálogo central.") : "comercial";
     }
 }
 
