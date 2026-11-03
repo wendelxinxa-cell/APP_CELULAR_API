@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 73,
-  "versionCode": 76,
-  "fileName": "CATCHAT_0.0.001_build_73.apk",
-  "sha256": "3C24A6FBEBC4DBB5172799109C5EAAA5F1B16B6FCF7AF25DF706182B5C400946",
-  "notes": "CATCHAT build 73: Finanças mostra saldo anterior e saldo final previsto para o período consultado, respeitando o filtro por tipo."
+  "build": 74,
+  "versionCode": 77,
+  "fileName": "CATCHAT_0.0.001_build_74.apk",
+  "sha256": "E23673B064E1733E1A1DF5676794703F3E42AD532FB7C188CA0D04BD1F3643FE",
+  "notes": "CATCHAT build 74: correções de hotel e creche sem serviço obrigatório, confirmação de datas e navegação do calendário."
 }

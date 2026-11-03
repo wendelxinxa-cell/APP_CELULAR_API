@@ -2,17 +2,12 @@ using APP_CELULAR_API.Models;
 using APP_CELULAR_API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
-using NpgsqlTypes;
-using System.Text.Json;
 
 namespace APP_CELULAR_API.Controllers;
 
 [ApiController]
 [Route("api/agendamento")]
-public sealed class AgendamentoController(
-    IEmpresaDatabaseResolver resolver,
-    TenantSessionStore sessions,
-    MasterSessionStore masterSessions) : ControllerBase
+public sealed class AgendamentoController(IEmpresaDatabaseResolver resolver, TenantSessionStore sessions) : ControllerBase
 {
     private static readonly string[] Nichos = ["barbearia", "manicure", "petshop"];
     private static readonly string[] Status = ["confirmado", "pendente", "em_atendimento", "concluido", "cancelado"];
@@ -44,11 +39,11 @@ public sealed class AgendamentoController(
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync()) estado.Profissionais.Add(new() { Id = reader.GetGuid(0), Nome = reader.GetString(1), Nicho = reader.GetString(2), FotoUrl = reader.GetString(3), Ativo = reader.GetBoolean(4) });
             }
-            await using (var cmd = new NpgsqlCommand("SELECT id,nicho,nome,duracao_minutos,preco_brl,ativo,categoria_atendimento FROM public.agendamento_servicos WHERE empresa_id=@empresa ORDER BY nome", db))
+            await using (var cmd = new NpgsqlCommand("SELECT id,nicho,nome,duracao_minutos,preco_brl,ativo FROM public.agendamento_servicos WHERE empresa_id=@empresa ORDER BY nome", db))
             {
                 cmd.Parameters.AddWithValue("empresa", empresaId);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync()) estado.Servicos.Add(new() { Id = reader.GetGuid(0), Nicho = reader.GetString(1), Nome = reader.GetString(2), DuracaoMinutos = reader.GetInt32(3), PrecoBrl = reader.GetDecimal(4), Ativo = reader.GetBoolean(5), CategoriaAtendimento = reader.GetString(6) });
+                while (await reader.ReadAsync()) estado.Servicos.Add(new() { Id = reader.GetGuid(0), Nicho = reader.GetString(1), Nome = reader.GetString(2), DuracaoMinutos = reader.GetInt32(3), PrecoBrl = reader.GetDecimal(4), Ativo = reader.GetBoolean(5) });
             }
             await using (var cmd = new NpgsqlCommand("SELECT id,nicho,nome_item,quantidade,unidade,estoque_minimo,atualizado_em FROM public.agendamento_materiais WHERE empresa_id=@empresa ORDER BY nome_item", db))
             {
@@ -57,31 +52,19 @@ public sealed class AgendamentoController(
                 while (await reader.ReadAsync()) estado.Materiais.Add(new() { Id = reader.GetGuid(0), Nicho = reader.GetString(1), NomeItem = reader.GetString(2), Quantidade = reader.GetDecimal(3), Unidade = reader.GetString(4), EstoqueMinimo = reader.GetDecimal(5), AtualizadoEm = reader.GetFieldValue<DateTimeOffset>(6) });
             }
             await using (var cmd = new NpgsqlCommand("""
-                SELECT a.id,a.cliente_id,c.nome, a.pet_id,COALESCE(p.nome_pet,''),a.servico_id,s.nome,s.duracao_minutos,
-                       a.profissional_id,pr.nome,c.whatsapp,a.data_horario,a.status,a.valor_total,a.mensagem_whatsapp_enviada,
-                       a.data_fim,a.categoria_servico,a.detalhes::text
+                SELECT a.id,a.cliente_id,c.nome, a.pet_id,COALESCE(p.nome_pet,''),a.servico_id,COALESCE(s.nome,a.categoria_servico),COALESCE(s.duracao_minutos,60),
+                       a.profissional_id,pr.nome,c.whatsapp,a.data_horario,a.status,a.valor_total,a.mensagem_whatsapp_enviada,a.data_fim,a.categoria_servico,a.detalhes
                 FROM public.agendamento_agendamentos a
                 JOIN public.agendamento_clientes c ON c.empresa_id=a.empresa_id AND c.id=a.cliente_id
                 LEFT JOIN public.agendamento_pets p ON p.empresa_id=a.empresa_id AND p.id=a.pet_id
-                JOIN public.agendamento_servicos s ON s.empresa_id=a.empresa_id AND s.id=a.servico_id
+                LEFT JOIN public.agendamento_servicos s ON s.empresa_id=a.empresa_id AND s.id=a.servico_id
                 JOIN public.agendamento_profissionais pr ON pr.empresa_id=a.empresa_id AND pr.id=a.profissional_id
                 WHERE a.empresa_id=@empresa ORDER BY a.data_horario DESC LIMIT 500
                 """, db))
             {
                 cmd.Parameters.AddWithValue("empresa", empresaId);
                 await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync()) estado.Agendamentos.Add(new()
-                {
-                    Id = reader.GetGuid(0), ClienteId = reader.GetGuid(1), ClienteNome = reader.GetString(2),
-                    PetId = reader.IsDBNull(3) ? null : reader.GetGuid(3), PetNome = reader.GetString(4),
-                    ServicoId = reader.GetGuid(5), ServicoNome = reader.GetString(6), DuracaoMinutos = reader.GetInt32(7),
-                    ProfissionalId = reader.GetGuid(8), ProfissionalNome = reader.GetString(9), Whatsapp = reader.GetString(10),
-                    DataHorario = reader.GetFieldValue<DateTimeOffset>(11), Status = reader.GetString(12),
-                    ValorTotal = reader.GetDecimal(13), MensagemWhatsappEnviada = reader.GetBoolean(14),
-                    DataFim = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateTimeOffset>(15),
-                    CategoriaServico = reader.GetString(16),
-                    Detalhes = JsonSerializer.Deserialize<Dictionary<string, string?>>(reader.GetString(17)) ?? []
-                });
+                while (await reader.ReadAsync()) estado.Agendamentos.Add(new() { Id = reader.GetGuid(0), ClienteId = reader.GetGuid(1), ClienteNome = reader.GetString(2), PetId = reader.IsDBNull(3) ? null : reader.GetGuid(3), PetNome = reader.GetString(4), ServicoId = reader.IsDBNull(5) ? null : reader.GetGuid(5), ServicoNome = reader.GetString(6), DuracaoMinutos = reader.GetInt32(7), ProfissionalId = reader.GetGuid(8), ProfissionalNome = reader.GetString(9), Whatsapp = reader.GetString(10), DataHorario = reader.GetFieldValue<DateTimeOffset>(11), Status = reader.GetString(12), ValorTotal = reader.GetDecimal(13), MensagemWhatsappEnviada = reader.GetBoolean(14), DataFim = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateTimeOffset>(15), CategoriaServico = reader.GetString(16), Detalhes = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string?>>(reader.GetString(17)) ?? [] });
             }
             return Ok(estado);
         }
@@ -150,16 +133,15 @@ public sealed class AgendamentoController(
     [HttpPost("servicos")]
     public async Task<IActionResult> CriarServico([FromBody] AgendamentoServicoRequest request)
     {
-        string[] categoriasServico = ["servico", "banho_tosa", "veterinario", "hotel", "creche"];
-        if (!NichoValido(request.Nicho) || !categoriasServico.Contains(request.CategoriaAtendimento, StringComparer.Ordinal) || request.Nome.Trim().Length is < 2 or > 200 || request.DuracaoMinutos is < 5 or > 1440 || request.PrecoBrl < 0)
+        if (!NichoValido(request.Nicho) || request.Nome.Trim().Length is < 2 or > 200 || request.DuracaoMinutos is < 5 or > 1440 || request.PrecoBrl < 0)
             return BadRequest(new { mensagem = "Confira o nicho, nome, duração e preço do serviço." });
         var tenant = await AbrirTenant();
         if (tenant.Erro is not null) return tenant.Erro;
         long empresaId = tenant.EmpresaId;
         await using var db = tenant.Db!;
-        await using (var cmd = new NpgsqlCommand("INSERT INTO public.agendamento_servicos(empresa_id,nicho,nome,duracao_minutos,preco_brl,categoria_atendimento) VALUES(@empresa,@nicho,@nome,@duracao,@preco,@categoria) RETURNING id", db))
+        await using (var cmd = new NpgsqlCommand("INSERT INTO public.agendamento_servicos(empresa_id,nicho,nome,duracao_minutos,preco_brl) VALUES(@empresa,@nicho,@nome,@duracao,@preco) RETURNING id", db))
         {
-            cmd.Parameters.AddWithValue("empresa", empresaId); cmd.Parameters.AddWithValue("nicho", request.Nicho); cmd.Parameters.AddWithValue("nome", request.Nome.Trim()); cmd.Parameters.AddWithValue("duracao", request.DuracaoMinutos); cmd.Parameters.AddWithValue("preco", request.PrecoBrl); cmd.Parameters.AddWithValue("categoria", request.CategoriaAtendimento);
+            cmd.Parameters.AddWithValue("empresa", empresaId); cmd.Parameters.AddWithValue("nicho", request.Nicho); cmd.Parameters.AddWithValue("nome", request.Nome.Trim()); cmd.Parameters.AddWithValue("duracao", request.DuracaoMinutos); cmd.Parameters.AddWithValue("preco", request.PrecoBrl);
             return Ok(new { id = await cmd.ExecuteScalarAsync() });
         }
     }
@@ -183,8 +165,7 @@ public sealed class AgendamentoController(
     [HttpPost("agendamentos")]
     public async Task<IActionResult> CriarAgendamento([FromBody] CriarAgendamentoRequest request)
     {
-        string[] categorias = ["servico", "banho_tosa", "veterinario", "hotel", "creche"];
-        if (request.ClienteId == Guid.Empty || request.ServicoId == Guid.Empty || request.ProfissionalId == Guid.Empty || request.DataHorario <= DateTimeOffset.UtcNow.AddMinutes(-5) || (request.DataFim is not null && request.DataFim <= request.DataHorario) || (request.CategoriaServico == "hotel" && request.DataFim is null) || !categorias.Contains(request.CategoriaServico, StringComparer.Ordinal) || (request.ValorTotal is < 0) || (request.Status != "confirmado" && request.Status != "pendente"))
+        if (request.ClienteId == Guid.Empty || ((request.ServicoId is null || request.ServicoId == Guid.Empty) && request.CategoriaServico is not ("hotel" or "creche")) || request.ProfissionalId == Guid.Empty || request.DataHorario <= DateTimeOffset.UtcNow.AddMinutes(-5) || (request.ValorTotal is < 0) || (request.Status != "confirmado" && request.Status != "pendente"))
             return BadRequest(new { mensagem = "Confira cliente, serviço, profissional, data, horário e status do agendamento." });
         var tenant = await AbrirTenant();
         if (tenant.Erro is not null) return tenant.Erro;
@@ -192,10 +173,11 @@ public sealed class AgendamentoController(
         await using var db = tenant.Db!;
         {
             const string durationSql = "SELECT duracao_minutos,preco_brl FROM public.agendamento_servicos WHERE empresa_id=@empresa AND id=@servico AND ativo";
-            int duration; decimal price;
+            int duration = 60; decimal price = 0;
+            if (request.ServicoId is not null)
             await using (var service = new NpgsqlCommand(durationSql, db))
             {
-                service.Parameters.AddWithValue("empresa", empresaId); service.Parameters.AddWithValue("servico", request.ServicoId);
+                service.Parameters.AddWithValue("empresa", empresaId); service.Parameters.AddWithValue("servico", request.ServicoId.Value);
                 await using var reader = await service.ExecuteReaderAsync();
                 if (!await reader.ReadAsync()) return BadRequest(new { mensagem = "O serviço selecionado está indisponível." });
                 duration = reader.GetInt32(0); price = reader.GetDecimal(1);
@@ -210,19 +192,24 @@ public sealed class AgendamentoController(
             {
                 const string overlapSql = """
                     SELECT EXISTS(SELECT 1 FROM public.agendamento_agendamentos a
-                    JOIN public.agendamento_servicos s ON s.empresa_id=a.empresa_id AND s.id=a.servico_id
+                    LEFT JOIN public.agendamento_servicos s ON s.empresa_id=a.empresa_id AND s.id=a.servico_id
                     WHERE a.empresa_id=@empresa AND a.profissional_id=@profissional
                       AND a.status NOT IN ('cancelado','concluido')
-                    AND a.data_horario < COALESCE(@fim, @inicio + (@duracao * INTERVAL '1 minute'))
-                      AND COALESCE(a.data_fim, a.data_horario + (s.duracao_minutos * INTERVAL '1 minute')) > @inicio)
+                      AND a.data_horario < COALESCE(@fim, @inicio + (@duracao * INTERVAL '1 minute'))
+                      AND COALESCE(a.data_fim, a.data_horario + (COALESCE(s.duracao_minutos,60) * INTERVAL '1 minute')) > @inicio)
                     """;
                 await using var overlap = new NpgsqlCommand(overlapSql, db);
-                overlap.Parameters.AddWithValue("empresa", empresaId); overlap.Parameters.AddWithValue("profissional", request.ProfissionalId); overlap.Parameters.AddWithValue("inicio", request.DataHorario); overlap.Parameters.AddWithValue("duracao", duration); overlap.Parameters.AddWithValue("fim", (object?)request.DataFim ?? DBNull.Value);
+                overlap.Parameters.AddWithValue("fim", NpgsqlTypes.NpgsqlDbType.TimestampTz, (object?)request.DataFim ?? DBNull.Value);
+                overlap.Parameters.AddWithValue("empresa", empresaId); overlap.Parameters.AddWithValue("profissional", request.ProfissionalId); overlap.Parameters.AddWithValue("inicio", request.DataHorario); overlap.Parameters.AddWithValue("duracao", duration);
                 if (await overlap.ExecuteScalarAsync() is true) return Conflict(new { mensagem = "Este profissional já possui um atendimento nesse horário." });
             }
-            const string insert = "INSERT INTO public.agendamento_agendamentos(empresa_id,cliente_id,pet_id,servico_id,profissional_id,data_horario,data_fim,categoria_servico,detalhes,status,valor_total) VALUES(@empresa,@cliente,@pet,@servico,@profissional,@data,@fim,@categoria,@detalhes,@status,@valor) RETURNING id";
+            const string insert = "INSERT INTO public.agendamento_agendamentos(empresa_id,cliente_id,pet_id,servico_id,profissional_id,data_horario,status,valor_total,data_fim,categoria_servico,detalhes) VALUES(@empresa,@cliente,@pet,@servico,@profissional,@data,@status,@valor,@fim,@categoria,@detalhes) RETURNING id";
             await using var cmd = new NpgsqlCommand(insert, db);
-            cmd.Parameters.AddWithValue("empresa", empresaId); cmd.Parameters.AddWithValue("cliente", request.ClienteId); cmd.Parameters.AddWithValue("pet", (object?)request.PetId ?? DBNull.Value); cmd.Parameters.AddWithValue("servico", request.ServicoId); cmd.Parameters.AddWithValue("profissional", request.ProfissionalId); cmd.Parameters.AddWithValue("data", request.DataHorario); cmd.Parameters.AddWithValue("fim", (object?)request.DataFim ?? DBNull.Value); cmd.Parameters.AddWithValue("categoria", request.CategoriaServico); cmd.Parameters.Add("detalhes", NpgsqlDbType.Jsonb).Value = JsonSerializer.Serialize(request.Detalhes); cmd.Parameters.AddWithValue("status", request.Status); cmd.Parameters.AddWithValue("valor", request.ValorTotal ?? price);
+            cmd.Parameters.AddWithValue("empresa", empresaId); cmd.Parameters.AddWithValue("cliente", request.ClienteId); cmd.Parameters.AddWithValue("pet", (object?)request.PetId ?? DBNull.Value); cmd.Parameters.AddWithValue("servico", NpgsqlTypes.NpgsqlDbType.Uuid, (object?)request.ServicoId ?? DBNull.Value); cmd.Parameters.AddWithValue("profissional", request.ProfissionalId); cmd.Parameters.AddWithValue("data", request.DataHorario); cmd.Parameters.AddWithValue("status", request.Status); cmd.Parameters.AddWithValue("valor", request.ValorTotal ?? price);
+            cmd.Parameters.AddWithValue("fim", NpgsqlTypes.NpgsqlDbType.TimestampTz, (object?)request.DataFim ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("categoria", request.CategoriaServico);
+            cmd.Parameters.AddWithValue("detalhes", NpgsqlTypes.NpgsqlDbType.Jsonb, System.Text.Json.JsonSerializer.Serialize(request.Detalhes));
+            if (request.DataFim is not null && request.DataFim <= request.DataHorario) return BadRequest(new { mensagem = "A saída precisa ser posterior à entrada." });
             try { return Ok(new { id = await cmd.ExecuteScalarAsync() }); }
             catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.ForeignKeyViolation) { return BadRequest(new { mensagem = "Um dos itens selecionados não pertence a esta empresa." }); }
         }
@@ -245,27 +232,11 @@ public sealed class AgendamentoController(
 
     private async Task<(long EmpresaId, NpgsqlConnection? Db, IActionResult? Erro)> AbrirTenant()
     {
-        var authorization = Request.Headers.Authorization.ToString();
-        long empresaId;
+        long empresaId = 0;
         NpgsqlConnection? db = null;
-        if (sessions.TryGet(authorization, out var session))
-        {
-            empresaId = session.EmpresaId;
-            var empresaSolicitada = Request.Headers["X-Empresa-Id"].ToString();
-            if (!string.IsNullOrWhiteSpace(empresaSolicitada) &&
-                (!long.TryParse(empresaSolicitada, out var empresaInformada) || empresaInformada != empresaId))
-                return (0, null, Forbid());
-        }
-        else if (masterSessions.Validar(authorization))
-        {
-            if (!long.TryParse(Request.Headers["X-Empresa-Id"].ToString(), out empresaId) || empresaId <= 0)
-                return (0, null, BadRequest(new { mensagem = "Selecione uma empresa válida para abrir a agenda." }));
-        }
-        else
-        {
+        if (!sessions.TryGet(Request.Headers.Authorization.ToString(), out var session))
             return (0, null, Unauthorized(new { mensagem = "Sessão expirada. Entre novamente para acessar os agendamentos." }));
-        }
-
+        empresaId = session.EmpresaId;
         try
         {
             db = new NpgsqlConnection(await resolver.ObterConnectionString(empresaId));
