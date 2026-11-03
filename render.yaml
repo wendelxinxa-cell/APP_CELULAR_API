@@ -21,13 +21,13 @@ services:
       - key: AppUpdate__Version
         value: "0.0.001"
       - key: AppUpdate__Build
-        value: "74"
+        value: "75"
       - key: AppUpdate__FileName
-        value: "CATCHAT_0.0.001_build_74.apk"
+        value: "CATCHAT_0.0.001_build_75.apk"
       - key: AppUpdate__Sha256
-        value: "E23673B064E1733E1A1DF5676794703F3E42AD532FB7C188CA0D04BD1F3643FE"
+        value: "4AA74DE3D12A79D58E73066D4E3A297798AC89165F1F83F593FA4FCDD2D607FD"
       - key: AppUpdate__Notes
-        value: "CATCHAT build 74: correções de hotel e creche sem serviço obrigatório, confirmação de datas e navegação do calendário."
+        value: "CATCHAT build 75: correção do atualizador para ler os formatos do manifesto e atualizar releases."
       - key: MasterAdmin__Username
         sync: false
       - key: MasterAdmin__PasswordHash

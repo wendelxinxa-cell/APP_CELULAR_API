@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 74,
-  "versionCode": 77,
-  "fileName": "CATCHAT_0.0.001_build_74.apk",
-  "sha256": "E23673B064E1733E1A1DF5676794703F3E42AD532FB7C188CA0D04BD1F3643FE",
-  "notes": "CATCHAT build 74: correções de hotel e creche sem serviço obrigatório, confirmação de datas e navegação do calendário."
+  "build": 75,
+  "versionCode": 78,
+  "fileName": "CATCHAT_0.0.001_build_75.apk",
+  "sha256": "4AA74DE3D12A79D58E73066D4E3A297798AC89165F1F83F593FA4FCDD2D607FD",
+  "notes": "CATCHAT build 75: correção do atualizador para ler os formatos do manifesto e atualizar releases."
 }
