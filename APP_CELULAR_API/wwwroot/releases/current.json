@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 88,
-  "versionCode": 91,
-  "fileName": "CATCHAT_0.0.001_build_88.apk",
-  "sha256": "FB9C1E526DECB7FCE850A38CB8300E740A008DEDB567B95EC21ABFF7E9D425BF",
-  "notes": "APPENTREGA: navegação guiada para coleta e destino com próximas conversões, distância até a manobra e orientação por voz opcional."
+  "build": 89,
+  "versionCode": 92,
+  "fileName": "CATCHAT_0.0.001_build_89.apk",
+  "sha256": "79163085C19FA64A55A1F361592ECCC4546970445D6F60820C630171A142141A",
+  "notes": "APPENTREGA: confirmação de recebimento pelo cliente sem código em contingência e remoção de corrida de teste exclusiva Zeus."
 }
