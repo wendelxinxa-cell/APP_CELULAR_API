@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 89,
-  "versionCode": 92,
-  "fileName": "CATCHAT_0.0.001_build_89.apk",
-  "sha256": "79163085C19FA64A55A1F361592ECCC4546970445D6F60820C630171A142141A",
-  "notes": "APPENTREGA: confirmação de recebimento pelo cliente sem código em contingência e remoção de corrida de teste exclusiva Zeus."
+  "build": 90,
+  "versionCode": 93,
+  "fileName": "CATCHAT_0.0.001_build_90.apk",
+  "sha256": "976B294910AA74813C3779F3720448ECBD05E81195970037E796163BECB897A7",
+  "notes": "APPENTREGA: encerramento sincronizado após confirmação do cliente, identificação do entregador, exclusão de teste Zeus, lista de corridas separada e status com cores."
 }
