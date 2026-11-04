@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 81,
-  "versionCode": 84,
-  "fileName": "CATCHAT_0.0.001_build_81.apk",
-  "sha256": "1DE8B1E14F90D41AA48D0B7F0E1435129E5E4E76C1422D635AB51CFFB0F0F26D",
-  "notes": "APPENTREGA: preserva endereços de coleta/chegada ao voltar ao módulo e atualiza corretamente o avanço após confirmar os pontos."
+  "build": 82,
+  "versionCode": 85,
+  "fileName": "CATCHAT_0.0.001_build_82.apk",
+  "sha256": "6412B6A10EE6AA9523114CD655799848F3F697FCA718294B5F43E062DE1D6C30",
+  "notes": "APPENTREGA: exibe coleta e chegada confirmadas, mantém solicitação habilitada e permite alternar para modo motorista para aceitar e testar a corrida."
 }

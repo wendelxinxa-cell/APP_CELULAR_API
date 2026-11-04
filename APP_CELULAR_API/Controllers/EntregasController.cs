@@ -77,12 +77,11 @@ public sealed class EntregasController(
                        destino, destino_latitude, destino_longitude, servico, veiculo, status,
                        motorista_latitude, motorista_longitude, atualizada_em
                 FROM app.entrega_corrida
-                WHERE empresa_id=@empresa AND cliente_id<>@motorista AND status='aguardando_motorista'
+                WHERE empresa_id=@empresa AND status='aguardando_motorista'
                 ORDER BY criada_em LIMIT 30
                 """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
-            command.Parameters.AddWithValue("motorista", session.UsuarioId);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var result = new List<CorridaResponse>();
             while (await reader.ReadAsync(cancellationToken)) result.Add(LerCorrida(reader));
@@ -165,7 +164,7 @@ public sealed class EntregasController(
             await GarantirTabelaAsync(db, cancellationToken);
             const string sql = """
                 UPDATE app.entrega_corrida SET motorista_id=@motorista, status='motorista_a_caminho', atualizada_em=now()
-                WHERE id=@id AND empresa_id=@empresa AND cliente_id<>@motorista AND status='aguardando_motorista'
+                WHERE id=@id AND empresa_id=@empresa AND status='aguardando_motorista'
                 RETURNING id, cliente_id, motorista_id, origem, origem_latitude, origem_longitude,
                           destino, destino_latitude, destino_longitude, servico, veiculo, status,
                           motorista_latitude, motorista_longitude, atualizada_em
