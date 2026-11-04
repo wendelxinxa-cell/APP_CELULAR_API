@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 87,
-  "versionCode": 90,
-  "fileName": "CATCHAT_0.0.001_build_87.apk",
-  "sha256": "02F61B2D15D22B342AA98FA8242810477DB96247A4249CA7C470B4E818D53BBC",
-  "notes": "APPENTREGA: confirma chegada à coleta e ao destino por GPS recente e preciso; confirma saída somente com o motorista próximo à coleta."
+  "build": 88,
+  "versionCode": 91,
+  "fileName": "CATCHAT_0.0.001_build_88.apk",
+  "sha256": "FB9C1E526DECB7FCE850A38CB8300E740A008DEDB567B95EC21ABFF7E9D425BF",
+  "notes": "APPENTREGA: navegação guiada para coleta e destino com próximas conversões, distância até a manobra e orientação por voz opcional."
 }
