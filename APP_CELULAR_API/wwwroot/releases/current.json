@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 78,
-  "versionCode": 81,
-  "fileName": "CATCHAT_0.0.001_build_78.apk",
-  "sha256": "6F46EB840ABEB4A8C7D175783159FBDF61454DC06B3B7062DAC0FC623EF2779C",
-  "notes": "CATCHAT build 78: cadastro de empresa APPENTREGA, seleção do sistema e menu de transporte e entregas."
+  "build": 79,
+  "versionCode": 82,
+  "fileName": "CATCHAT_0.0.001_build_79.apk",
+  "sha256": "A90D5E0750F75C4B45EFA51218F81AEB92B9D84C6037D3E7FD9EFDDE1BBFD58D",
+  "notes": "CATCHAT build 79: fluxo APPENTREGA com seleção inicial Cliente/Motorista e correções de endereços e solicitações de teste."
 }
