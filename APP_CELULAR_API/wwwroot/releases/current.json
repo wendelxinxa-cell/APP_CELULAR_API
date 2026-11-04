@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 85,
-  "versionCode": 88,
-  "fileName": "CATCHAT_0.0.001_build_85.apk",
-  "sha256": "9168E87C2891FE32D35032B28A34E485D55B83FB2F0148DEF49CAD30D4D46EB7",
-  "notes": "APPENTREGA: geocodificação reversa por rua para o ponto marcado; sessão Zeus usa a empresa selecionada ao criar e acompanhar solicitações."
+  "build": 86,
+  "versionCode": 89,
+  "fileName": "CATCHAT_0.0.001_build_86.apk",
+  "sha256": "7D7E254CBA2936C4719B4198076321BB4762956C1638847A6E354D3074800FA1",
+  "notes": "APPENTREGA: primeiro acesso define perfil de cliente/loja ou entregador e salva telefone e dados do veículo; lista de corridas abre acompanhamento sob demanda."
 }

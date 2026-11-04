@@ -95,6 +95,41 @@ public sealed class EntregasController(
         }
     }
 
+    [HttpGet("minhas")]
+    public async Task<IActionResult> Minhas(CancellationToken cancellationToken)
+    {
+        if (!TrySession(out var session)) return Unauthorized();
+        try
+        {
+            await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
+            await GarantirTabelaAsync(db, cancellationToken);
+            const string sql = """
+                SELECT id, cliente_id, motorista_id, origem, origem_latitude, origem_longitude,
+                       destino, destino_latitude, destino_longitude, servico, veiculo, status,
+                       motorista_latitude, motorista_longitude, atualizada_em
+                FROM app.entrega_corrida
+                WHERE empresa_id=@empresa
+                  AND (@administrador OR cliente_id=@usuario)
+                  AND criada_em >= now() - interval '30 days'
+                ORDER BY criada_em DESC
+                LIMIT 50
+                """;
+            await using var command = new NpgsqlCommand(sql, db);
+            command.Parameters.AddWithValue("empresa", session.EmpresaId);
+            command.Parameters.AddWithValue("administrador", session.EhAdministrador);
+            command.Parameters.AddWithValue("usuario", session.UsuarioId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var result = new List<CorridaResponse>();
+            while (await reader.ReadAsync(cancellationToken)) result.Add(LerCorrida(reader));
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Falha ao consultar entregas do cliente na empresa {EmpresaId}.", session.EmpresaId);
+            return StatusCode(503, new { mensagem = "Não foi possível carregar suas entregas agora." });
+        }
+    }
+
     [HttpGet("atual")]
     public async Task<IActionResult> Atual(CancellationToken cancellationToken)
     {
@@ -138,12 +173,14 @@ public sealed class EntregasController(
                        destino, destino_latitude, destino_longitude, servico, veiculo, status,
                        motorista_latitude, motorista_longitude, atualizada_em
                 FROM app.entrega_corrida
-                WHERE id=@id AND empresa_id=@empresa AND (cliente_id=@usuario OR motorista_id=@usuario)
+                WHERE id=@id AND empresa_id=@empresa
+                  AND (@administrador OR cliente_id=@usuario OR motorista_id=@usuario)
                 """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("id", id);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
             command.Parameters.AddWithValue("usuario", session.UsuarioId);
+            command.Parameters.AddWithValue("administrador", session.EhAdministrador);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) return NotFound();
             return Ok(LerCorrida(reader));
