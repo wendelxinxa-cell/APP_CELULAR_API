@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 79,
-  "versionCode": 82,
-  "fileName": "CATCHAT_0.0.001_build_79.apk",
-  "sha256": "A90D5E0750F75C4B45EFA51218F81AEB92B9D84C6037D3E7FD9EFDDE1BBFD58D",
-  "notes": "CATCHAT build 79: fluxo APPENTREGA com seleção inicial Cliente/Motorista e correções de endereços e solicitações de teste."
+  "build": 80,
+  "versionCode": 83,
+  "fileName": "CATCHAT_0.0.001_build_80.apk",
+  "sha256": "B363FE3167F2809E0A12C5265C687341432BF7A8CFFA5EA1F9EE998B612131AE",
+  "notes": "APPENTREGA: fluxo real de cliente/motorista, endereços por busca, mapas e GPS ao vivo, aceite de corrida, confirmação de coleta e código do recebedor. Teste sem pagamento."
 }
