@@ -3,6 +3,6 @@
   "build": 80,
   "versionCode": 83,
   "fileName": "CATCHAT_0.0.001_build_80.apk",
-  "sha256": "B363FE3167F2809E0A12C5265C687341432BF7A8CFFA5EA1F9EE998B612131AE",
-  "notes": "APPENTREGA: fluxo real de cliente/motorista, endereços por busca, mapas e GPS ao vivo, aceite de corrida, confirmação de coleta e código do recebedor. Teste sem pagamento."
+  "sha256": "C1946A644C8BC3083975446E09AE1FF045D66981DA682A6AED62B5FDADBDEB73",
+  "notes": "APPENTREGA: fluxo real de cliente/motorista, busca de endereços, mapas e GPS ao vivo, aceite, confirmação de coleta e código do recebedor. Teste sem pagamento."
 }

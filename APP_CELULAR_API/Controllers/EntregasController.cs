@@ -30,7 +30,8 @@ public sealed class EntregasController(
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
             var id = Guid.NewGuid();
-            var code = Random.Shared.Next(1000, 10000).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(1000, 10000)
+                .ToString(System.Globalization.CultureInfo.InvariantCulture);
             var codeHash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(code));
             const string sql = """
                 INSERT INTO app.entrega_corrida
