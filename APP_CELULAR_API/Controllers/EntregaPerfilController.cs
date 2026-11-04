@@ -9,6 +9,7 @@ namespace APP_CELULAR_API.Controllers;
 public sealed class EntregaPerfilController(
     IEmpresaDatabaseResolver resolver,
     TenantSessionStore sessions,
+    MasterSessionStore masterSessions,
     ILogger<EntregaPerfilController> logger) : ControllerBase
 {
     [HttpGet]
@@ -41,16 +42,16 @@ public sealed class EntregaPerfilController(
     [HttpGet("corrida/{corridaId:guid}")]
     public async Task<IActionResult> ObterMotoristaDaCorrida(Guid corridaId, CancellationToken cancellationToken)
     {
-        if (!sessions.TryGet(Request.Headers.Authorization.ToString(), out var session)) return Unauthorized();
+        if (!TrySession(out var session)) return Unauthorized();
         try
         {
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
             const string sql = """
-                SELECT u.nome, p.telefone, p.veiculo_modelo, p.veiculo_cor, p.veiculo_placa
+                SELECT u.nome, COALESCE(p.telefone,''), COALESCE(p.veiculo_modelo,''), COALESCE(p.veiculo_cor,''), COALESCE(p.veiculo_placa,'')
                 FROM app.entrega_corrida c
                 JOIN app.usuario u ON u.empresa_id=c.empresa_id AND u.id=c.motorista_id
-                JOIN app.entrega_perfil_usuario p ON p.empresa_id=c.empresa_id AND p.usuario_id=c.motorista_id
+                LEFT JOIN app.entrega_perfil_usuario p ON p.empresa_id=c.empresa_id AND p.usuario_id=c.motorista_id
                 WHERE c.id=@corrida AND c.empresa_id=@empresa AND c.motorista_id IS NOT NULL
                   AND (@administrador OR c.cliente_id=@usuario OR c.motorista_id=@usuario)
                 LIMIT 1
@@ -115,6 +116,20 @@ public sealed class EntregaPerfilController(
             logger.LogError(ex, "Falha ao salvar perfil APPENTREGA do usuário {UsuarioId}.", session.UsuarioId);
             return StatusCode(503, new { mensagem = "Não foi possível salvar seu perfil de entrega." });
         }
+    }
+
+    private bool TrySession(out TenantSession session)
+    {
+        var authorization = Request.Headers.Authorization.ToString();
+        if (sessions.TryGet(authorization, out session)) return true;
+        if (!masterSessions.Validar(authorization) ||
+            !long.TryParse(Request.Headers["X-Empresa-Id"].ToString(), out var empresaId) || empresaId <= 0)
+        {
+            session = default!;
+            return false;
+        }
+        session = new TenantSession(empresaId, 0, true, 0, DateTimeOffset.UtcNow.AddMinutes(5));
+        return true;
     }
 
     private async Task<NpgsqlConnection> AbrirBancoAsync(long empresaId, CancellationToken cancellationToken)
