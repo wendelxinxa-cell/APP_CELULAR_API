@@ -432,6 +432,59 @@ public sealed class EntregasController(
         }
     }
 
+    [HttpPost("{id:guid}/confirmar-cliente")]
+    public async Task<IActionResult> ConfirmarPeloCliente(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TrySession(out var session)) return Unauthorized();
+        try
+        {
+            await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
+            await GarantirTabelaAsync(db, cancellationToken);
+            const string sql = """
+                UPDATE app.entrega_corrida SET status='concluida', concluida_em=now(), atualizada_em=now()
+                WHERE id=@id AND empresa_id=@empresa AND cliente_id=@cliente AND status='no_destino'
+                """;
+            await using var command = new NpgsqlCommand(sql, db);
+            command.Parameters.AddWithValue("id", id);
+            command.Parameters.AddWithValue("empresa", session.EmpresaId);
+            command.Parameters.AddWithValue("cliente", session.UsuarioId);
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1
+                ? NoContent()
+                : Conflict(new { mensagem = "A confirmação só está disponível ao cliente da corrida quando o motorista chegou ao destino." });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Falha na confirmação da entrega pelo cliente para a corrida {CorridaId}.", id);
+            return StatusCode(503);
+        }
+    }
+
+    [HttpDelete("{id:guid}/teste")]
+    public async Task<IActionResult> ApagarCorridaTeste(Guid id, CancellationToken cancellationToken)
+    {
+        var authorization = Request.Headers.Authorization.ToString();
+        if (!masterSessions.Validar(authorization) ||
+            !long.TryParse(Request.Headers["X-Empresa-Id"].ToString(), out var empresaId) || empresaId <= 0)
+            return Unauthorized();
+        try
+        {
+            await using var db = await AbrirBancoAsync(empresaId, cancellationToken);
+            await GarantirTabelaAsync(db, cancellationToken);
+            const string sql = "DELETE FROM app.entrega_corrida WHERE id=@id AND empresa_id=@empresa";
+            await using var command = new NpgsqlCommand(sql, db);
+            command.Parameters.AddWithValue("id", id);
+            command.Parameters.AddWithValue("empresa", empresaId);
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1
+                ? NoContent()
+                : NotFound(new { mensagem = "A corrida não existe na empresa selecionada." });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Falha ao apagar corrida de teste {CorridaId} da empresa {EmpresaId}.", id, empresaId);
+            return StatusCode(503);
+        }
+    }
+
     private bool TrySession(out TenantSession session)
     {
         var authorization = Request.Headers.Authorization.ToString();
