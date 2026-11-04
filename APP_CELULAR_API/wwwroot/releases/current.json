@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 84,
-  "versionCode": 87,
-  "fileName": "CATCHAT_0.0.001_build_84.apk",
-  "sha256": "4FAED74A68A89A5A7E52EEF15EB7701CACB58D6DE36635938D93C3DD8331E61C",
-  "notes": "APPENTREGA: preserva o leiaute da primeira tela e exibe endereços confirmados com texto claro no próprio cartão."
+  "build": 85,
+  "versionCode": 88,
+  "fileName": "CATCHAT_0.0.001_build_85.apk",
+  "sha256": "9168E87C2891FE32D35032B28A34E485D55B83FB2F0148DEF49CAD30D4D46EB7",
+  "notes": "APPENTREGA: geocodificação reversa por rua para o ponto marcado; sessão Zeus usa a empresa selecionada ao criar e acompanhar solicitações."
 }
