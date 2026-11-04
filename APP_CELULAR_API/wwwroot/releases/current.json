@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 83,
-  "versionCode": 86,
-  "fileName": "CATCHAT_0.0.001_build_83.apk",
-  "sha256": "6616DC29DD656374098FA8427FC259786D429E87A7E56FCADEBD5D4D1B890E4E",
-  "notes": "APPENTREGA: endereços de coleta e destino visíveis e normalizados; solicitações autenticadas pela empresa selecionada no teste Zeus; corrigido erro 400."
+  "build": 84,
+  "versionCode": 87,
+  "fileName": "CATCHAT_0.0.001_build_84.apk",
+  "sha256": "4FAED74A68A89A5A7E52EEF15EB7701CACB58D6DE36635938D93C3DD8331E61C",
+  "notes": "APPENTREGA: preserva o leiaute da primeira tela e exibe endereços confirmados com texto claro no próprio cartão."
 }
