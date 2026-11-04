@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 77,
-  "versionCode": 80,
-  "fileName": "CATCHAT_0.0.001_build_77.apk",
-  "sha256": "5F71BE88B06924B3BA420294118963DF8FD8DA0404F3435DA99A5E153D84B134",
-  "notes": "CATCHAT build 77: correção da verificação automática de atualizações e início da checagem ao abrir o app."
+  "build": 78,
+  "versionCode": 81,
+  "fileName": "CATCHAT_0.0.001_build_78.apk",
+  "sha256": "6F46EB840ABEB4A8C7D175783159FBDF61454DC06B3B7062DAC0FC623EF2779C",
+  "notes": "CATCHAT build 78: cadastro de empresa APPENTREGA, seleção do sistema e menu de transporte e entregas."
 }
