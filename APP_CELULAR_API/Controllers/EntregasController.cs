@@ -9,6 +9,7 @@ namespace APP_CELULAR_API.Controllers;
 public sealed class EntregasController(
     IEmpresaDatabaseResolver resolver,
     TenantSessionStore sessions,
+    MasterSessionStore masterSessions,
     ILogger<EntregasController> logger) : ControllerBase
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> SchemaLocks = new();
@@ -330,7 +331,21 @@ public sealed class EntregasController(
         }
     }
 
-    private bool TrySession(out TenantSession session) => sessions.TryGet(Request.Headers.Authorization.ToString(), out session);
+    private bool TrySession(out TenantSession session)
+    {
+        var authorization = Request.Headers.Authorization.ToString();
+        if (sessions.TryGet(authorization, out session)) return true;
+        if (!masterSessions.Validar(authorization) ||
+            !long.TryParse(Request.Headers["X-Empresa-Id"].ToString(), out var empresaId) || empresaId <= 0)
+        {
+            session = default!;
+            return false;
+        }
+
+        // Sessão master restrita à empresa explicitamente selecionada no modo de teste Zeus.
+        session = new TenantSession(empresaId, 0, true, 0, DateTimeOffset.UtcNow.AddMinutes(5));
+        return true;
+    }
 
     private async Task<NpgsqlConnection> AbrirBancoAsync(long empresaId, CancellationToken cancellationToken)
     {

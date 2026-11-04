@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 82,
-  "versionCode": 85,
-  "fileName": "CATCHAT_0.0.001_build_82.apk",
-  "sha256": "6412B6A10EE6AA9523114CD655799848F3F697FCA718294B5F43E062DE1D6C30",
-  "notes": "APPENTREGA: exibe coleta e chegada confirmadas, mantém solicitação habilitada e permite alternar para modo motorista para aceitar e testar a corrida."
+  "build": 83,
+  "versionCode": 86,
+  "fileName": "CATCHAT_0.0.001_build_83.apk",
+  "sha256": "6616DC29DD656374098FA8427FC259786D429E87A7E56FCADEBD5D4D1B890E4E",
+  "notes": "APPENTREGA: endereços de coleta e destino visíveis e normalizados; solicitações autenticadas pela empresa selecionada no teste Zeus; corrigido erro 400."
 }
