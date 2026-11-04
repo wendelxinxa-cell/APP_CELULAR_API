@@ -1,8 +1,8 @@
 {
   "version": "0.0.001",
-  "build": 86,
-  "versionCode": 89,
-  "fileName": "CATCHAT_0.0.001_build_86.apk",
-  "sha256": "7D7E254CBA2936C4719B4198076321BB4762956C1638847A6E354D3074800FA1",
-  "notes": "APPENTREGA: primeiro acesso define perfil de cliente/loja ou entregador e salva telefone e dados do veículo; lista de corridas abre acompanhamento sob demanda."
+  "build": 87,
+  "versionCode": 90,
+  "fileName": "CATCHAT_0.0.001_build_87.apk",
+  "sha256": "02F61B2D15D22B342AA98FA8242810477DB96247A4249CA7C470B4E818D53BBC",
+  "notes": "APPENTREGA: confirma chegada à coleta e ao destino por GPS recente e preciso; confirma saída somente com o motorista próximo à coleta."
 }

@@ -226,19 +226,24 @@ public sealed class EntregasController(
     public async Task<IActionResult> AtualizarLocalizacao(Guid id, [FromBody] PosicaoMotoristaRequest request, CancellationToken cancellationToken)
     {
         if (!TrySession(out var session)) return Unauthorized();
-        if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180) return BadRequest();
+        if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180 ||
+            (request.PrecisaoMetros is double precisao && (!double.IsFinite(precisao) || precisao < 0 || precisao > 10000))) return BadRequest();
         try
         {
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
             const string sql = """
-                UPDATE app.entrega_corrida SET motorista_latitude=@lat, motorista_longitude=@lon, atualizada_em=now()
+                UPDATE app.entrega_corrida
+                SET motorista_latitude=@lat, motorista_longitude=@lon,
+                    motorista_gps_atualizado_em=now(), motorista_precisao_metros=@precisao,
+                    atualizada_em=now()
                 WHERE id=@id AND empresa_id=@empresa AND motorista_id=@motorista
                   AND status IN ('motorista_a_caminho','no_local_coleta','em_rota')
                 """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("lat", request.Latitude);
             command.Parameters.AddWithValue("lon", request.Longitude);
+            command.Parameters.AddWithValue("precisao", request.PrecisaoMetros ?? 9999d);
             command.Parameters.AddWithValue("id", id);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
             command.Parameters.AddWithValue("motorista", session.UsuarioId);
@@ -261,18 +266,65 @@ public sealed class EntregasController(
         {
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
-            const string sql = """
-                UPDATE app.entrega_corrida SET status=@status, atualizada_em=now()
+            await using var transaction = await db.BeginTransactionAsync(cancellationToken);
+            const string selectSql = """
+                SELECT status, origem_latitude, origem_longitude, destino_latitude, destino_longitude,
+                       motorista_latitude, motorista_longitude, motorista_gps_atualizado_em, motorista_precisao_metros
+                FROM app.entrega_corrida
                 WHERE id=@id AND empresa_id=@empresa AND motorista_id=@motorista
-                  AND ((status='motorista_a_caminho' AND @status='no_local_coleta')
-                    OR (status='em_rota' AND @status='no_destino'))
+                FOR UPDATE
                 """;
-            await using var command = new NpgsqlCommand(sql, db);
+            string statusAtual;
+            double origemLat, origemLon, destinoLat, destinoLon, motoristaLat, motoristaLon, precisao;
+            DateTimeOffset? gpsAtualizadoEm;
+            await using (var select = new NpgsqlCommand(selectSql, db, transaction))
+            {
+                select.Parameters.AddWithValue("id", id);
+                select.Parameters.AddWithValue("empresa", session.EmpresaId);
+                select.Parameters.AddWithValue("motorista", session.UsuarioId);
+                await using var reader = await select.ExecuteReaderAsync(cancellationToken);
+                if (!await reader.ReadAsync(cancellationToken))
+                    return Conflict(new { mensagem = "A corrida não está vinculada a este motorista." });
+                statusAtual = reader.GetString(0);
+                origemLat = reader.GetDouble(1);
+                origemLon = reader.GetDouble(2);
+                destinoLat = reader.GetDouble(3);
+                destinoLon = reader.GetDouble(4);
+                motoristaLat = reader.IsDBNull(5) ? double.NaN : reader.GetDouble(5);
+                motoristaLon = reader.IsDBNull(6) ? double.NaN : reader.GetDouble(6);
+                gpsAtualizadoEm = reader.IsDBNull(7) ? null : reader.GetFieldValue<DateTimeOffset>(7);
+                precisao = reader.IsDBNull(8) ? double.PositiveInfinity : reader.GetDouble(8);
+            }
+
+            var origemConfirmada = request.Status == "no_local_coleta" && statusAtual == "motorista_a_caminho";
+            var destinoConfirmado = request.Status == "no_destino" && statusAtual == "em_rota";
+            if (!origemConfirmada && !destinoConfirmado)
+                return Conflict(new { mensagem = "A corrida não pode avançar para esta etapa." });
+            var agora = DateTimeOffset.UtcNow;
+            if (gpsAtualizadoEm is null || agora - gpsAtualizadoEm.Value > TimeSpan.FromSeconds(90) ||
+                gpsAtualizadoEm.Value > agora.AddSeconds(15) || precisao > 100 ||
+                !double.IsFinite(motoristaLat) || !double.IsFinite(motoristaLon))
+                return Conflict(new { mensagem = "GPS recente e preciso indisponível. Aguarde a localização atualizar e tente novamente." });
+
+            var distancia = CalcularDistanciaMetros(motoristaLat, motoristaLon,
+                origemConfirmada ? origemLat : destinoLat, origemConfirmada ? origemLon : destinoLon);
+            if (distancia > 150)
+                return Conflict(new { mensagem = $"Você está a {distancia:0} m do local. A confirmação fica disponível a até 150 m." });
+
+            const string updateSql = """
+                UPDATE app.entrega_corrida SET status=@status, atualizada_em=now()
+                WHERE id=@id AND empresa_id=@empresa AND motorista_id=@motorista AND status=@status_atual
+                """;
+            await using var command = new NpgsqlCommand(updateSql, db, transaction);
             command.Parameters.AddWithValue("status", request.Status);
+            command.Parameters.AddWithValue("status_atual", statusAtual);
             command.Parameters.AddWithValue("id", id);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
             command.Parameters.AddWithValue("motorista", session.UsuarioId);
-            return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? NoContent() : Conflict(new { mensagem = "A corrida não pode avançar para esta etapa." });
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+                return Conflict(new { mensagem = "A corrida não pode avançar para esta etapa." });
+            await transaction.CommitAsync(cancellationToken);
+            return NoContent();
         }
         catch (Exception ex)
         {
@@ -289,12 +341,24 @@ public sealed class EntregasController(
         {
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
-            const string sql = "UPDATE app.entrega_corrida SET status='em_rota', atualizada_em=now() WHERE id=@id AND empresa_id=@empresa AND cliente_id=@cliente AND status='no_local_coleta'";
+            const string sql = """
+                UPDATE app.entrega_corrida SET status='em_rota', atualizada_em=now()
+                WHERE id=@id AND empresa_id=@empresa AND cliente_id=@cliente AND status='no_local_coleta'
+                  AND motorista_gps_atualizado_em >= now() - interval '90 seconds'
+                  AND motorista_precisao_metros <= 100
+                  AND 6371000 * 2 * asin(sqrt(least(1,
+                      power(sin(radians(origem_latitude - motorista_latitude) / 2), 2) +
+                      cos(radians(motorista_latitude)) * cos(radians(origem_latitude)) *
+                      power(sin(radians(origem_longitude - motorista_longitude) / 2), 2)
+                  ))) <= 150
+                """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("id", id);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
             command.Parameters.AddWithValue("cliente", session.UsuarioId);
-            return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? NoContent() : Conflict(new { mensagem = "A saída da mercadoria ainda não pode ser confirmada." });
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1
+                ? NoContent()
+                : Conflict(new { mensagem = "A confirmação da saída exige que o motorista esteja com GPS recente e a até 150 m da coleta." });
         }
         catch (Exception ex)
         {
@@ -391,6 +455,17 @@ public sealed class EntregasController(
         return connection;
     }
 
+    private static double CalcularDistanciaMetros(double latitudeA, double longitudeA, double latitudeB, double longitudeB)
+    {
+        const double terraMetros = 6_371_000;
+        static double Rad(double valor) => valor * Math.PI / 180;
+        var dLat = Rad(latitudeB - latitudeA);
+        var dLon = Rad(longitudeB - longitudeA);
+        var a = Math.Pow(Math.Sin(dLat / 2), 2) +
+                Math.Cos(Rad(latitudeA)) * Math.Cos(Rad(latitudeB)) * Math.Pow(Math.Sin(dLon / 2), 2);
+        return terraMetros * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
     private static async Task GarantirTabelaAsync(NpgsqlConnection db, CancellationToken cancellationToken)
     {
         var key = db.ConnectionString;
@@ -420,11 +495,15 @@ public sealed class EntregasController(
                     status varchar(30) NOT NULL,
                     motorista_latitude double precision NULL,
                     motorista_longitude double precision NULL,
+                    motorista_gps_atualizado_em timestamptz NULL,
+                    motorista_precisao_metros double precision NOT NULL DEFAULT 9999,
                     criada_em timestamptz NOT NULL DEFAULT now(),
                     atualizada_em timestamptz NOT NULL DEFAULT now(),
                     concluida_em timestamptz NULL
                 );
                 ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS tentativas_codigo integer NOT NULL DEFAULT 0;
+                ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS motorista_gps_atualizado_em timestamptz NULL;
+                ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS motorista_precisao_metros double precision NOT NULL DEFAULT 9999;
                 CREATE INDEX IF NOT EXISTS ix_entrega_corrida_fila ON app.entrega_corrida (empresa_id, status, criada_em);
                 CREATE INDEX IF NOT EXISTS ix_entrega_corrida_cliente ON app.entrega_corrida (empresa_id, cliente_id, criada_em DESC);
                 """, db);
@@ -466,7 +545,7 @@ public sealed class CriarCorridaRequest
     public string Veiculo { get; set; } = "moto";
 }
 
-public sealed class PosicaoMotoristaRequest { public double Latitude { get; set; } public double Longitude { get; set; } }
+public sealed class PosicaoMotoristaRequest { public double Latitude { get; set; } public double Longitude { get; set; } public double? PrecisaoMetros { get; set; } }
 public sealed class AtualizarCorridaStatusRequest { public string Status { get; set; } = ""; }
 public sealed class ConfirmarRecebimentoRequest { public string Codigo { get; set; } = ""; }
 
