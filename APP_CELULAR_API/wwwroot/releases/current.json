@@ -1,8 +1,8 @@
 {
-  "version": "0.0.001",
-  "build": 90,
-  "versionCode": 93,
-  "fileName": "CATCHAT_0.0.001_build_90.apk",
-  "sha256": "976B294910AA74813C3779F3720448ECBD05E81195970037E796163BECB897A7",
-  "notes": "APPENTREGA: encerramento sincronizado após confirmação do cliente, identificação do entregador, exclusão de teste Zeus, lista de corridas separada e status com cores."
+    "version":  "0.0.001",
+    "build":  91,
+    "versionCode":  94,
+    "fileName":  "CATCHAT_0.0.001_build_91.apk",
+    "sha256":  "C59FF9A9BE9A6AF4374712348A668C113F3F743753831FC03511216659F0D963",
+    "notes":  "APPENTREGA: lista inicial de entregas do cliente com botão para nova solicitação, seleção de coleta/destino ao tocar nos endereços e alternância entre mapa da rota e zoom do motorista."
 }
