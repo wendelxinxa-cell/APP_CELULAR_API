@@ -1,8 +1,8 @@
 {
     "version":  "0.0.001",
-    "build":  91,
-    "versionCode":  94,
-    "fileName":  "CATCHAT_0.0.001_build_91.apk",
-    "sha256":  "C59FF9A9BE9A6AF4374712348A668C113F3F743753831FC03511216659F0D963",
-    "notes":  "APPENTREGA: lista inicial de entregas do cliente com botão para nova solicitação, seleção de coleta/destino ao tocar nos endereços e alternância entre mapa da rota e zoom do motorista."
+    "build":  92,
+    "versionCode":  95,
+    "fileName":  "CATCHAT_0.0.001_build_92.apk",
+    "sha256":  "8DA68910F7E01ED3E461C8504ABEDE0CE32C61CC0FF39F34B7CB1E18D7D8714A",
+    "notes":  "APPENTREGA: mapa Carto dark, marcadores customizados de coleta, chegada e motorista com GPS suave e mapa ampliado na visao do entregador."
 }
