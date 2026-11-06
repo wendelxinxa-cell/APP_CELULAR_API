@@ -1,8 +1,8 @@
 {
     "version":  "0.0.001",
-    "build":  92,
-    "versionCode":  95,
-    "fileName":  "CATCHAT_0.0.001_build_92.apk",
-    "sha256":  "8DA68910F7E01ED3E461C8504ABEDE0CE32C61CC0FF39F34B7CB1E18D7D8714A",
-    "notes":  "APPENTREGA: mapa Carto dark, marcadores customizados de coleta, chegada e motorista com GPS suave e mapa ampliado na visao do entregador."
+    "build":  93,
+    "versionCode":  96,
+    "fileName":  "CATCHAT_0.0.001_build_93.apk",
+    "sha256":  "BA14E8116D327D6E973E3A1F65CD80154B4E83256B4DD1ECBB70232634C0568E",
+    "notes":  "APPENTREGA: substitui tiles CARTO que exigem apikey pelo estilo dark do OpenFreeMap sem chave, mantendo Leaflet, marcadores e GPS suave."
 }
