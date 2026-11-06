@@ -1,8 +1,8 @@
 {
     "version":  "0.0.001",
-    "build":  93,
-    "versionCode":  96,
-    "fileName":  "CATCHAT_0.0.001_build_93.apk",
-    "sha256":  "BA14E8116D327D6E973E3A1F65CD80154B4E83256B4DD1ECBB70232634C0568E",
-    "notes":  "APPENTREGA: substitui tiles CARTO que exigem apikey pelo estilo dark do OpenFreeMap sem chave, mantendo Leaflet, marcadores e GPS suave."
+    "build":  94,
+    "versionCode":  97,
+    "fileName":  "CATCHAT_0.0.001_build_94.apk",
+    "sha256":  "0AE547B8E3C3FE7E4B0F74789DBC27FEF322168567F01A9F67D42B01F8CDB01D",
+    "notes":  "APPENTREGA: tiles dark OpenFreeMap sem apikey CARTO; marcador de Partida em gota com bandeira quadriculada, X vermelho de Chegada e apenas icone carro/moto para o motorista."
 }
