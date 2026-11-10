@@ -1,8 +1,8 @@
 {
-  "version": "0.0.001",
-  "build": 95,
-  "versionCode": 98,
-  "fileName": "CATCHAT_0.0.001_build_95.apk",
-  "sha256": "2199C51B30CD092178D5977CE45A7326440367399A3912C329FD0ADD86A570CD",
-  "notes": "APPENTREGA: mapa Liberty claro com ruas e nomes mais legiveis; mapa ampliado a 56%; status e orientacao no rodape; fila Smart Queue com ETA intermediario."
+    "version":  "0.0.001",
+    "build":  96,
+    "versionCode":  99,
+    "fileName":  "CATCHAT_0.0.001_build_96.apk",
+    "sha256":  "146C021C9DB37C2BE69A74C1C770024E29BD1197A84C0A93C0DDFC2D9DE40FBF",
+    "notes":  "APPENTREGA: seguir rota com zoom 2x; entregas futuras numeradas com rotas coloridas; escolha inicial Zeus cliente/motorista e retorno entre telas; próxima entrega ativa automaticamente."
 }
