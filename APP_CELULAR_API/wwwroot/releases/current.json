@@ -1,8 +1,8 @@
 {
-    "version":  "0.0.001",
-    "build":  94,
-    "versionCode":  97,
-    "fileName":  "CATCHAT_0.0.001_build_94.apk",
-    "sha256":  "0AE547B8E3C3FE7E4B0F74789DBC27FEF322168567F01A9F67D42B01F8CDB01D",
-    "notes":  "APPENTREGA: tiles dark OpenFreeMap sem apikey CARTO; marcador de Partida em gota com bandeira quadriculada, X vermelho de Chegada e apenas icone carro/moto para o motorista."
+  "version": "0.0.001",
+  "build": 95,
+  "versionCode": 98,
+  "fileName": "CATCHAT_0.0.001_build_95.apk",
+  "sha256": "2199C51B30CD092178D5977CE45A7326440367399A3912C329FD0ADD86A570CD",
+  "notes": "APPENTREGA: mapa Liberty claro com ruas e nomes mais legiveis; mapa ampliado a 56%; status e orientacao no rodape; fila Smart Queue com ETA intermediario."
 }
