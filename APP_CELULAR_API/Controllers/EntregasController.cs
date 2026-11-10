@@ -95,6 +95,39 @@ public sealed class EntregasController(
         }
     }
 
+    [HttpGet("motorista/fila")]
+    public async Task<IActionResult> FilaMotorista(CancellationToken cancellationToken)
+    {
+        if (!TrySession(out var session)) return Unauthorized();
+        try
+        {
+            await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
+            await GarantirTabelaAsync(db, cancellationToken);
+            const string sql = """
+                SELECT id, cliente_id, motorista_id, origem, origem_latitude, origem_longitude,
+                       destino, destino_latitude, destino_longitude, servico, veiculo, status,
+                       motorista_latitude, motorista_longitude, atualizada_em
+                FROM app.entrega_corrida
+                WHERE empresa_id=@empresa AND motorista_id=@motorista
+                  AND status NOT IN ('concluida','cancelada')
+                ORDER BY COALESCE(motorista_aceitou_em, criada_em), criada_em
+                LIMIT 20
+                """;
+            await using var command = new NpgsqlCommand(sql, db);
+            command.Parameters.AddWithValue("empresa", session.EmpresaId);
+            command.Parameters.AddWithValue("motorista", session.UsuarioId);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var result = new List<CorridaResponse>();
+            while (await reader.ReadAsync(cancellationToken)) result.Add(LerCorrida(reader));
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Falha ao consultar fila do entregador {UsuarioId}.", session.UsuarioId);
+            return StatusCode(503, new { mensagem = "A fila do entregador não está disponível agora." });
+        }
+    }
+
     [HttpGet("minhas")]
     public async Task<IActionResult> Minhas(CancellationToken cancellationToken)
     {
@@ -169,12 +202,26 @@ public sealed class EntregasController(
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
             const string sql = """
-                SELECT id, cliente_id, motorista_id, origem, origem_latitude, origem_longitude,
-                       destino, destino_latitude, destino_longitude, servico, veiculo, status,
-                       motorista_latitude, motorista_longitude, atualizada_em
-                FROM app.entrega_corrida
-                WHERE id=@id AND empresa_id=@empresa
-                  AND (@administrador OR cliente_id=@usuario OR motorista_id=@usuario)
+                SELECT c.id, c.cliente_id, c.motorista_id, c.origem, c.origem_latitude, c.origem_longitude,
+                       c.destino, c.destino_latitude, c.destino_longitude, c.servico, c.veiculo, c.status,
+                       c.motorista_latitude, c.motorista_longitude, c.atualizada_em,
+                       CASE WHEN c.motorista_id IS NULL THEN 0 ELSE COALESCE((
+                           SELECT count(*) FROM app.entrega_corrida anterior
+                           WHERE anterior.empresa_id=c.empresa_id AND anterior.motorista_id=c.motorista_id
+                             AND anterior.id<>c.id
+                             AND COALESCE(anterior.motorista_aceitou_em, anterior.criada_em) < COALESCE(c.motorista_aceitou_em, c.criada_em)
+                             AND anterior.status IN ('motorista_a_caminho','no_local_coleta','em_rota','no_destino')
+                       ),0)::integer END AS paradas_intermediarias,
+                       CASE WHEN c.motorista_id IS NULL THEN 0 ELSE COALESCE((
+                           SELECT count(*) FROM app.entrega_corrida anterior
+                           WHERE anterior.empresa_id=c.empresa_id AND anterior.motorista_id=c.motorista_id
+                             AND anterior.id<>c.id
+                             AND COALESCE(anterior.motorista_aceitou_em, anterior.criada_em) < COALESCE(c.motorista_aceitou_em, c.criada_em)
+                             AND anterior.status IN ('motorista_a_caminho','no_local_coleta','em_rota','no_destino')
+                       ),0)::integer * 180 END AS eta_adicional_segundos
+                FROM app.entrega_corrida c
+                WHERE c.id=@id AND c.empresa_id=@empresa
+                  AND (@administrador OR c.cliente_id=@usuario OR c.motorista_id=@usuario)
                 """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("id", id);
@@ -201,7 +248,7 @@ public sealed class EntregasController(
             await using var db = await AbrirBancoAsync(session.EmpresaId, cancellationToken);
             await GarantirTabelaAsync(db, cancellationToken);
             const string sql = """
-                UPDATE app.entrega_corrida SET motorista_id=@motorista, status='motorista_a_caminho', atualizada_em=now()
+                UPDATE app.entrega_corrida SET motorista_id=@motorista, motorista_aceitou_em=now(), status='motorista_a_caminho', atualizada_em=now()
                 WHERE id=@id AND empresa_id=@empresa AND status='aguardando_motorista'
                 RETURNING id, cliente_id, motorista_id, origem, origem_latitude, origem_longitude,
                           destino, destino_latitude, destino_longitude, servico, veiculo, status,
@@ -237,8 +284,11 @@ public sealed class EntregasController(
                 SET motorista_latitude=@lat, motorista_longitude=@lon,
                     motorista_gps_atualizado_em=now(), motorista_precisao_metros=@precisao,
                     atualizada_em=now()
-                WHERE id=@id AND empresa_id=@empresa AND motorista_id=@motorista
-                  AND status IN ('motorista_a_caminho','no_local_coleta','em_rota')
+                WHERE empresa_id=@empresa AND motorista_id=@motorista
+                  AND status IN ('motorista_a_caminho','no_local_coleta','em_rota','no_destino')
+                  AND EXISTS (SELECT 1 FROM app.entrega_corrida atual
+                              WHERE atual.id=@id AND atual.empresa_id=@empresa AND atual.motorista_id=@motorista
+                                AND atual.status IN ('motorista_a_caminho','no_local_coleta','em_rota','no_destino'))
                 """;
             await using var command = new NpgsqlCommand(sql, db);
             command.Parameters.AddWithValue("lat", request.Latitude);
@@ -247,7 +297,7 @@ public sealed class EntregasController(
             command.Parameters.AddWithValue("id", id);
             command.Parameters.AddWithValue("empresa", session.EmpresaId);
             command.Parameters.AddWithValue("motorista", session.UsuarioId);
-            return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? NoContent() : NotFound();
+            return await command.ExecuteNonQueryAsync(cancellationToken) > 0 ? NoContent() : NotFound();
         }
         catch (Exception ex)
         {
@@ -552,11 +602,13 @@ public sealed class EntregasController(
                     motorista_precisao_metros double precision NOT NULL DEFAULT 9999,
                     criada_em timestamptz NOT NULL DEFAULT now(),
                     atualizada_em timestamptz NOT NULL DEFAULT now(),
+                    motorista_aceitou_em timestamptz NULL,
                     concluida_em timestamptz NULL
                 );
                 ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS tentativas_codigo integer NOT NULL DEFAULT 0;
                 ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS motorista_gps_atualizado_em timestamptz NULL;
                 ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS motorista_precisao_metros double precision NOT NULL DEFAULT 9999;
+                ALTER TABLE app.entrega_corrida ADD COLUMN IF NOT EXISTS motorista_aceitou_em timestamptz NULL;
                 CREATE INDEX IF NOT EXISTS ix_entrega_corrida_fila ON app.entrega_corrida (empresa_id, status, criada_em);
                 CREATE INDEX IF NOT EXISTS ix_entrega_corrida_cliente ON app.entrega_corrida (empresa_id, cliente_id, criada_em DESC);
                 """, db);
@@ -582,7 +634,9 @@ public sealed class EntregasController(
         Status = reader.GetString(11),
         MotoristaLatitude = reader.IsDBNull(12) ? null : reader.GetDouble(12),
         MotoristaLongitude = reader.IsDBNull(13) ? null : reader.GetDouble(13),
-        AtualizadaEm = reader.GetFieldValue<DateTimeOffset>(14)
+        AtualizadaEm = reader.GetFieldValue<DateTimeOffset>(14),
+        ParadasIntermediarias = reader.FieldCount > 15 && !reader.IsDBNull(15) ? reader.GetInt32(15) : 0,
+        EtaAdicionalSegundos = reader.FieldCount > 16 && !reader.IsDBNull(16) ? reader.GetInt32(16) : 0
     };
 }
 
@@ -619,4 +673,6 @@ public sealed class CorridaResponse
     public double? MotoristaLatitude { get; set; }
     public double? MotoristaLongitude { get; set; }
     public DateTimeOffset AtualizadaEm { get; set; }
+    public int ParadasIntermediarias { get; set; }
+    public int EtaAdicionalSegundos { get; set; }
 }
